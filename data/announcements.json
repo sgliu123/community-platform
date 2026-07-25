@@ -1,0 +1,90 @@
+[
+  {
+    "id": "ann-001",
+    "title": "【测试】关于小区电梯年度维保的通知",
+    "category": "物业通知",
+    "content": "<p>【测试数据】各位业主，为确保电梯安全运行，物业将于本月进行年度维保，具体安排如下...</p>",
+    "isPinned": true,
+    "publishDate": "2026-07-20",
+    "author": "管理员A",
+    "views": 156,
+    "attachments": []
+  },
+  {
+    "id": "ann-002",
+    "title": "【测试】端午节放假及值班安排",
+    "category": "节日通知",
+    "content": "<p>【测试数据】端午节期间物业服务中心值班时间为：6月22日-24日 9:00-17:00...</p>",
+    "isPinned": false,
+    "publishDate": "2026-07-15",
+    "author": "管理员B",
+    "views": 89,
+    "attachments": []
+  },
+  {
+    "id": "ann-003",
+    "title": "【测试】垃圾分类投放点调整说明",
+    "category": "社区公告",
+    "content": "<p>【测试数据】根据上级要求，小区垃圾分类投放点将做如下调整：1号楼北侧...</p>",
+    "isPinned": false,
+    "publishDate": "2026-07-18",
+    "author": "管理员C",
+    "views": 120,
+    "attachments": []
+  },
+  {
+    "id": "ann-004",
+    "title": "【测试】停车场管理系统升级通知",
+    "category": "物业通知",
+    "content": "<p>【测试数据】为提升停车体验，停车场系统将于本周末升级，期间可能短暂影响...</p>",
+    "isPinned": false,
+    "publishDate": "2026-07-19",
+    "author": "管理员B",
+    "views": 76,
+    "attachments": []
+  },
+  {
+    "id": "ann-005",
+    "title": "【测试】关于成立业主委员会筹备组的公告",
+    "category": "重要公告",
+    "content": "<p>【测试数据】根据《物业管理条例》，现成立业主委员会筹备组，欢迎热心业主报名...</p>",
+    "isPinned": true,
+    "publishDate": "2026-07-10",
+    "author": "管理员A",
+    "views": 234,
+    "attachments": []
+  },
+  {
+    "id": "ann-006",
+    "title": "【测试】夏季绿化养护计划",
+    "category": "环境通知",
+    "content": "<p>【测试数据】为保持小区绿化景观，夏季养护计划如下：修剪草坪、病虫害防治...</p>",
+    "isPinned": false,
+    "publishDate": "2026-07-12",
+    "author": "管理员C",
+    "views": 45,
+    "attachments": []
+  },
+  {
+    "id": "ann-007",
+    "title": "【测试】消防演练活动通知",
+    "category": "安全通知",
+    "content": "<p>【测试数据】定于本周六上午9:00开展消防演练，请业主配合，听到警报请勿惊慌...</p>",
+    "isPinned": false,
+    "publishDate": "2026-07-22",
+    "author": "管理员D",
+    "views": 98,
+    "attachments": []
+  },
+  {
+    "id": "ann-008",
+    "title": "【测试】物业费收缴温馨提示",
+    "category": "物业通知",
+    "content": "<p>【测试数据】请各位业主及时缴纳本年度物业费，可通过微信/支付宝/银行转账...</p>",
+    "isPinned": false,
+    "publishDate": "2026-07-23",
+    "author": "管理员B",
+    "views": 67,
+    "attachments": []
+  }
+]

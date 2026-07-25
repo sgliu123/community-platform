@@ -1,0 +1,452 @@
+[
+  {
+    "id": "r-001",
+    "roomNo": "1-1-101",
+    "name": "测试业主01",
+    "phoneSuffix": "0001",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-002",
+    "roomNo": "1-1-102",
+    "name": "测试业主02",
+    "phoneSuffix": "0002",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-003",
+    "roomNo": "1-1-103",
+    "name": "测试业主03",
+    "phoneSuffix": "0003",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-004",
+    "roomNo": "1-1-104",
+    "name": "测试业主04",
+    "phoneSuffix": "0004",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-005",
+    "roomNo": "1-1-105",
+    "name": "测试业主05",
+    "phoneSuffix": "0005",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-006",
+    "roomNo": "1-1-106",
+    "name": "测试业主06",
+    "phoneSuffix": "0006",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-007",
+    "roomNo": "1-1-107",
+    "name": "测试业主07",
+    "phoneSuffix": "0007",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-008",
+    "roomNo": "1-1-108",
+    "name": "测试业主08",
+    "phoneSuffix": "0008",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-009",
+    "roomNo": "1-1-109",
+    "name": "测试业主09",
+    "phoneSuffix": "0009",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-010",
+    "roomNo": "1-1-110",
+    "name": "测试业主10",
+    "phoneSuffix": "0010",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-011",
+    "roomNo": "1-2-101",
+    "name": "测试业主11",
+    "phoneSuffix": "0011",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-012",
+    "roomNo": "1-2-102",
+    "name": "测试业主12",
+    "phoneSuffix": "0012",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-013",
+    "roomNo": "1-2-103",
+    "name": "测试业主13",
+    "phoneSuffix": "0013",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-014",
+    "roomNo": "1-2-104",
+    "name": "测试业主14",
+    "phoneSuffix": "0014",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-015",
+    "roomNo": "1-2-105",
+    "name": "测试业主15",
+    "phoneSuffix": "0015",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-016",
+    "roomNo": "1-2-106",
+    "name": "测试业主16",
+    "phoneSuffix": "0016",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-017",
+    "roomNo": "1-2-107",
+    "name": "测试业主17",
+    "phoneSuffix": "0017",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-018",
+    "roomNo": "1-2-108",
+    "name": "测试业主18",
+    "phoneSuffix": "0018",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-019",
+    "roomNo": "1-2-109",
+    "name": "测试业主19",
+    "phoneSuffix": "0019",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-020",
+    "roomNo": "1-2-110",
+    "name": "测试业主20",
+    "phoneSuffix": "0020",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-021",
+    "roomNo": "1-3-101",
+    "name": "测试业主21",
+    "phoneSuffix": "0021",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-022",
+    "roomNo": "1-3-102",
+    "name": "测试业主22",
+    "phoneSuffix": "0022",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-023",
+    "roomNo": "1-3-103",
+    "name": "测试业主23",
+    "phoneSuffix": "0023",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-024",
+    "roomNo": "1-3-104",
+    "name": "测试业主24",
+    "phoneSuffix": "0024",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-025",
+    "roomNo": "1-3-105",
+    "name": "测试业主25",
+    "phoneSuffix": "0025",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-026",
+    "roomNo": "1-3-106",
+    "name": "测试业主26",
+    "phoneSuffix": "0026",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-027",
+    "roomNo": "1-3-107",
+    "name": "测试业主27",
+    "phoneSuffix": "0027",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-028",
+    "roomNo": "1-3-108",
+    "name": "测试业主28",
+    "phoneSuffix": "0028",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-029",
+    "roomNo": "1-3-109",
+    "name": "测试业主29",
+    "phoneSuffix": "0029",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-030",
+    "roomNo": "1-3-110",
+    "name": "测试业主30",
+    "phoneSuffix": "0030",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-031",
+    "roomNo": "1-4-101",
+    "name": "测试业主31",
+    "phoneSuffix": "0031",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-032",
+    "roomNo": "1-4-102",
+    "name": "测试业主32",
+    "phoneSuffix": "0032",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-033",
+    "roomNo": "1-4-103",
+    "name": "测试业主33",
+    "phoneSuffix": "0033",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-034",
+    "roomNo": "1-4-104",
+    "name": "测试业主34",
+    "phoneSuffix": "0034",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-035",
+    "roomNo": "1-4-105",
+    "name": "测试业主35",
+    "phoneSuffix": "0035",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-036",
+    "roomNo": "1-4-106",
+    "name": "测试业主36",
+    "phoneSuffix": "0036",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-037",
+    "roomNo": "1-4-107",
+    "name": "测试业主37",
+    "phoneSuffix": "0037",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-038",
+    "roomNo": "1-4-108",
+    "name": "测试业主38",
+    "phoneSuffix": "0038",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-039",
+    "roomNo": "1-4-109",
+    "name": "测试业主39",
+    "phoneSuffix": "0039",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-040",
+    "roomNo": "1-4-110",
+    "name": "测试业主40",
+    "phoneSuffix": "0040",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-041",
+    "roomNo": "1-5-101",
+    "name": "测试业主41",
+    "phoneSuffix": "0041",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-042",
+    "roomNo": "1-5-102",
+    "name": "测试业主42",
+    "phoneSuffix": "0042",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-043",
+    "roomNo": "1-5-103",
+    "name": "测试业主43",
+    "phoneSuffix": "0043",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-044",
+    "roomNo": "1-5-104",
+    "name": "测试业主44",
+    "phoneSuffix": "0044",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-045",
+    "roomNo": "1-5-105",
+    "name": "测试业主45",
+    "phoneSuffix": "0045",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-046",
+    "roomNo": "1-5-106",
+    "name": "测试业主46",
+    "phoneSuffix": "0046",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-047",
+    "roomNo": "1-5-107",
+    "name": "测试业主47",
+    "phoneSuffix": "0047",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-048",
+    "roomNo": "1-5-108",
+    "name": "测试业主48",
+    "phoneSuffix": "0048",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-049",
+    "roomNo": "1-5-109",
+    "name": "测试业主49",
+    "phoneSuffix": "0049",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-050",
+    "roomNo": "1-5-110",
+    "name": "测试业主50",
+    "phoneSuffix": "0050",
+    "status": "active",
+    "isTest": true,
+    "registeredAt": "2026-07-01"
+  }
+]

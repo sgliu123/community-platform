@@ -1,0 +1,48 @@
+[
+  {
+    "id": "poll-001",
+    "caseNo": "2026-YJ-001",
+    "title": "【测试】关于增设儿童游乐设施的意见征集",
+    "type": "opinion",
+    "description": "【测试数据】为丰富小区儿童活动空间，拟在中心花园增设游乐设施，现征集业主意见...",
+    "tencentUrl": "https://wj.qq.com/s2/xxxx/xxxx",
+    "startDate": "2026-07-20",
+    "endDate": "2026-08-20",
+    "status": "进行中",
+    "progress": {
+      "target": 300,
+      "current": 156,
+      "unit": "户"
+    },
+    "results": {
+      "isPublished": false,
+      "summary": "",
+      "detailUrl": ""
+    },
+    "createdBy": "管理员A",
+    "createdAt": "2026-07-20T09:00:00Z"
+  },
+  {
+    "id": "poll-002",
+    "caseNo": "2026-YJ-002",
+    "title": "【测试】小区停车位管理方案投票",
+    "type": "vote",
+    "description": "【测试数据】针对小区停车位紧张问题，现提供三种管理方案供业主投票选择...",
+    "tencentUrl": "https://wj.qq.com/s2/xxxx/xxxx2",
+    "startDate": "2026-06-01",
+    "endDate": "2026-06-15",
+    "status": "已结束",
+    "progress": {
+      "target": 300,
+      "current": 278,
+      "unit": "户"
+    },
+    "results": {
+      "isPublished": true,
+      "summary": "方案A获得68%支持率（189户），方案B获得22%（61户），方案C获得10%（28户）",
+      "detailUrl": ""
+    },
+    "createdBy": "管理员D",
+    "createdAt": "2026-06-01T09:00:00Z"
+  }
+]

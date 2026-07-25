@@ -1,0 +1,13 @@
+[
+  {
+    "id": "log-001",
+    "timestamp": "2026-07-25T10:00:00Z",
+    "adminName": "系统初始化",
+    "adminId": "system",
+    "action": "init",
+    "target": "all",
+    "targetId": "",
+    "details": "系统预设数据初始化完成，认证方式：预设密码+SHA-256哈希",
+    "clientInfo": "System"
+  }
+]
