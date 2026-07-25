@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>春天阳光小区 - 社区数字化平台</title>
+<style>
+:root {
+  --primary: #2E8B57; --primary-light: #3da76b; --primary-dark: #1f6b41;
+  --bg: #f5f7fa; --card: #fff; --text: #333; --text-secondary: #666;
+  --border: #e0e0e0; --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 12px; --header-h: 56px;
+}
+.theme-t2 { --primary: #1976D2; --primary-light: #42a5f5; --primary-dark: #0d47a1; }
+.theme-t3 { --primary: #E65100; --primary-light: #ff9800; --primary-dark: #bf360c; }
+.theme-t4 { --primary: #C62828; --primary-light: #ef5350; --primary-dark: #8e0000; }
+.theme-t5 { --primary: #6A1B9A; --primary-light: #ab47bc; --primary-dark: #4a148c; }
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+a { text-decoration:none; color:var(--primary); }
+
+.header { position:fixed; top:0; left:0; right:0; height:var(--header-h); background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:0 16px; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+.header-left { display:flex; align-items:center; gap:10px; }
+.header-logo { width:36px; height:36px; background:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.header-title { font-size:16px; font-weight:600; }
+.header-nav { display:flex; gap:4px; }
+.header-nav a { color:rgba(255,255,255,0.9); padding:6px 12px; border-radius:6px; font-size:14px; transition:.2s; }
+.header-nav a:hover, .header-nav a.active { background:rgba(255,255,255,0.2); color:#fff; }
+.header-user { display:flex; align-items:center; gap:8px; }
+.header-user button { background:rgba(255,255,255,0.2); border:none; color:#fff; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+.header-user button:hover { background:rgba(255,255,255,0.3); }
+
+.main { padding-top:var(--header-h); min-height:100vh; padding-bottom:80px; }
+.container { max-width:800px; margin:0 auto; padding:16px; }
+
+.card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:16px; }
+.card-title { font-size:18px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.card-title .icon { font-size:20px; }
+
+.carousel { position:relative; overflow:hidden; border-radius:var(--radius); height:180px; background:linear-gradient(135deg,var(--primary),var(--primary-light)); color:#fff; display:flex; align-items:center; padding:0 24px; }
+.carousel-item { display:none; width:100%; }
+.carousel-item.active { display:block; }
+.carousel-item h3 { font-size:18px; margin-bottom:8px; }
+.carousel-item p { font-size:13px; opacity:0.9; }
+.carousel-dots { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:6px; }
+.carousel-dots span { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.4); cursor:pointer; }
+.carousel-dots span.active { background:#fff; }
+
+.quick-links { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+.quick-link { background:var(--card); border-radius:var(--radius); padding:16px 8px; text-align:center; box-shadow:var(--shadow); cursor:pointer; transition:.2s; border:2px solid transparent; }
+.quick-link:hover { border-color:var(--primary); transform:translateY(-2px); }
+.quick-link .icon { font-size:28px; margin-bottom:8px; }
+.quick-link .label { font-size:13px; color:var(--text); font-weight:500; }
+
+.info-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+.info-item { background:#f8f9fa; border-radius:8px; padding:12px; }
+.info-item .label { font-size:12px; color:var(--text-secondary); margin-bottom:4px; }
+.info-item .value { font-size:15px; font-weight:600; color:var(--primary); }
+
+.list-item { display:flex; align-items:flex-start; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); cursor:pointer; transition:.2s; }
+.list-item:last-child { border-bottom:none; }
+.list-item:hover { background:#fafafa; margin:0 -16px; padding:14px 16px; border-radius:8px; }
+.list-badge { flex-shrink:0; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.badge-pinned { background:#ffebee; color:#c62828; }
+.badge-normal { background:#e8f5e9; color:#2e7d32; }
+.badge-announcement { background:#e3f2fd; color:#1565c0; }
+.badge-document { background:#fff3e0; color:#e65100; }
+.badge-activity { background:#f3e5f5; color:#6a1b9a; }
+.badge-poll { background:#e0f7fa; color:#00838f; }
+.list-content { flex:1; min-width:0; }
+.list-title { font-size:15px; font-weight:500; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.list-meta { font-size:12px; color:var(--text-secondary); }
+.list-arrow { color:var(--text-secondary); font-size:18px; }
+
+.detail-header { margin-bottom:16px; }
+.detail-header h1 { font-size:20px; margin-bottom:8px; }
+.detail-meta { display:flex; gap:16px; font-size:13px; color:var(--text-secondary); flex-wrap:wrap; }
+.detail-content { font-size:15px; line-height:1.8; }
+.detail-content p { margin-bottom:12px; }
+
+.poll-progress { background:#e0e0e0; border-radius:10px; height:20px; overflow:hidden; margin:12px 0; }
+.poll-progress-bar { height:100%; background:linear-gradient(90deg,var(--primary),var(--primary-light)); border-radius:10px; transition:width .5s; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; color:#fff; font-size:11px; font-weight:600; }
+.poll-stats { display:flex; justify-content:space-between; font-size:13px; color:var(--text-secondary); margin-bottom:12px; }
+.poll-btn { display:inline-block; background:var(--primary); color:#fff; padding:10px 24px; border-radius:8px; font-size:14px; font-weight:500; border:none; cursor:pointer; }
+.poll-btn:hover { background:var(--primary-dark); }
+.poll-btn:disabled { background:#ccc; cursor:not-allowed; }
+
+.search-bar { display:flex; gap:8px; margin-bottom:16px; }
+.search-bar input { flex:1; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px; }
+.search-bar select { padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px; background:#fff; }
+
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; display:none; align-items:center; justify-content:center; }
+.modal-overlay.active { display:flex; }
+.modal { background:#fff; border-radius:var(--radius); width:90%; max-width:400px; padding:24px; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+.modal h3 { font-size:18px; margin-bottom:16px; text-align:center; }
+.modal input { width:100%; padding:12px; margin-bottom:12px; border:1px solid var(--border); border-radius:8px; font-size:14px; }
+.modal button { width:100%; padding:12px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:15px; cursor:pointer; }
+.modal button:hover { background:var(--primary-dark); }
+.modal .tip { font-size:12px; color:var(--text-secondary); text-align:center; margin-top:12px; }
+.modal .error { color:#c62828; font-size:13px; text-align:center; margin-bottom:12px; display:none; }
+
+.theme-switcher { position:fixed; bottom:24px; right:24px; z-index:100; }
+.theme-btn { width:48px; height:48px; border-radius:50%; background:var(--primary); color:#fff; border:none; font-size:20px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center; }
+.theme-panel { position:absolute; bottom:60px; right:0; background:#fff; border-radius:var(--radius); box-shadow:0 4px 20px rgba(0,0,0,0.15); padding:16px; display:none; width:220px; }
+.theme-panel.active { display:block; }
+.theme-panel h4 { font-size:14px; margin-bottom:12px; color:var(--text-secondary); }
+.theme-options { display:flex; flex-direction:column; gap:8px; }
+.theme-option { display:flex; align-items:center; gap:10px; padding:8px; border-radius:8px; cursor:pointer; transition:.2s; }
+.theme-option:hover { background:#f5f5f5; }
+.theme-option .color-dot { width:20px; height:20px; border-radius:50%; flex-shrink:0; }
+.theme-option .name { font-size:14px; }
+.theme-option .check { margin-left:auto; color:var(--primary); font-weight:bold; display:none; }
+.theme-option.active .check { display:block; }
+
+.footer { background:#fff; border-top:1px solid var(--border); padding:20px 16px; text-align:center; font-size:12px; color:var(--text-secondary); margin-top:20px; }
+.footer p { margin-bottom:4px; }
+
+.status-tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.status-ongoing { background:#e8f5e9; color:#2e7d32; }
+.status-ended { background:#eceff1; color:#546e7a; }
+.status-upcoming { background:#fff8e1; color:#f9a825; }
+
+@media (max-width:600px) {
+  .header-nav { display:none; }
+  .header-title { font-size:14px; }
+  .quick-links { grid-template-columns:repeat(2,1fr); }
+  .info-grid { grid-template-columns:1fr; }
+}
+
+@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+.page-content { animation:fadeIn .3s ease; }
+
+.loading { text-align:center; padding:40px; color:var(--text-secondary); }
+.empty { text-align:center; padding:40px; color:var(--text-secondary); font-size:14px; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <div class="header-logo">🏘️</div>
+    <div class="header-title" id="headerTitle">春天阳光小区</div>
+  </div>
+  <nav class="header-nav" id="headerNav">
+    <a href="#/" data-page="home">首页</a>
+    <a href="#/announcements" data-page="announcements">公告</a>
+    <a href="#/documents" data-page="documents">文件</a>
+    <a href="#/activities" data-page="activities">动态</a>
+    <a href="#/polls" data-page="polls">投票</a>
+  </nav>
+  <div class="header-user">
+    <span id="userName" style="font-size:13px;"></span>
+    <button id="loginBtn" onclick="showLogin()">业主登录</button>
+  </div>
+</header>
+
+<main class="main" id="main"></main>
+
+<div class="theme-switcher">
+  <div class="theme-panel" id="themePanel">
+    <h4>🎨 选择主题</h4>
+    <div class="theme-options" id="themeOptions"></div>
+  </div>
+  <button class="theme-btn" onclick="toggleThemePanel()">🎨</button>
+</div>
+
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <h3>🏠 业主登录</h3>
+    <div class="error" id="loginError"></div>
+    <input type="text" id="loginRoom" placeholder="房号，如：1-1-101">
+    <input type="text" id="loginName" placeholder="姓名">
+    <input type="tel" id="loginPhone" placeholder="完整手机号">
+    <button onclick="doLogin()">登录</button>
+    <p class="tip">测试账号：房号 1-1-101，姓名 测试业主01，手机号 13800000001</p>
+  </div>
+</div>
+
+<footer class="footer">
+  <p id="footerInfo">春天阳光小区 | 阳光大道 100 号 | 物业电话：0571-88888889</p>
+  <p style="margin-top:8px; font-size:11px; color:#999;">社区数字化平台 · Sunlight Community</p>
+</footer>
+
+<script>
+let appData = {};
+let currentTheme = localStorage.getItem("communityTheme") || "T1";
+let residentAuth = null;
+try { residentAuth = JSON.parse(localStorage.getItem("residentAuth")); } catch(e){}
+
+const themes = {
+  T1: { name: "春晓绿", color: "#2E8B57", cls: "" },
+  T2: { name: "天空蓝", color: "#1976D2", cls: "theme-t2" },
+  T3: { name: "暖阳橙", color: "#E65100", cls: "theme-t3" },
+  T4: { name: "中国红", color: "#C62828", cls: "theme-t4" },
+  T5: { name: "优雅紫", color: "#6A1B9A", cls: "theme-t5" }
+};
+
+function applyTheme(id) {
+  currentTheme = id;
+  document.body.className = themes[id].cls;
+  localStorage.setItem("communityTheme", id);
+  renderThemePanel();
+}
+
+function renderThemePanel() {
+  const el = document.getElementById("themeOptions");
+  el.innerHTML = Object.entries(themes).map(([k,v]) => {
+    const active = k === currentTheme ? "active" : "";
+    return `<div class="theme-option ${active}" onclick="applyTheme('${k}')"><div class="color-dot" style="background:${v.color}"></div><span class="name">${v.name}</span><span class="check">✓</span></div>`;
+  }).join("");
+}
+
+function toggleThemePanel() {
+  document.getElementById("themePanel").classList.toggle("active");
+}
+
+async function loadData() {
+  const files = ["config","announcements","documents","activities","polls","residents"];
+  for (const f of files) {
+    try {
+      const r = await fetch("data/" + f + ".json?t=" + Date.now());
+      appData[f] = await r.json();
+    } catch(e) { appData[f] = []; }
+  }
+  if (appData.config && appData.config.community) {
+    document.getElementById("headerTitle").textContent = appData.config.community.name;
+    const c = appData.config.community;
+    document.getElementById("footerInfo").textContent = c.name + " | " + c.address + " | 物业电话：" + c.propertyPhone;
+    const dt = appData.config.settings.defaultTheme || "T1";
+    if (!localStorage.getItem("communityTheme")) applyTheme(dt);
+  }
+  updateUserUI();
+}
+
+function navigate(page, params) {
+  window.location.hash = params ? "#/" + page + "/" + params : "#/" + page;
+}
+
+function getRoute() {
+  const h = window.location.hash.replace("#/", "").replace("#", "");
+  const p = h.split("/");
+  return { page: p[0] || "home", params: p[1] };
+}
+
+function render() {
+  const r = getRoute();
+  const main = document.getElementById("main");
+  document.querySelectorAll(".header-nav a").forEach(a => a.classList.toggle("active", a.dataset.page === r.page));
+  const pages = {
+    home: renderHome, announcements: renderAnnouncements, documents: renderDocuments,
+    activities: renderActivities, polls: renderPolls, profile: renderProfile,
+    "announcement-detail": () => renderAnnouncementDetail(r.params),
+    "document-detail": () => renderDocumentDetail(r.params),
+    "activity-detail": () => renderActivityDetail(r.params),
+    "poll-detail": () => renderPollDetail(r.params)
+  };
+  const fn = pages[r.page] || renderHome;
+  main.innerHTML = '<div class="page-content">' + fn() + '</div>';
+  window.scrollTo(0,0);
+}
+
+function renderHome() {
+  const pinned = (appData.announcements || []).filter(a => a.isPinned).slice(0, 3);
+  const c = appData.config?.community || {};
+  let h = "";
+  if (pinned.length > 0) {
+    h += '<div class="card" style="padding:0;overflow:hidden;"><div class="carousel" id="carousel">';
+    pinned.forEach((a,i) => {
+      h += '<div class="carousel-item ' + (i===0?"active":"") + '"><div><h3>📌 ' + a.title + '</h3><p>' + stripHtml(a.content).substring(0,60) + '...</p></div></div>';
+    });
+    h += '<div class="carousel-dots">' + pinned.map((_,i) => '<span class="' + (i===0?"active":"") + '" onclick="goCarousel(' + i + ')"></span>').join("") + '</div></div></div>';
+    setTimeout(initCarousel, 50);
+  }
+  h += '<div class="quick-links">';
+  h += '<div class="quick-link" onclick="navigate('announcements')"><div class="icon">📢</div><div class="label">公告栏</div></div>';
+  h += '<div class="quick-link" onclick="navigate('documents')"><div class="icon">📄</div><div class="label">上级文件</div></div>';
+  h += '<div class="quick-link" onclick="navigate('activities')"><div class="icon">🎉</div><div class="label">社区动态</div></div>';
+  h += '<div class="quick-link" onclick="navigate('polls')"><div class="icon">🗳️</div><div class="label">投票征集</div></div>';
+  h += '</div>';
+  h += '<div class="card"><div class="card-title"><span class="icon">🏘️</span>社区概况</div>';
+  h += '<div class="info-grid">';
+  h += '<div class="info-item"><div class="label">总户数</div><div class="value">' + (c.totalUnits||"-") + ' 户</div></div>';
+  h += '<div class="info-item"><div class="label">建成年份</div><div class="value">' + (c.builtYear||"-") + '</div></div>';
+  h += '<div class="info-item"><div class="label">占地面积</div><div class="value">' + (c.area||"-") + '</div></div>';
+  h += '<div class="info-item"><div class="label">物业公司</div><div class="value">' + (c.propertyCompany||"-") + '</div></div>';
+  h += '</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div style="font-size:13px;color:var(--text-secondary);">📍 ' + (c.address||"") + '<br>📞 居委会：' + (c.committeePhone||"") + '<br>📞 物业：' + (c.propertyPhone||"") + '</div></div></div>';
+  const latest = (appData.announcements||[]).slice(0,3);
+  if (latest.length) {
+    h += '<div class="card"><div class="card-title"><span class="icon">📢</span>最新公告<a href="#/announcements" style="margin-left:auto;font-size:13px;">查看全部 →</a></div>';
+    latest.forEach(a => h += renderListItem(a, "announcement"));
+    h += '</div>';
+  }
+  return h;
+}
+
+function renderAnnouncements() {
+  const all = appData.announcements || [];
+  const cats = [...new Set(all.map(a => a.category))];
+  let h = '<div class="card"><div class="card-title"><span class="icon">📢</span>社区公告</div>';
+  h += '<div class="search-bar"><input type="text" id="annSearch" placeholder="搜索公告..." oninput="filterAnnouncements()"><select id="annCategory" onchange="filterAnnouncements()"><option value="">全部分类</option>';
+  cats.forEach(c => h += '<option value="' + c + '">' + c + '</option>');
+  h += '</select></div><div id="annList">' + renderAnnouncementList(all) + '</div></div>';
+  return h;
+}
+
+function renderAnnouncementList(list) {
+  if (!list.length) return '<div class="empty">暂无公告</div>';
+  const sorted = [...list].sort((a,b) => (b.isPinned?1:0)-(a.isPinned?1:0));
+  return sorted.map(a => renderListItem(a, "announcement")).join("");
+}
+
+function renderListItem(item, type) {
+  let badge = "";
+  if (type === "announcement") badge = item.isPinned ? '<span class="list-badge badge-pinned">置顶</span>' : '<span class="list-badge badge-normal">公告</span>';
+  else if (type === "document") badge = '<span class="list-badge badge-document">文件</span>';
+  else if (type === "activity") badge = '<span class="list-badge badge-activity">' + item.status + '</span>';
+  else if (type === "poll") badge = '<span class="list-badge badge-poll">' + item.status + '</span>';
+  const detailPages = { announcement: "announcement-detail", document: "document-detail", activity: "activity-detail", poll: "poll-detail" };
+  const dateFields = { announcement: "publishDate", document: "publishDate", activity: "date", poll: "endDate" };
+  const meta = item.author || item.source || item.location || "";
+  return '<div class="list-item" onclick="navigate('' + detailPages[type] + '','' + item.id + '')">' + badge + '<div class="list-content"><div class="list-title">' + item.title + '</div><div class="list-meta">' + (item[dateFields[type]]||"") + ' · ' + meta + '</div></div><div class="list-arrow">›</div></div>';
+}
+
+function filterAnnouncements() {
+  const s = document.getElementById("annSearch").value.toLowerCase();
+  const c = document.getElementById("annCategory").value;
+  const filtered = (appData.announcements||[]).filter(a => {
+    const ms = !s || a.title.toLowerCase().includes(s) || stripHtml(a.content).toLowerCase().includes(s);
+    const mc = !c || a.category === c;
+    return ms && mc;
+  });
+  document.getElementById("annList").innerHTML = renderAnnouncementList(filtered);
+}
+
+function renderDocuments() {
+  const list = appData.documents || [];
+  return '<div class="card"><div class="card-title"><span class="icon">📄</span>上级文件</div>' + (list.length ? list.map(d => renderListItem(d, "document")).join("") : '<div class="empty">暂无文件</div>') + '</div>';
+}
+
+function renderActivities() {
+  const list = appData.activities || [];
+  return '<div class="card"><div class="card-title"><span class="icon">🎉</span>社区动态</div>' + (list.length ? list.map(a => renderListItem(a, "activity")).join("") : '<div class="empty">暂无动态</div>') + '</div>';
+}
+
+function renderPolls() {
+  const list = appData.polls || [];
+  let h = '<div class="card"><div class="card-title"><span class="icon">🗳️</span>投票与意见征集</div>';
+  if (!list.length) { h += '<div class="empty">暂无投票或征集</div>'; }
+  else {
+    list.forEach(p => {
+      const pct = Math.round((p.progress?.current||0)/(p.progress?.target||1)*100);
+      const sc = p.status === "进行中" ? "status-ongoing" : (p.status === "预告" ? "status-upcoming" : "status-ended");
+      h += '<div class="list-item" onclick="navigate('poll-detail','' + p.id + '')" style="flex-direction:column;align-items:stretch;gap:8px;">';
+      h += '<div style="display:flex;align-items:center;gap:8px;"><span class="status-tag ' + sc + '">' + p.status + '</span><span style="font-size:12px;color:var(--text-secondary);">案卷号：' + p.caseNo + '</span></div>';
+      h += '<div style="font-size:15px;font-weight:500;">' + p.title + '</div>';
+      h += '<div style="font-size:13px;color:var(--text-secondary);">' + p.startDate + ' 至 ' + p.endDate + '</div>';
+      h += '<div class="poll-progress"><div class="poll-progress-bar" style="width:' + pct + '%">' + pct + '%</div></div>';
+      h += '<div class="poll-stats"><span>当前参与：' + (p.progress?.current||0) + ' ' + (p.progress?.unit||"户") + '</span><span>目标：' + (p.progress?.target||0) + ' ' + (p.progress?.unit||"户") + '</span></div></div>';
+    });
+  }
+  h += '</div>';
+  return h;
+}
+
+function renderProfile() {
+  if (!residentAuth) return '<div class="card" style="text-align:center;padding:40px;"><div style="font-size:48px;margin-bottom:16px;">🔒</div><div style="font-size:16px;margin-bottom:20px;">您尚未登录</div><button class="poll-btn" onclick="showLogin()">业主登录</button></div>';
+  let h = '<div class="card"><div class="card-title"><span class="icon">👤</span>我的信息</div>';
+  h += '<div style="text-align:center;padding:20px 0;"><div style="width:80px;height:80px;background:var(--primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 16px;">👤</div>';
+  h += '<div style="font-size:18px;font-weight:600;">' + residentAuth.name + '</div>';
+  h += '<div style="font-size:14px;color:var(--text-secondary);margin-top:4px;">房号：' + residentAuth.roomNo + '</div>';
+  h += '<div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">登录时间：' + formatDate(residentAuth.loginTime) + '</div></div>';
+  h += '<div style="border-top:1px solid var(--border);padding-top:16px;"><button class="poll-btn" onclick="doLogout()" style="background:#c62828;">退出登录</button></div></div>';
+  return h;
+}
+
+function renderAnnouncementDetail(id) {
+  const a = (appData.announcements||[]).find(x => x.id === id);
+  if (!a) return '<div class="empty">公告不存在</div>';
+  let h = '<div class="card"><div class="detail-header"><h1>' + a.title + '</h1><div class="detail-meta">';
+  h += '<span>' + a.category + '</span><span>' + a.publishDate + '</span><span>作者：' + a.author + '</span><span>阅读：' + (a.views||0) + '</span>';
+  if (a.isPinned) h += '<span style="color:#c62828;">📌 置顶</span>';
+  h += '</div></div><div class="detail-content">' + a.content + '</div>';
+  if (a.attachments && a.attachments.length) {
+    h += '<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">附件：</div>';
+    a.attachments.forEach(att => h += '<a href="' + att.url + '" target="_blank" style="display:block;padding:8px;background:#f5f5f5;border-radius:6px;margin-bottom:4px;font-size:13px;">📎 ' + att.name + '</a>');
+    h += '</div>';
+  }
+  h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
+  return h;
+}
+
+function renderDocumentDetail(id) {
+  const d = (appData.documents||[]).find(x => x.id === id);
+  if (!d) return '<div class="empty">文件不存在</div>';
+  let h = '<div class="card"><div class="detail-header"><h1>' + d.title + '</h1><div class="detail-meta">';
+  h += '<span>来源：' + d.source + '</span><span>发布日期：' + d.publishDate + '</span><span>' + d.category + '</span></div></div>';
+  h += '<div class="detail-content">' + d.description + '</div>';
+  if (d.fileUrl) h += '<div style="margin-top:16px;"><a href="' + d.fileUrl + '" target="_blank" class="poll-btn">📎 查看/下载文件</a></div>';
+  h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
+  return h;
+}
+
+function renderActivityDetail(id) {
+  const a = (appData.activities||[]).find(x => x.id === id);
+  if (!a) return '<div class="empty">动态不存在</div>';
+  const sc = a.status === "进行中" ? "status-ongoing" : (a.status === "预告" ? "status-upcoming" : "status-ended");
+  let h = '<div class="card"><div class="detail-header"><h1>' + a.title + '</h1><div class="detail-meta">';
+  h += '<span class="status-tag ' + sc + '">' + a.status + '</span><span>时间：' + a.date + '</span><span>地点：' + a.location + '</span></div></div>';
+  h += '<div class="detail-content">' + a.content + '</div>';
+  if (a.videoUrl) h += '<div style="margin-top:16px;"><a href="' + a.videoUrl + '" target="_blank" class="poll-btn">▶️ 观看视频</a></div>';
+  if (a.externalLink) h += '<div style="margin-top:8px;"><a href="' + a.externalLink + '" target="_blank" class="poll-btn" style="background:var(--text-secondary);">🔗 查看原文</a></div>';
+  h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
+  return h;
+}
+
+function renderPollDetail(id) {
+  const p = (appData.polls||[]).find(x => x.id === id);
+  if (!p) return '<div class="empty">投票不存在</div>';
+  const pct = Math.round((p.progress?.current||0)/(p.progress?.target||1)*100);
+  const sc = p.status === "进行中" ? "status-ongoing" : (p.status === "预告" ? "status-upcoming" : "status-ended");
+  const canJoin = p.status === "进行中" && residentAuth;
+  let h = '<div class="card"><div class="detail-header">';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span class="status-tag ' + sc + '">' + p.status + '</span><span style="font-size:13px;color:var(--text-secondary);">案卷号：' + p.caseNo + '</span></div>';
+  h += '<h1>' + p.title + '</h1><div class="detail-meta">';
+  h += '<span>开始：' + p.startDate + '</span><span>截止：' + p.endDate + '</span><span>发起：' + p.createdBy + '</span></div></div>';
+  h += '<div class="detail-content">' + p.description + '</div>';
+  h += '<div style="margin:20px 0;padding:16px;background:#f8f9fa;border-radius:8px;"><div style="font-weight:600;margin-bottom:8px;">参与进度</div>';
+  h += '<div class="poll-progress"><div class="poll-progress-bar" style="width:' + pct + '%">' + pct + '%</div></div>';
+  h += '<div class="poll-stats"><span>当前参与：' + (p.progress?.current||0) + ' ' + (p.progress?.unit||"户") + '</span><span>目标：' + (p.progress?.target||0) + ' ' + (p.progress?.unit||"户") + '</span></div></div>';
+  if (canJoin) h += '<a href="' + p.tencentUrl + '" target="_blank" class="poll-btn">我要参与</a>';
+  else if (p.status === "进行中") h += '<div style="color:var(--text-secondary);font-size:14px;">🔒 请登录后参与</div>';
+  if (p.results && p.results.isPublished) {
+    h += '<div style="margin-top:20px;padding:16px;background:#e8f5e9;border-radius:8px;"><div style="font-weight:600;margin-bottom:8px;">📊 结果公示</div><div style="font-size:14px;">' + p.results.summary + '</div></div>';
+  }
+  h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
+  return h;
+}
+
+function showLogin() {
+  document.getElementById("loginModal").classList.add("active");
+  document.getElementById("loginError").style.display = "none";
+}
+function hideLogin() {
+  document.getElementById("loginModal").classList.remove("active");
+}
+document.getElementById("loginModal").addEventListener("click", function(e) {
+  if (e.target === this) hideLogin();
+});
+
+function doLogin() {
+  const room = document.getElementById("loginRoom").value.trim();
+  const name = document.getElementById("loginName").value.trim();
+  const phone = document.getElementById("loginPhone").value.trim();
+  const err = document.getElementById("loginError");
+  if (!room || !name || !phone) { err.textContent = "请填写完整信息"; err.style.display = "block"; return; }
+  const match = (appData.residents||[]).find(r => r.roomNo === room && r.name === name && phone.endsWith(r.phoneSuffix) && r.status === "active");
+  if (!match) { err.textContent = "信息不匹配，请联系物业核实"; err.style.display = "block"; return; }
+  residentAuth = { isLoggedIn: true, roomNo: match.roomNo, name: match.name, loginTime: new Date().toISOString(), token: Math.random().toString(36).substring(2,18) };
+  localStorage.setItem("residentAuth", JSON.stringify(residentAuth));
+  hideLogin(); updateUserUI(); render(); alert("✅ 登录成功！");
+}
+
+function doLogout() {
+  if (confirm("确定要退出登录吗？")) {
+    localStorage.removeItem("residentAuth"); residentAuth = null;
+    updateUserUI(); navigate("home");
+  }
+}
+
+function updateUserUI() {
+  const btn = document.getElementById("loginBtn");
+  const span = document.getElementById("userName");
+  if (residentAuth) { btn.textContent = "退出"; btn.onclick = doLogout; span.textContent = residentAuth.name; }
+  else { btn.textContent = "业主登录"; btn.onclick = showLogin; span.textContent = ""; }
+}
+
+let carouselTimer = null;
+function initCarousel() {
+  if (carouselTimer) clearInterval(carouselTimer);
+  const items = document.querySelectorAll(".carousel-item");
+  const dots = document.querySelectorAll(".carousel-dots span");
+  if (items.length <= 1) return;
+  let cur = 0;
+  carouselTimer = setInterval(() => {
+    items[cur].classList.remove("active"); if (dots[cur]) dots[cur].classList.remove("active");
+    cur = (cur + 1) % items.length;
+    items[cur].classList.add("active"); if (dots[cur]) dots[cur].classList.add("active");
+  }, 4000);
+}
+function goCarousel(index) {
+  const items = document.querySelectorAll(".carousel-item");
+  const dots = document.querySelectorAll(".carousel-dots span");
+  items.forEach((item,i) => item.classList.toggle("active", i === index));
+  dots.forEach((dot,i) => dot.classList.toggle("active", i === index));
+}
+
+function stripHtml(html) {
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || "";
+}
+function formatDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+
+window.addEventListener("hashchange", render);
+document.addEventListener("DOMContentLoaded", async () => {
+  applyTheme(currentTheme); renderThemePanel();
+  await loadData(); render();
+});
+</script>
+</body>
+</html>
