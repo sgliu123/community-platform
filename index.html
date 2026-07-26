@@ -219,7 +219,7 @@ async function loadData() {
   const files = ["config","announcements","documents","activities","polls","residents"];
   for (const f of files) {
     try {
-      const r = await fetch("data/" + f + ".json?t=" + Date.now());
+      const r = await fetch("./" + f + ".json?t=" + Date.now());
       appData[f] = await r.json();
     } catch(e) { appData[f] = []; }
   }
