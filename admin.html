@@ -337,7 +337,7 @@ function renderSidebar() {
     const hasPerm = isSuper || isViewer || perms.indexOf(item.perm) >= 0 || perms.indexOf('all') >= 0;
     if (!hasPerm) return;
     if (item.super && !isSuper) return;
-    html += '<div class="nav-item ' + (item.id==='dashboard'?'active':'') + '" data-module="' + item.id + '" onclick="navigateTo(\'' + item.id + '\')">';
+    html += `<div class="nav-item ${item.id==='dashboard'?'active':''}" data-module="${item.id}" onclick="navigateTo('${item.id}')">`;
     html += '<span class="icon">' + item.icon + '</span><span>' + item.label + '</span></div>';
   });
   document.getElementById('sidebarNav').innerHTML = html;
@@ -375,10 +375,10 @@ function renderDashboard() {
     '<div class="stat-card"><div class="label">测试数据</div><div class="value" style="color:var(--warning)">' + testCount + '</div></div>' +
     '</div><div class="card"><div class="card-header"><h3>🚀 快捷入口</h3></div>' +
     '<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">' +
-    '<button class="btn btn-primary" onclick="navigateTo(\'announcements\');openEditModal(\'announcements\',null)">➕ 发布公告</button>' +
-    '<button class="btn btn-primary" onclick="navigateTo(\'activities\');openEditModal(\'activities\',null)">➕ 发布动态</button>' +
-    '<button class="btn btn-primary" onclick="navigateTo(\'polls\');openEditModal(\'polls\',null)">➕ 发起投票</button>' +
-    '<button class="btn btn-primary" onclick="navigateTo(\'residents\');openEditModal(\'residents\',null)">➕ 添加业主</button>' +
+    `<button class="btn btn-primary" onclick="navigateTo('announcements');openEditModal('announcements',null)">➕ 发布公告</button>` +
+    `<button class="btn btn-primary" onclick="navigateTo('activities');openEditModal('activities',null)">➕ 发布动态</button>` +
+    `<button class="btn btn-primary" onclick="navigateTo('polls');openEditModal('polls',null)">➕ 发起投票</button>` +
+    `<button class="btn btn-primary" onclick="navigateTo('residents');openEditModal('residents',null)">➕ 添加业主</button>` +
     '</div></div>';
 }
 
@@ -404,44 +404,44 @@ function renderConfig() {
 
 function renderAnnouncementsAdmin() {
   const list = appData.announcements || [];
-  return '<div class="card"><div class="card-header"><h3>📢 公告管理</h3><button class="btn btn-primary" onclick="openEditModal(\'announcements\',null)">➕ 新增公告</button></div>' +
+  return `<div class="card"><div class="card-header"><h3>📢 公告管理</h3><button class="btn btn-primary" onclick="openEditModal('announcements',null)">➕ 新增公告</button></div>` +
     '<table class="data-table"><thead><tr><th>标题</th><th>分类</th><th>日期</th><th>置顶</th><th>作者</th><th>操作</th></tr></thead><tbody>' +
-    list.map(item => '<tr><td>' + item.title + '</td><td>' + item.category + '</td><td>' + item.publishDate + '</td><td>' + (item.isPinned?'📌':'') + '</td><td>' + item.author + '</td><td class="actions"><button onclick="openEditModal(\'announcements\',\'' + item.id + '\')">编辑</button><button class="danger" onclick="deleteItem(\'announcements\',\'' + item.id + '\')">删除</button></td></tr>').join('') +
+    list.map(item => `<tr><td>${item.title}</td><td>${item.category}</td><td>${item.publishDate}</td><td>${item.isPinned?"📌":""}</td><td>${item.author}</td><td class="actions"><button onclick="openEditModal('announcements','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('announcements','${item.id}')">删除</button></td></tr>`).join(``) +
     '</tbody></table></div>';
 }
 
 function renderDocumentsAdmin() {
   const list = appData.documents || [];
-  return '<div class="card"><div class="card-header"><h3>📄 文件管理</h3><button class="btn btn-primary" onclick="openEditModal(\'documents\',null)">➕ 新增文件</button></div>' +
+  return `<div class="card"><div class="card-header"><h3>📄 文件管理</h3><button class="btn btn-primary" onclick="openEditModal('documents',null)">➕ 新增文件</button></div>` +
     '<table class="data-table"><thead><tr><th>标题</th><th>来源</th><th>日期</th><th>操作</th></tr></thead><tbody>' +
-    list.map(item => '<tr><td>' + item.title + '</td><td>' + item.source + '</td><td>' + item.publishDate + '</td><td class="actions"><button onclick="openEditModal(\'documents\',\'' + item.id + '\')">编辑</button><button class="danger" onclick="deleteItem(\'documents\',\'' + item.id + '\')">删除</button></td></tr>').join('') +
+    list.map(item => `<tr><td>${item.title}</td><td>${item.source}</td><td>${item.publishDate}</td><td class="actions"><button onclick="openEditModal('documents','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('documents','${item.id}')">删除</button></td></tr>`).join(``) +
     '</tbody></table></div>';
 }
 
 function renderActivitiesAdmin() {
   const list = appData.activities || [];
-  return '<div class="card"><div class="card-header"><h3>🎉 动态管理</h3><button class="btn btn-primary" onclick="openEditModal(\'activities\',null)">➕ 新增动态</button></div>' +
+  return `<div class="card"><div class="card-header"><h3>🎉 动态管理</h3><button class="btn btn-primary" onclick="openEditModal('activities',null)">➕ 新增动态</button></div>` +
     '<table class="data-table"><thead><tr><th>标题</th><th>日期</th><th>地点</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
-    list.map(item => '<tr><td>' + item.title + '</td><td>' + item.date + '</td><td>' + item.location + '</td><td><span class="tag ' + (item.status==="进行中"?"tag-active":(item.status==="预告"?"tag-test":"tag-disabled")) + '">' + item.status + '</span></td><td class="actions"><button onclick="openEditModal(\'activities\',\'' + item.id + '\')">编辑</button><button class="danger" onclick="deleteItem(\'activities\',\'' + item.id + '\')">删除</button></td></tr>').join('') +
+    list.map(item => `<tr><td>${item.title}</td><td>${item.date}</td><td>${item.location}</td><td><span class="tag ${item.status==="进行中"?"tag-active":(item.status==="预告"?"tag-test":"tag-disabled")}">${item.status}</span></td><td class="actions"><button onclick="openEditModal('activities','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('activities','${item.id}')">删除</button></td></tr>`).join(``) +
     '</tbody></table></div>';
 }
 
 function renderPollsAdmin() {
   const list = appData.polls || [];
-  return '<div class="card"><div class="card-header"><h3>🗳️ 投票管理</h3><button class="btn btn-primary" onclick="openEditModal(\'polls\',null)">➕ 新增投票</button></div>' +
+  return `<div class="card"><div class="card-header"><h3>🗳️ 投票管理</h3><button class="btn btn-primary" onclick="openEditModal('polls',null)">➕ 新增投票</button></div>` +
     '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>状态</th><th>进度</th><th>操作</th></tr></thead><tbody>' +
     list.map(item => {
       const pct = Math.round((item.progress && item.progress.current||0)/(item.progress && item.progress.target||1)*100);
-      return '<tr><td>' + item.caseNo + '</td><td>' + item.title + '</td><td><span class="tag ' + (item.status==="进行中"?"tag-active":"tag-disabled") + '">' + item.status + '</span></td><td><div class="progress-bar"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div> ' + pct + '%</td><td class="actions"><button onclick="openEditModal(\'polls\',\'' + item.id + '\')">编辑</button><button class="danger" onclick="deleteItem(\'polls\',\'' + item.id + '\')">删除</button></td></tr>';
+      return `<tr><td>${item.caseNo}</td><td>${item.title}</td><td><span class="tag ${item.status==="进行中"?"tag-active":"tag-disabled"}">${item.status}</span></td><td><div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div> ${pct}%</td><td class="actions"><button onclick="openEditModal('polls','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('polls','${item.id}')">删除</button></td></tr>`;
     }).join('') +
     '</tbody></table></div>';
 }
 
 function renderResidentsAdmin() {
   const list = appData.residents || [];
-  return '<div class="card"><div class="card-header"><h3>👥 业主管理</h3><div class="actions"><button class="btn" onclick="showBatchImport()">📥 批量导入</button><button class="btn btn-primary" onclick="openEditModal(\'residents\',null)">➕ 添加业主</button></div></div>' +
+  return `<div class="card"><div class="card-header"><h3>👥 业主管理</h3><div class="actions"><button class="btn" onclick="showBatchImport()">📥 批量导入</button><button class="btn btn-primary" onclick="openEditModal('residents',null)">➕ 添加业主</button></div></div>` +
     '<table class="data-table"><thead><tr><th>房号</th><th>姓名</th><th>手机后四位</th><th>状态</th><th>标记</th><th>操作</th></tr></thead><tbody>' +
-    list.map(item => '<tr><td>' + item.roomNo + '</td><td>' + item.name + '</td><td>' + item.phoneSuffix + '</td><td><span class="tag ' + (item.status==="active"?"tag-active":"tag-disabled") + '">' + (item.status==="active"?"正常":"禁用") + '</span></td><td>' + (item.isTest?'<span class="tag tag-test">测</span>':'') + '</td><td class="actions"><button onclick="openEditModal(\'residents\',\'' + item.id + '\')">编辑</button><button class="danger" onclick="deleteItem(\'residents\',\'' + item.id + '\')">删除</button></td></tr>').join('') +
+    list.map(item => `<tr><td>${item.roomNo}</td><td>${item.name}</td><td>${item.phoneSuffix}</td><td><span class="tag ${item.status==="active"?"tag-active":"tag-disabled"}">${item.status==="active"?"正常":"禁用"}</span></td><td>${item.isTest?`<span class="tag tag-test">测</span>`:""}</td><td class="actions"><button onclick="openEditModal('residents','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('residents','${item.id}')">删除</button></td></tr>`).join(``) +
     '</tbody></table></div>';
 }
 
@@ -492,6 +492,9 @@ function openEditModal(module, id) {
       '<div class="form-row"><div class="form-group"><label>日期</label><input type="date" id="edDate" value="' + (item.date||'') + '"></div>' +
       '<div class="form-group"><label>地点</label><input type="text" id="edLocation" value="' + (item.location||'') + '"></div></div>' +
       '<div class="form-group"><label>状态</label><select id="edStatus"><option value="预告" ' + (item.status==='预告'?'selected':'') + '>预告</option><option value="进行中" ' + (item.status==='进行中'?'selected':'') + '>进行中</option><option value="已结束" ' + (item.status==='已结束'?'selected':'') + '>已结束</option></select></div>' +
+      '<div class="form-group"><label>封面图片链接</label><input type="text" id="edCoverImage" value="' + (item.coverImage||'') + '" placeholder="https://example.com/cover.jpg"></div>' +
+      '<div class="form-group"><label>活动图集链接（每行一个）</label><textarea id="edImages" rows="3" placeholder="https://example.com/img1.jpg
+https://example.com/img2.jpg">' + (item.images||[]).join('\n') + '</textarea></div>' +
       '<div class="form-group"><label>视频链接</label><input type="text" id="edVideo" value="' + (item.videoUrl||'') + '"></div>' +
       '<div class="form-group"><label>外部链接</label><input type="text" id="edExternal" value="' + (item.externalLink||'') + '"></div>' +
       '<div class="form-group"><label>内容</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>';
@@ -516,7 +519,7 @@ function openEditModal(module, id) {
       '<div class="form-group form-check"><input type="checkbox" id="edTest" ' + (item.isTest?'checked':'') + '><label for="edTest">标记为测试数据</label></div>';
   }
   document.getElementById('modalBody').innerHTML = body;
-  document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveItem(\'' + module + '\',\'' + (id||\'\') + '\')">保存</button>';
+  document.getElementById('modalFooter').innerHTML = `<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveItem('${module}','${id||''}')">保存</button>`;
   document.getElementById('modalOverlay').classList.add('active');
 }
 
@@ -575,11 +578,12 @@ async function saveItem(module, id) {
     item.date = document.getElementById('edDate').value;
     item.location = document.getElementById('edLocation').value;
     item.status = document.getElementById('edStatus').value;
+    item.coverImage = document.getElementById('edCoverImage').value.trim();
+    const imgText = document.getElementById('edImages').value.trim();
+    item.images = imgText ? imgText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
     item.videoUrl = document.getElementById('edVideo').value;
     item.externalLink = document.getElementById('edExternal').value;
     item.content = document.getElementById('edContent').value;
-    item.coverImage = item.coverImage || '';
-    item.images = item.images || [];
   } else if (module === 'polls') {
     item.caseNo = document.getElementById('edCaseNo').value;
     item.title = document.getElementById('edTitle').value;

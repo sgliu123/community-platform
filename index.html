@@ -273,10 +273,10 @@ function renderHome() {
     setTimeout(initCarousel, 50);
   }
   h += '<div class="quick-links">';
-  h += '<div class="quick-link" onclick="navigate(\'announcements\')"><div class="icon">📢</div><div class="label">公告栏</div></div>';
-  h += '<div class="quick-link" onclick="navigate(\'documents\')"><div class="icon">📄</div><div class="label">上级文件</div></div>';
-  h += '<div class="quick-link" onclick="navigate(\'activities\')"><div class="icon">🎉</div><div class="label">社区动态</div></div>';
-  h += '<div class="quick-link" onclick="navigate(\'polls\')"><div class="icon">🗳️</div><div class="label">投票征集</div></div>';
+  h += `<div class="quick-link" onclick="navigate('announcements')"><div class="icon">📢</div><div class="label">公告栏</div></div>`;
+  h += `<div class="quick-link" onclick="navigate('documents')"><div class="icon">📄</div><div class="label">上级文件</div></div>`;
+  h += `<div class="quick-link" onclick="navigate('activities')"><div class="icon">🎉</div><div class="label">社区动态</div></div>`;
+  h += `<div class="quick-link" onclick="navigate('polls')"><div class="icon">🗳️</div><div class="label">投票征集</div></div>`;
   h += '</div>';
   h += '<div class="card"><div class="card-title"><span class="icon">🏘️</span>社区概况</div>';
   h += '<div class="info-grid">';
@@ -319,7 +319,7 @@ function renderListItem(item, type) {
   const detailPages = { announcement: "announcement-detail", document: "document-detail", activity: "activity-detail", poll: "poll-detail" };
   const dateFields = { announcement: "publishDate", document: "publishDate", activity: "date", poll: "endDate" };
   const meta = item.author || item.source || item.location || "";
-  return '<div class="list-item" onclick="navigate(\'' + detailPages[type] + '\',\'' + item.id + '\')">' + badge + '<div class="list-content"><div class="list-title">' + item.title + '</div><div class="list-meta">' + (item[dateFields[type]]||"") + ' · ' + meta + '</div></div><div class="list-arrow">›</div></div>';
+  return `<div class="list-item" onclick="navigate('${detailPages[type]}','${item.id}')">${badge}<div class="list-content"><div class="list-title">${item.title}</div><div class="list-meta">${item[dateFields[type]]||""} · ${meta}</div></div><div class="list-arrow">›</div></div>`;
 }
 
 function filterAnnouncements() {
@@ -351,7 +351,7 @@ function renderPolls() {
     list.forEach(p => {
       const pct = Math.round((p.progress?.current||0)/(p.progress?.target||1)*100);
       const sc = p.status === "进行中" ? "status-ongoing" : (p.status === "预告" ? "status-upcoming" : "status-ended");
-      h += '<div class="list-item" onclick="navigate(\'poll-detail\',\'' + p.id + '\')" style="flex-direction:column;align-items:stretch;gap:8px;">';
+      h += `<div class="list-item" onclick="navigate('poll-detail','${p.id}')" style="flex-direction:column;align-items:stretch;gap:8px;">`;
       h += '<div style="display:flex;align-items:center;gap:8px;"><span class="status-tag ' + sc + '">' + p.status + '</span><span style="font-size:12px;color:var(--text-secondary);">案卷号：' + p.caseNo + '</span></div>';
       h += '<div style="font-size:15px;font-weight:500;">' + p.title + '</div>';
       h += '<div style="font-size:13px;color:var(--text-secondary);">' + p.startDate + ' 至 ' + p.endDate + '</div>';
@@ -407,7 +407,20 @@ function renderActivityDetail(id) {
   const sc = a.status === "进行中" ? "status-ongoing" : (a.status === "预告" ? "status-upcoming" : "status-ended");
   let h = '<div class="card"><div class="detail-header"><h1>' + a.title + '</h1><div class="detail-meta">';
   h += '<span class="status-tag ' + sc + '">' + a.status + '</span><span>时间：' + a.date + '</span><span>地点：' + a.location + '</span></div></div>';
+  if (a.coverImage) {
+    h += '<div style="margin:16px 0;"><img src="' + a.coverImage + '" style="width:100%;border-radius:8px;max-height:320px;object-fit:cover;"></div>';
+  }
   h += '<div class="detail-content">' + a.content + '</div>';
+  if (a.images && a.images.length > 0) {
+    h += '<div style="margin-top:16px;"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">📷 活动图集</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;">';
+    a.images.forEach(function(img) {
+      h += '<div style="border-radius:8px;overflow:hidden;cursor:pointer;" onclick="window.open('' + img + '')">';
+      h += '<img src="' + img + '" style="width:100%;height:120px;object-fit:cover;display:block;">';
+      h += '</div>';
+    });
+    h += '</div></div>';
+  }
   if (a.videoUrl) h += '<div style="margin-top:16px;"><a href="' + a.videoUrl + '" target="_blank" class="poll-btn">▶️ 观看视频</a></div>';
   if (a.externalLink) h += '<div style="margin-top:8px;"><a href="' + a.externalLink + '" target="_blank" class="poll-btn" style="background:var(--text-secondary);">🔗 查看原文</a></div>';
   h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
