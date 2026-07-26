@@ -1,0 +1,29 @@
+[
+  {
+    "id": "doc-001",
+    "title": "【测试】关于进一步加强社区治理工作的指导意见",
+    "source": "xx街道办事处",
+    "publishDate": "2026-07-15",
+    "fileUrl": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    "description": "【测试数据】根据市城管局要求，各社区需加强治理工作，落实网格化管理...",
+    "category": "上级文件"
+  },
+  {
+    "id": "doc-002",
+    "title": "【测试】2026年度老旧小区改造实施方案",
+    "source": "市住建局",
+    "publishDate": "2026-07-10",
+    "fileUrl": "https://picsum.photos/800/600?random=document1",
+    "description": "【测试数据】本年度改造重点包括外墙翻新、管道更换、加装电梯等...",
+    "category": "上级文件"
+  },
+  {
+    "id": "doc-003",
+    "title": "【测试】社区消防安全检查标准及要求",
+    "source": "区消防大队",
+    "publishDate": "2026-07-05",
+    "fileUrl": "",
+    "description": "【测试数据】各社区需按照以下标准开展消防安全自查，确保消防设施完好...",
+    "category": "上级文件"
+  }
+]
