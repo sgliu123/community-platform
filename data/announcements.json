@@ -86,5 +86,16 @@
     "author": "管理员B",
     "views": 67,
     "attachments": []
+  },
+  {
+    "id": "ann-009",
+    "title": "测试一下",
+    "category": "物业通知",
+    "publishDate": "2026-07-26",
+    "author": "管理员A",
+    "isPinned": false,
+    "content": "那个",
+    "views": 0,
+    "attachments": []
   }
 ]
