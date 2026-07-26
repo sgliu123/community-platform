@@ -179,7 +179,7 @@ a { text-decoration:none; color:var(--primary); }
 
 <footer class="footer">
   <p id="footerInfo">春天阳光小区 | 阳光大道 100 号 | 物业电话：0571-88888889</p>
-  <p style="margin-top:8px; font-size:11px; color:#999;">社区数字化平台 · Sunlight Community</p>
+  <p style="margin-top:8px; font-size:11px; color:#999;">社区数字化平台 · Sunlight Community · <a href="admin.html" style="color:var(--primary); text-decoration:underline; font-weight:500;">管理后台</a></p>
 </footer>
 
 <script>
@@ -273,10 +273,10 @@ function renderHome() {
     setTimeout(initCarousel, 50);
   }
   h += '<div class="quick-links">';
-  h += '<div class="quick-link" onclick="navigate('announcements')"><div class="icon">📢</div><div class="label">公告栏</div></div>';
-  h += '<div class="quick-link" onclick="navigate('documents')"><div class="icon">📄</div><div class="label">上级文件</div></div>';
-  h += '<div class="quick-link" onclick="navigate('activities')"><div class="icon">🎉</div><div class="label">社区动态</div></div>';
-  h += '<div class="quick-link" onclick="navigate('polls')"><div class="icon">🗳️</div><div class="label">投票征集</div></div>';
+  h += '<div class="quick-link" onclick="navigate(\'announcements\')"><div class="icon">📢</div><div class="label">公告栏</div></div>';
+  h += '<div class="quick-link" onclick="navigate(\'documents\')"><div class="icon">📄</div><div class="label">上级文件</div></div>';
+  h += '<div class="quick-link" onclick="navigate(\'activities\')"><div class="icon">🎉</div><div class="label">社区动态</div></div>';
+  h += '<div class="quick-link" onclick="navigate(\'polls\')"><div class="icon">🗳️</div><div class="label">投票征集</div></div>';
   h += '</div>';
   h += '<div class="card"><div class="card-title"><span class="icon">🏘️</span>社区概况</div>';
   h += '<div class="info-grid">';
@@ -319,7 +319,7 @@ function renderListItem(item, type) {
   const detailPages = { announcement: "announcement-detail", document: "document-detail", activity: "activity-detail", poll: "poll-detail" };
   const dateFields = { announcement: "publishDate", document: "publishDate", activity: "date", poll: "endDate" };
   const meta = item.author || item.source || item.location || "";
-  return '<div class="list-item" onclick="navigate('' + detailPages[type] + '','' + item.id + '')">' + badge + '<div class="list-content"><div class="list-title">' + item.title + '</div><div class="list-meta">' + (item[dateFields[type]]||"") + ' · ' + meta + '</div></div><div class="list-arrow">›</div></div>';
+  return '<div class="list-item" onclick="navigate(\'' + detailPages[type] + '\',\'' + item.id + '\')">' + badge + '<div class="list-content"><div class="list-title">' + item.title + '</div><div class="list-meta">' + (item[dateFields[type]]||"") + ' · ' + meta + '</div></div><div class="list-arrow">›</div></div>';
 }
 
 function filterAnnouncements() {
@@ -351,7 +351,7 @@ function renderPolls() {
     list.forEach(p => {
       const pct = Math.round((p.progress?.current||0)/(p.progress?.target||1)*100);
       const sc = p.status === "进行中" ? "status-ongoing" : (p.status === "预告" ? "status-upcoming" : "status-ended");
-      h += '<div class="list-item" onclick="navigate('poll-detail','' + p.id + '')" style="flex-direction:column;align-items:stretch;gap:8px;">';
+      h += '<div class="list-item" onclick="navigate(\'poll-detail\',\'' + p.id + '\')" style="flex-direction:column;align-items:stretch;gap:8px;">';
       h += '<div style="display:flex;align-items:center;gap:8px;"><span class="status-tag ' + sc + '">' + p.status + '</span><span style="font-size:12px;color:var(--text-secondary);">案卷号：' + p.caseNo + '</span></div>';
       h += '<div style="font-size:15px;font-weight:500;">' + p.title + '</div>';
       h += '<div style="font-size:13px;color:var(--text-secondary);">' + p.startDate + ' 至 ' + p.endDate + '</div>';
