@@ -5,13 +5,10 @@
     "date": "2026-05-30",
     "location": "小区中心广场",
     "content": "<p>【测试数据】活动现场热闹非凡，共有80余位业主参与，大家亲手包粽子、做香囊...</p>",
-    "coverImage": "https://picsum.photos/800/400?random=1",
-    "images": [
-      "https://picsum.photos/400/300?random=11",
-      "https://picsum.photos/400/300?random=12"
-    ],
-    "videoUrl": "https://www.bilibili.com/video/BV1GJ411x7h7",
-    "externalLink": "https://www.example.com/activity/1",
+    "coverImage": "",
+    "images": [],
+    "videoUrl": "",
+    "externalLink": "",
     "status": "已结束"
   },
   {
@@ -20,12 +17,10 @@
     "date": "2026-07-20",
     "location": "社区活动室",
     "content": "<p>【测试数据】暑期绘画班即日起接受报名，限20人，由专业美术老师授课...</p>",
-    "coverImage": "https://picsum.photos/800/400?random=2",
-    "images": [
-      "https://picsum.photos/400/300?random=21"
-    ],
+    "coverImage": "",
+    "images": [],
     "videoUrl": "",
-    "externalLink": "https://www.example.com/activity/2",
+    "externalLink": "",
     "status": "进行中"
   },
   {
@@ -34,10 +29,10 @@
     "date": "2026-08-05",
     "location": "小区中心广场",
     "content": "<p>【测试数据】特邀市三甲医院医生来小区开展义诊，提供免费血压血糖检测...</p>",
-    "coverImage": "https://picsum.photos/800/400?random=3",
+    "coverImage": "",
     "images": [],
     "videoUrl": "",
-    "externalLink": "https://www.example.com/activity/3",
+    "externalLink": "",
     "status": "预告"
   },
   {
@@ -46,13 +41,9 @@
     "date": "2026-06-15",
     "location": "小区羽毛球馆",
     "content": "<p>【测试数据】本次比赛共有16支队伍参加，经过激烈角逐，最终A栋代表队夺冠...</p>",
-    "coverImage": "https://picsum.photos/800/400?random=4",
-    "images": [
-      "https://picsum.photos/400/300?random=31",
-      "https://picsum.photos/400/300?random=32",
-      "https://picsum.photos/400/300?random=33"
-    ],
-    "videoUrl": "https://www.bilibili.com/video/BV1GJ411x7h7",
+    "coverImage": "",
+    "images": [],
+    "videoUrl": "",
     "externalLink": "",
     "status": "已结束"
   }

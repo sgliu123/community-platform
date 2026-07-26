@@ -9,7 +9,8 @@
     "committeePhone": "0571-88888888",
     "propertyPhone": "0571-88888889",
     "logo": "assets/logo.png",
-    "slogan": "共建和谐社区，共享美好生活"
+    "slogan": "共建和谐社区，共享美好生活",
+    "favicon": "assets/logo.png"
   },
   "settings": {
     "maxAnnouncements": 200,
