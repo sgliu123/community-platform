@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>春天阳光小区 - 社区数字化平台</title>
+<style>
+:root {
+  --primary: #2E8B57; --primary-light: #3da76b; --primary-dark: #1f6b41;
+  --bg: #f5f7fa; --card: #fff; --text: #333; --text-secondary: #666;
+  --border: #e0e0e0; --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 12px; --header-h: 56px;
+}
+.theme-t2 { --primary: #1976D2; --primary-light: #42a5f5; --primary-dark: #0d47a1; }
+.theme-t3 { --primary: #E65100; --primary-light: #ff9800; --primary-dark: #bf360c; }
+.theme-t4 { --primary: #C62828; --primary-light: #ef5350; --primary-dark: #8e0000; }
+.theme-t5 { --primary: #6A1B9A; --primary-light: #ab47bc; --primary-dark: #4a148c; }
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+a { text-decoration:none; color:var(--primary); }
+
+.header { position:fixed; top:0; left:0; right:0; height:var(--header-h); background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:0 16px; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+.header-left { display:flex; align-items:center; gap:10px; }
+.header-logo { width:36px; height:36px; background:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.header-title { font-size:16px; font-weight:600; }
+.header-nav { display:flex; gap:4px; }
+.header-nav a { color:rgba(255,255,255,0.9); padding:6px 12px; border-radius:6px; font-size:14px; transition:.2s; }
+.header-nav a:hover, .header-nav a.active { background:rgba(255,255,255,0.2); color:#fff; }
+.header-user { display:flex; align-items:center; gap:8px; }
+.header-user button { background:rgba(255,255,255,0.2); border:none; color:#fff; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+.header-user button:hover { background:rgba(255,255,255,0.3); }
+
+.main { padding-top:var(--header-h); min-height:100vh; padding-bottom:80px; }
+.container { max-width:800px; margin:0 auto; padding:16px; }
+
+.card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:16px; }
+.card-title { font-size:18px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.card-title .icon { font-size:20px; }
+
+.carousel { position:relative; overflow:hidden; border-radius:var(--radius); height:180px; background:linear-gradient(135deg,var(--primary),var(--primary-light)); color:#fff; display:flex; align-items:center; padding:0 24px; }
+.carousel-item { display:none; width:100%; }
+.carousel-item.active { display:block; }
+.carousel-item h3 { font-size:18px; margin-bottom:8px; }
+.carousel-item p { font-size:13px; opacity:0.9; }
+.carousel-dots { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:6px; }
+.carousel-dots span { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.4); cursor:pointer; }
+.carousel-dots span.active { background:#fff; }
+
+.quick-links { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+.quick-link { background:var(--card); border-radius:var(--radius); padding:16px 8px; text-align:center; box-shadow:var(--shadow); cursor:pointer; transition:.2s; border:2px solid transparent; }
+.quick-link:hover { border-color:var(--primary); transform:translateY(-2px); }
+.quick-link .icon { font-size:28px; margin-bottom:8px; }
+.quick-link .label { font-size:13px; color:var(--text); font-weight:500; }
+
+.info-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+.info-item { background:#f8f9fa; border-radius:8px; padding:12px; }
+.info-item .label { font-size:12px; color:var(--text-secondary); margin-bottom:4px; }
+.info-item .value { font-size:15px; font-weight:600; color:var(--primary); }
+
+.list-item { display:flex; align-items:flex-start; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); cursor:pointer; transition:.2s; }
+.list-item:last-child { border-bottom:none; }
+.list-item:hover { background:#fafafa; margin:0 -16px; padding:14px 16px; border-radius:8px; }
+.list-badge { flex-shrink:0; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.badge-pinned { background:#ffebee; color:#c62828; }
+.badge-normal { background:#e8f5e9; color:#2e7d32; }
+.badge-announcement { background:#e3f2fd; color:#1565c0; }
+.badge-document { background:#fff3e0; color:#e65100; }
+.badge-activity { background:#f3e5f5; color:#6a1b9a; }
+.badge-poll { background:#e0f7fa; color:#00838f; }
+.list-content { flex:1; min-width:0; }
+.list-title { font-size:15px; font-weight:500; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.list-meta { font-size:12px; color:var(--text-secondary); }
+.list-arrow { color:var(--text-secondary); font-size:18px; }
+
+.detail-header { margin-bottom:16px; }
+.detail-header h1 { font-size:20px; margin-bottom:8px; }
+.detail-meta { display:flex; gap:16px; font-size:13px; color:var(--text-secondary); flex-wrap:wrap; }
+.detail-content { font-size:15px; line-height:1.8; }
+.detail-content p { margin-bottom:12px; }
+
+.poll-progress { background:#e0e0e0; border-radius:10px; height:20px; overflow:hidden; margin:12px 0; }
+.poll-progress-bar { height:100%; background:linear-gradient(90deg,var(--primary),var(--primary-light)); border-radius:10px; transition:width .5s; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; color:#fff; font-size:11px; font-weight:600; }
+.poll-stats { display:flex; justify-content:space-between; font-size:13px; color:var(--text-secondary); margin-bottom:12px; }
+.poll-btn { display:inline-block; background:var(--primary); color:#fff; padding:10px 24px; border-radius:8px; font-size:14px; font-weight:500; border:none; cursor:pointer; }
+.poll-btn:hover { background:var(--primary-dark); }
+.poll-btn:disabled { background:#ccc; cursor:not-allowed; }
+
+.search-bar { display:flex; gap:8px; margin-bottom:16px; }
+.search-bar input { flex:1; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px; }
+.search-bar select { padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px; background:#fff; }
+
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; display:none; align-items:center; justify-content:center; }
+.modal-overlay.active { display:flex; }
+.modal { background:#fff; border-radius:var(--radius); width:90%; max-width:400px; padding:24px; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+.modal h3 { font-size:18px; margin-bottom:16px; text-align:center; }
+.modal input { width:100%; padding:12px; margin-bottom:12px; border:1px solid var(--border); border-radius:8px; font-size:14px; }
+.modal button { width:100%; padding:12px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:15px; cursor:pointer; }
+.modal button:hover { background:var(--primary-dark); }
+.modal .tip { font-size:12px; color:var(--text-secondary); text-align:center; margin-top:12px; }
+.modal .error { color:#c62828; font-size:13px; text-align:center; margin-bottom:12px; display:none; }
+
+.theme-switcher { position:fixed; bottom:24px; right:24px; z-index:100; }
+.theme-btn { width:48px; height:48px; border-radius:50%; background:var(--primary); color:#fff; border:none; font-size:20px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center; }
+.theme-panel { position:absolute; bottom:60px; right:0; background:#fff; border-radius:var(--radius); box-shadow:0 4px 20px rgba(0,0,0,0.15); padding:16px; display:none; width:220px; }
+.theme-panel.active { display:block; }
+.theme-panel h4 { font-size:14px; margin-bottom:12px; color:var(--text-secondary); }
+.theme-options { display:flex; flex-direction:column; gap:8px; }
+.theme-option { display:flex; align-items:center; gap:10px; padding:8px; border-radius:8px; cursor:pointer; transition:.2s; }
+.theme-option:hover { background:#f5f5f5; }
+.theme-option .color-dot { width:20px; height:20px; border-radius:50%; flex-shrink:0; }
+.theme-option .name { font-size:14px; }
+.theme-option .check { margin-left:auto; color:var(--primary); font-weight:bold; display:none; }
+.theme-option.active .check { display:block; }
+
+.footer { background:#fff; border-top:1px solid var(--border); padding:20px 16px; text-align:center; font-size:12px; color:var(--text-secondary); margin-top:20px; }
+.footer p { margin-bottom:4px; }
+
+.status-tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.status-ongoing { background:#e8f5e9; color:#2e7d32; }
+.status-ended { background:#eceff1; color:#546e7a; }
+.status-upcoming { background:#fff8e1; color:#f9a825; }
+
+@media (max-width:600px) {
+  .header-nav { display:none; }
+  .header-title { font-size:14px; }
+  .quick-links { grid-template-columns:repeat(2,1fr); }
+  .info-grid { grid-template-columns:1fr; }
+}
+
+@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+.page-content { animation:fadeIn .3s ease; }
+
+.loading { text-align:center; padding:40px; color:var(--text-secondary); }
+.empty { text-align:center; padding:40px; color:var(--text-secondary); font-size:14px; }
+</style>
+  <link rel="icon" id="faviconLink" type="image/png" href="">
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <div class="header-logo">🏘️</div>
+    <div class="header-title" id="headerTitle">春天阳光小区</div>
+  </div>
+  <nav class="header-nav" id="headerNav">
+    <a href="javascript:void(0)" onclick="navigate('home');return false;" data-page="home">首页</a>
+    <a href="javascript:void(0)" onclick="navigate('announcements');return false;" data-page="announcements">公告</a>
+    <a href="javascript:void(0)" onclick="navigate('documents');return false;" data-page="documents">文件</a>
+    <a href="javascript:void(0)" onclick="navigate('activities');return false;" data-page="activities">动态</a>
+    <a href="javascript:void(0)" onclick="navigate('polls');return false;" data-page="polls">投票</a>
+  </nav>
+  <div class="header-user">
+    <span id="userName" style="font-size:13px;"></span>
+    <button id="loginBtn" onclick="showLogin()">业主登录</button>
+  </div>
+</header>
+
+<main class="main" id="main"></main>
+
+<div class="theme-switcher">
+  <div class="theme-panel" id="themePanel">
+    <h4>🎨 选择主题</h4>
+    <div class="theme-options" id="themeOptions"></div>
+  </div>
+  <button class="theme-btn" onclick="toggleThemePanel()">🎨</button>
+</div>
+
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <h3>🏠 业主登录</h3>
+    <div class="error" id="loginError"></div>
+    <input type="text" id="loginRoom" placeholder="房号，如：1-1-101">
+    <input type="text" id="loginName" placeholder="姓名">
+    <input type="tel" id="loginPhone" placeholder="完整手机号">
+    <button onclick="doLogin()">登录</button>
+    <p class="tip">测试账号：房号 1-1-101，姓名 测试业主01，手机号 13800000001</p>
+  </div>
+</div>
+
+<footer class="footer">
+  <p id="footerInfo">春天阳光小区 | 阳光大道 100 号 | 物业电话：0571-88888889</p>
+  <p style="margin-top:8px; font-size:11px; color:#999;">社区数字化平台 · Sunlight Community · <a href="admin.html" style="color:var(--primary); text-decoration:underline; font-weight:500;">管理后台</a></p>
+</footer>
+
+<script>
+let appData = {};
+let currentTheme = localStorage.getItem("communityTheme") || "T1";
+let residentAuth = null;
+try { residentAuth = JSON.parse(localStorage.getItem("residentAuth")); } catch(e){}
+
+const themes = {
+  T1: { name: "春晓绿", color: "#2E8B57", cls: "" },
+  T2: { name: "天空蓝", color: "#1976D2", cls: "theme-t2" },
+  T3: { name: "暖阳橙", color: "#E65100", cls: "theme-t3" },
+  T4: { name: "中国红", color: "#C62828", cls: "theme-t4" },
+  T5: { name: "优雅紫", color: "#6A1B9A", cls: "theme-t5" }
+};
+
+function updateFavicon() {
+  const favicon = appData.config && appData.config.community && appData.config.community.favicon;
+  if (favicon) {
+    document.getElementById('faviconLink').href = favicon;
+  }
+}
+function applyTheme(id) {
+  currentTheme = id;
+  document.body.className = themes[id].cls;
+  localStorage.setItem("communityTheme", id);
+  renderThemePanel();
+}
+
+function renderThemePanel() {
+  const el = document.getElementById("themeOptions");
+  el.innerHTML = Object.entries(themes).map(([k,v]) => {
+    const active = k === currentTheme ? "active" : "";
+    return `<div class="theme-option ${active}" onclick="applyTheme('${k}')"><div class="color-dot" style="background:${v.color}"></div><span class="name">${v.name}</span><span class="check">✓</span></div>`;
+  }).join("");
+}
+
+function toggleThemePanel() {
+  document.getElementById("themePanel").classList.toggle("active");
+}
+
+async function loadData() {
+  const files = ["config","announcements","documents","activities","polls","residents"];
+  let ok = true;
+  for (const f of files) {
+    try {
+      const r = await fetch("./data/" + f + ".json?t=" + Date.now());
+      if (!r.ok) throw new Error("fetch failed");
+      appData[f] = await r.json();
+    } catch(e) { ok = false; break; }
+  }
+  if (!ok) {
+    try {
+      const b64 = document.getElementById("embedded-b64").textContent.trim();
+      const ed = JSON.parse(decodeURIComponent(escape(atob(b64))));
+      files.forEach(function(f){ appData[f] = ed[f] || []; });
+    } catch(e2) { files.forEach(function(f){ appData[f] = []; }); }
+  }
+  if (appData.config && appData.config.community) {
+    document.getElementById("headerTitle").textContent = appData.config.community.name;
+    const c = appData.config.community;
+    document.getElementById("footerInfo").textContent = c.name + " | " + c.address + " | 物业电话：" + c.propertyPhone;
+    const dt = appData.config.settings.defaultTheme || "T1";
+    if (!localStorage.getItem("communityTheme")) applyTheme(dt);
+  }
+  updateUserUI();
+  updateFavicon();
+}
+
+function navigate(page, params) {
+  window.location.hash = params ? "#/" + page + "/" + params : "#/" + page;
+  setTimeout(render, 0);
+}
+
+function getRoute() {
+  const h = window.location.hash.replace("#/", "").replace("#", "");
+  const p = h.split("/");
+  return { page: p[0] || "home", params: p[1] };
+}
+
+function render() {
+  const r = getRoute();
+  const main = document.getElementById("main");
+  document.querySelectorAll(".header-nav a").forEach(a => a.classList.toggle("active", a.dataset.page === r.page));
+  const pages = {
+    home: renderHome, announcements: renderAnnouncements, documents: renderDocuments,
+    activities: renderActivities, polls: renderPolls, profile: renderProfile,
+    "announcement-detail": () => renderAnnouncementDetail(r.params),
+    "document-detail": () => renderDocumentDetail(r.params),
+    "activity-detail": () => renderActivityDetail(r.params),
+    "poll-detail": () => renderPollDetail(r.params)
+  };
+  const fn = pages[r.page] || renderHome;
+  main.innerHTML = '<div class="page-content">' + fn() + '</div>';
+  window.scrollTo(0,0);
+}
+
+function renderHome() {
+  const pinned = (appData.announcements || []).filter(a => a.isPinned).slice(0, 3);
+  const c = appData.config?.community || {};
+  let h = "";
+  if (pinned.length > 0) {
+    h += '<div class="card" style="padding:0;overflow:hidden;"><div class="carousel" id="carousel">';
+    pinned.forEach((a,i) => {
+      h += '<div class="carousel-item ' + (i===0?"active":"") + '"><div><h3>📌 ' + a.title + '</h3><p>' + stripHtml(a.content).substring(0,60) + '...</p></div></div>';
+    });
+    h += '<div class="carousel-dots">' + pinned.map((_,i) => '<span class="' + (i===0?"active":"") + '" onclick="goCarousel(' + i + ')"></span>').join("") + '</div></div></div>';
+    setTimeout(initCarousel, 50);
+  }
+  h += '<div class="quick-links">';
+  h += `<div class="quick-link" onclick="navigate('announcements')"><div class="icon">📢</div><div class="label">公告栏</div></div>`;
+  h += `<div class="quick-link" onclick="navigate('documents')"><div class="icon">📄</div><div class="label">上级文件</div></div>`;
+  h += `<div class="quick-link" onclick="navigate('activities')"><div class="icon">🎉</div><div class="label">社区动态</div></div>`;
+  h += `<div class="quick-link" onclick="navigate('polls')"><div class="icon">🗳️</div><div class="label">投票征集</div></div>`;
+  h += '</div>';
+  h += '<div class="card"><div class="card-title"><span class="icon">🏘️</span>社区概况</div>';
+  h += '<div class="info-grid">';
+  h += '<div class="info-item"><div class="label">总户数</div><div class="value">' + (c.totalUnits||"-") + ' 户</div></div>';
+  h += '<div class="info-item"><div class="label">建成年份</div><div class="value">' + (c.builtYear||"-") + '</div></div>';
+  h += '<div class="info-item"><div class="label">占地面积</div><div class="value">' + (c.area||"-") + '</div></div>';
+  h += '<div class="info-item"><div class="label">物业公司</div><div class="value">' + (c.propertyCompany||"-") + '</div></div>';
+  h += '</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div style="font-size:13px;color:var(--text-secondary);">📍 ' + (c.address||"") + '<br>📞 居委会：' + (c.committeePhone||"") + '<br>📞 物业：' + (c.propertyPhone||"") + '</div></div></div>';
+  const latest = (appData.announcements||[]).slice(0,3);
+  if (latest.length) {
+    h += '<div class="card"><div class="card-title"><span class="icon">📢</span>最新公告<a href="#/announcements" style="margin-left:auto;font-size:13px;">查看全部 →</a></div>';
+    latest.forEach(a => h += renderListItem(a, "announcement"));
+    h += '</div>';
+  }
+  return h;
+}
+
+function renderAnnouncements() {
+  const all = appData.announcements || [];
+  const cats = [...new Set(all.map(a => a.category))];
+  let h = '<div class="card"><div class="card-title"><span class="icon">📢</span>社区公告</div>';
+  h += '<div class="search-bar"><input type="text" id="annSearch" placeholder="搜索公告..." oninput="filterAnnouncements()"><select id="annCategory" onchange="filterAnnouncements()"><option value="">全部分类</option>';
+  cats.forEach(c => h += '<option value="' + c + '">' + c + '</option>');
+  h += '</select></div><div id="annList">' + renderAnnouncementList(all) + '</div></div>';
+  return h;
+}
+
+function renderAnnouncementList(list) {
+  if (!list.length) return '<div class="empty">暂无公告</div>';
+  const sorted = [...list].sort((a,b) => (b.isPinned?1:0)-(a.isPinned?1:0));
+  return sorted.map(a => renderListItem(a, "announcement")).join("");
+}
+
+function renderListItem(item, type) {
+  let badge = "";
+  if (type === "announcement") badge = item.isPinned ? '<span class="list-badge badge-pinned">置顶</span>' : '<span class="list-badge badge-normal">公告</span>';
+  else if (type === "document") badge = '<span class="list-badge badge-document">文件</span>';
+  else if (type === "activity") badge = '<span class="list-badge badge-activity">' + item.status + '</span>';
+  else if (type === "poll") badge = '<span class="list-badge badge-poll">' + item.status + '</span>';
+  const detailPages = { announcement: "announcement-detail", document: "document-detail", activity: "activity-detail", poll: "poll-detail" };
+  const dateFields = { announcement: "publishDate", document: "publishDate", activity: "date", poll: "endDate" };
+  const meta = item.author || item.source || item.location || "";
+  return `<div class="list-item" onclick="navigate('${detailPages[type]}','${item.id}')">${badge}<div class="list-content"><div class="list-title">${item.title}</div><div class="list-meta">${item[dateFields[type]]||""} · ${meta}</div></div><div class="list-arrow">›</div></div>`;
+}
+
+function filterAnnouncements() {
+  const s = document.getElementById("annSearch").value.toLowerCase();
+  const c = document.getElementById("annCategory").value;
+  const filtered = (appData.announcements||[]).filter(a => {
+    const ms = !s || a.title.toLowerCase().includes(s) || stripHtml(a.content).toLowerCase().includes(s);
+    const mc = !c || a.category === c;
+    return ms && mc;
+  });
+  document.getElementById("annList").innerHTML = renderAnnouncementList(filtered);
+}
+
+function renderDocuments() {
+  const list = appData.documents || [];
+  return '<div class="card"><div class="card-title"><span class="icon">📄</span>上级文件</div>' + (list.length ? list.map(d => renderListItem(d, "document")).join("") : '<div class="empty">暂无文件</div>') + '</div>';
+}
+
+function renderActivities() {
+  const list = appData.activities || [];
+  return '<div class="card"><div class="card-title"><span class="icon">🎉</span>社区动态</div>' + (list.length ? list.map(a => renderListItem(a, "activity")).join("") : '<div class="empty">暂无动态</div>') + '</div>';
+}
+
+function renderPolls() {
+  const list = appData.polls || [];
+  let h = '<div class="card"><div class="card-title"><span class="icon">🗳️</span>投票与意见征集</div>';
+  if (!list.length) { h += '<div class="empty">暂无投票或征集</div>'; }
+  else {
+    list.forEach(p => {
+      const pct = Math.round((p.progress?.current||0)/(p.progress?.target||1)*100);
+      const sc = p.status === "进行中" ? "status-ongoing" : (p.status === "预告" ? "status-upcoming" : "status-ended");
+      const canJoin = p.status === "进行中";
+      h += `<div class="list-item" onclick="navigate('poll-detail','${p.id}')" style="flex-direction:column;align-items:stretch;gap:8px;">`;
+      h += '<div style="display:flex;align-items:center;gap:8px;"><span class="status-tag ' + sc + '">' + p.status + '</span><span style="font-size:12px;color:var(--text-secondary);">案卷号：' + p.caseNo + '</span></div>';
+      h += '<div style="font-size:15px;font-weight:500;">' + p.title + '</div>';
+      h += '<div style="font-size:13px;color:var(--text-secondary);">' + p.startDate + ' 至 ' + p.endDate + '</div>';
+      h += '<div class="poll-progress"><div class="poll-progress-bar" style="width:' + pct + '%">' + pct + '%</div></div>';
+      h += '<div class="poll-stats"><span>当前参与：' + (p.progress?.current||0) + ' ' + (p.progress?.unit||"户") + '</span><span>目标：' + (p.progress?.target||0) + ' ' + (p.progress?.unit||"户") + '</span></div>';
+      if (p.status === "进行中") {
+        if (residentAuth) {
+          h += `<div style="margin-top:4px;"><button class="poll-btn" onclick="joinPoll('${p.id}',event)" style="padding:8px 20px;font-size:13px;">我要参与</button></div>`;
+        } else {
+          h += '<div style="margin-top:4px;"><button class="poll-btn" onclick="showLogin();event.stopPropagation();" style="padding:8px 20px;font-size:13px;background:#888;">🔒 请登录后参与</button></div>';
+        }
+      } else {
+        h += '<div style="margin-top:4px;"><button class="poll-btn" disabled style="padding:8px 20px;font-size:13px;background:#ccc;cursor:not-allowed;">' + (p.status === "预告" ? "尚未开始" : "已结束") + '</button></div>';
+      }
+      h += '</div>';
+    });
+  }
+  h += '</div>';
+  return h;
+}
+
+function renderProfile() {
+  if (!residentAuth) return '<div class="card" style="text-align:center;padding:40px;"><div style="font-size:48px;margin-bottom:16px;">🔒</div><div style="font-size:16px;margin-bottom:20px;">您尚未登录</div><button class="poll-btn" onclick="showLogin()">业主登录</button></div>';
+  let h = '<div class="card"><div class="card-title"><span class="icon">👤</span>我的信息</div>';
+  h += '<div style="text-align:center;padding:20px 0;"><div style="width:80px;height:80px;background:var(--primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 16px;">👤</div>';
+  h += '<div style="font-size:18px;font-weight:600;">' + residentAuth.name + '</div>';
+  h += '<div style="font-size:14px;color:var(--text-secondary);margin-top:4px;">房号：' + residentAuth.roomNo + '</div>';
+  h += '<div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">登录时间：' + formatDate(residentAuth.loginTime) + '</div></div>';
+  h += '<div style="border-top:1px solid var(--border);padding-top:16px;"><button class="poll-btn" onclick="doLogout()" style="background:#c62828;">退出登录</button></div></div>';
+  return h;
+}
+
+function renderAnnouncementDetail(id) {
+  const a = (appData.announcements||[]).find(x => x.id === id);
+  if (!a) return '<div class="empty">公告不存在</div>';
+  let h = '<div class="card"><div class="detail-header"><h1>' + a.title + '</h1><div class="detail-meta">';
+  h += '<span>' + a.category + '</span><span>' + a.publishDate + '</span><span>作者：' + a.author + '</span><span>阅读：' + (a.views||0) + '</span>';
+  if (a.isPinned) h += '<span style="color:#c62828;">📌 置顶</span>';
+  h += '</div></div><div class="detail-content">' + a.content + '</div>';
+  h = renderInlineMedia(h);
+  if (a.attachments && a.attachments.length) {
+    h += '<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">附件：</div>';
+    a.attachments.forEach(att => {
+      const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(att.url);
+      const isPdf = /\.pdf$/i.test(att.url);
+      if (isImg) {
+        h += '<div style="margin-bottom:12px;"><img src="' + att.url + '" style="max-width:100%;border-radius:8px;border:1px solid var(--border);" onerror="this.style.display=\'none\'"></div>';
+      } else if (isPdf) {
+        h += '<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><iframe src="' + att.url + '" style="width:100%;height:500px;border:none;" title="PDF预览"></iframe></div>';
+      }
+      h += '<a href="' + att.url + '" target="_blank" style="display:block;padding:8px;background:#f5f5f5;border-radius:6px;margin-bottom:4px;font-size:13px;">📎 ' + att.name + '</a>';
+    });
+    h += '</div>';
+  }
+  h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
+  return h;
+}
+
+function renderDocumentDetail(id) {
+  const d = (appData.documents||[]).find(x => x.id === id);
+  if (!d) return '<div class="empty">文件不存在</div>';
+  let h = '<div class="card"><div class="detail-header"><h1>' + d.title + '</h1><div class="detail-meta">';
+  h += '<span>来源：' + d.source + '</span><span>发布日期：' + d.publishDate + '</span><span>' + d.category + '</span></div></div>';
+  h += '<div class="detail-content">' + d.description + '</div>';
+  h = renderInlineMedia(h);
+  if (d.fileUrl) {
+    const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(d.fileUrl);
+    const isPdf = /\.pdf$/i.test(d.fileUrl);
+    if (isImg) {
+      h += '<div style="margin-top:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><img src="' + d.fileUrl + '" style="width:100%;display:block;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div style="display:none;padding:20px;text-align:center;color:var(--text-secondary);">图片加载失败</div></div>';
+    } else if (isPdf) {
+      h += '<div style="margin-top:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><iframe src="' + d.fileUrl + '" style="width:100%;height:600px;border:none;" title="PDF预览"></iframe></div>';
+    }
+    h += '<div style="margin-top:12px;"><a href="' + d.fileUrl + '" target="_blank" class="poll-btn">📎 查看/下载文件</a></div>';
+  }
+  h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
+  return h;
+}
+
+function renderActivityDetail(id) {
+  const a = (appData.activities||[]).find(x => x.id === id);
+  if (!a) return '<div class="empty">动态不存在</div>';
+  const sc = a.status === "进行中" ? "status-ongoing" : (a.status === "预告" ? "status-upcoming" : "status-ended");
+  let h = '<div class="card"><div class="detail-header"><h1>' + a.title + '</h1><div class="detail-meta">';
+  h += '<span class="status-tag ' + sc + '">' + a.status + '</span><span>时间：' + a.date + '</span><span>地点：' + a.location + '</span></div></div>';
+  if (a.coverImage) {
+    h += '<div style="margin:16px 0;"><img src="' + a.coverImage + '" style="width:100%;border-radius:8px;max-height:320px;object-fit:cover;"></div>';
+  }
+  h += '<div class="detail-content">' + a.content + '</div>';
+  if (a.images && a.images.length > 0) {
+    h += '<div style="margin-top:16px;"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">📷 活动图集</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;">';
+    a.images.forEach(function(img) {
+      h += '<div style="border-radius:8px;overflow:hidden;cursor:pointer;" onclick="window.open(String.fromCharCode(39) + img + String.fromCharCode(39))">';
+      h += '<img src="' + img + '" style="width:100%;height:120px;object-fit:cover;display:block;">';
+      h += '</div>';
+    });
+    h += '</div></div>';
+  }
+  if (a.videoUrl) h += '<div style="margin-top:16px;"><a href="' + a.videoUrl + '" target="_blank" class="poll-btn">▶️ 观看视频</a></div>';
+  if (a.externalLink) h += '<div style="margin-top:8px;"><a href="' + a.externalLink + '" target="_blank" class="poll-btn" style="background:var(--text-secondary);">🔗 查看原文</a></div>';
+  h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
+  return h;
+}
+
+function renderPollDetail(id) {
+  const p = (appData.polls||[]).find(x => x.id === id);
+  if (!p) return '<div class="empty">投票不存在</div>';
+  const pct = Math.round((p.progress?.current||0)/(p.progress?.target||1)*100);
+  const sc = p.status === "进行中" ? "status-ongoing" : (p.status === "预告" ? "status-upcoming" : "status-ended");
+  const canJoin = p.status === "进行中";
+  let h = '<div class="card"><div class="detail-header">';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span class="status-tag ' + sc + '">' + p.status + '</span><span style="font-size:13px;color:var(--text-secondary);">案卷号：' + p.caseNo + '</span></div>';
+  h += '<h1>' + p.title + '</h1><div class="detail-meta">';
+  h += '<span>开始：' + p.startDate + '</span><span>截止：' + p.endDate + '</span><span>发起：' + p.createdBy + '</span></div></div>';
+  h += '<div class="detail-content">' + p.description + '</div>';
+  h += '<div style="margin:20px 0;padding:16px;background:#f8f9fa;border-radius:8px;"><div style="font-weight:600;margin-bottom:8px;">参与进度</div>';
+  h += '<div class="poll-progress"><div class="poll-progress-bar" style="width:' + pct + '%">' + pct + '%</div></div>';
+  h += '<div class="poll-stats"><span>当前参与：' + (p.progress?.current||0) + ' ' + (p.progress?.unit||"户") + '</span><span>目标：' + (p.progress?.target||0) + ' ' + (p.progress?.unit||"户") + '</span></div></div>';
+  if (canJoin) {
+    if (residentAuth) h += `<button onclick="joinPoll('${p.id}')" class="poll-btn">我要参与</button>`;
+    else h += '<button onclick="showLogin()" class="poll-btn" style="background:#888;">🔒 请登录后参与</button>';
+  }
+  if (p.results && p.results.isPublished) {
+    h += '<div style="margin-top:20px;padding:16px;background:#e8f5e9;border-radius:8px;"><div style="font-weight:600;margin-bottom:8px;">📊 结果公示</div><div style="font-size:14px;">' + p.results.summary + '</div></div>';
+  }
+  h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
+  return h;
+}
+function joinPoll(pollId, event) {
+  if (event) event.stopPropagation();
+  if (!residentAuth) { window._pendingPollId = pollId; showLogin(); return; }
+  const p = (appData.polls||[]).find(x => x.id === pollId);
+  if (p && p.tencentUrl) {
+    const main = document.getElementById('main');
+    main.innerHTML = '<div class="page-content"><div class="card"><div class="card-title"><span class="icon">🗳️</span>参与投票：' + p.title + '</div><div style="margin-bottom:12px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div><iframe id="idy_frame" height="100%" width="100%" src="' + p.tencentUrl + '" frameborder="0" style="min-height:650px;width:100%;border-radius:8px;border:1px solid var(--border);" allowfullscreen sandbox="allow-same-origin allow-scripts allow-modals allow-downloads allow-forms allow-popups"></iframe></div></div>';
+    window.scrollTo(0,0);
+  } else { alert('暂无可参与的问卷链接'); }
+}
+
+function renderInlineMedia(htmlStr) {
+  if (!htmlStr) return htmlStr;
+  htmlStr = htmlStr.replace(/(https?:\/\/[^\s"<>]+\.(jpg|jpeg|png|gif|webp|bmp))/gi, function(url) {
+    if (htmlStr.includes('src="' + url + '"') || htmlStr.includes("src='" + url + "'")) return url;
+    return '<img src="' + url + '" style="max-width:100%;border-radius:8px;margin:8px 0;display:block;border:1px solid var(--border);" onerror="this.style.display=\'none\'">';
+  });
+  htmlStr = htmlStr.replace(/(https?:\/\/[^\s"<>]+\.pdf)/gi, function(url) {
+    if (htmlStr.includes('src="' + url + '"') || htmlStr.includes("src='" + url + "'")) return url;
+    return '<iframe src="' + url + '" style="width:100%;height:500px;border:none;border-radius:8px;margin:8px 0;border:1px solid var(--border);" title="PDF预览"></iframe>';
+  });
+  return htmlStr;
+}
+
+
+function showLogin() {
+  document.getElementById("loginModal").classList.add("active");
+  document.getElementById("loginError").style.display = "none";
+}
+function hideLogin() {
+  document.getElementById("loginModal").classList.remove("active");
+}
+document.getElementById("loginModal").addEventListener("click", function(e) {
+  if (e.target === this) hideLogin();
+});
+
+function doLogin() {
+  const room = document.getElementById("loginRoom").value.trim();
+  const name = document.getElementById("loginName").value.trim();
+  const phone = document.getElementById("loginPhone").value.trim();
+  const err = document.getElementById("loginError");
+  if (!room || !name || !phone) { err.textContent = "请填写完整信息"; err.style.display = "block"; return; }
+  const match = (appData.residents||[]).find(r => r.roomNo === room && r.name === name && phone.endsWith(r.phoneSuffix) && r.status === "active");
+  if (!match) { err.textContent = "信息不匹配，请联系物业核实"; err.style.display = "block"; return; }
+  residentAuth = { isLoggedIn: true, roomNo: match.roomNo, name: match.name, loginTime: new Date().toISOString(), token: Math.random().toString(36).substring(2,18) };
+  localStorage.setItem("residentAuth", JSON.stringify(residentAuth));
+  hideLogin(); updateUserUI(); render(); alert("✅ 登录成功！");
+  if (window._pendingPollId) {
+    const p = (appData.polls||[]).find(x => x.id === window._pendingPollId);
+    if (p && p.tencentUrl) { setTimeout(() => window.open(p.tencentUrl, '_blank'), 300); }
+    window._pendingPollId = null;
+  }
+}
+
+function doLogout() {
+  if (confirm("确定要退出登录吗？")) {
+    localStorage.removeItem("residentAuth"); residentAuth = null;
+    updateUserUI(); navigate("home");
+  }
+}
+
+function updateUserUI() {
+  const btn = document.getElementById("loginBtn");
+  const span = document.getElementById("userName");
+  if (residentAuth) { btn.textContent = "退出"; btn.onclick = doLogout; span.textContent = residentAuth.name; }
+  else { btn.textContent = "业主登录"; btn.onclick = showLogin; span.textContent = ""; }
+}
+
+let carouselTimer = null;
+function initCarousel() {
+  if (carouselTimer) clearInterval(carouselTimer);
+  const items = document.querySelectorAll(".carousel-item");
+  const dots = document.querySelectorAll(".carousel-dots span");
+  if (items.length <= 1) return;
+  let cur = 0;
+  carouselTimer = setInterval(() => {
+    items[cur].classList.remove("active"); if (dots[cur]) dots[cur].classList.remove("active");
+    cur = (cur + 1) % items.length;
+    items[cur].classList.add("active"); if (dots[cur]) dots[cur].classList.add("active");
+  }, 4000);
+}
+function goCarousel(index) {
+  const items = document.querySelectorAll(".carousel-item");
+  const dots = document.querySelectorAll(".carousel-dots span");
+  items.forEach((item,i) => item.classList.toggle("active", i === index));
+  dots.forEach((dot,i) => dot.classList.toggle("active", i === index));
+}
+
+function stripHtml(html) {
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || "";
+}
+function formatDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+
+window.addEventListener("hashchange", render);
+document.addEventListener("DOMContentLoaded", async () => {
+  applyTheme(currentTheme); renderThemePanel();
+  await loadData(); render();
+});
+</script>
+<textarea id="embedded-b64" style="display:none;">eyJjb25maWciOnsiY29tbXVuaXR5Ijp7Im5hbWUiOiLmmKXlpKnpmLPlhYnlsI/ljLoiLCJhZGRyZXNzIjoi6Ziz5YWJ5aSn6YGTIDEwMCDlj7ciLCJ0b3RhbFVuaXRzIjoxMjAwLCJidWlsdFllYXIiOiIyMDE4IiwiYXJlYSI6IjUuMuS4h+W5s+aWueexsyIsInByb3BlcnR5Q29tcGFueSI6IumYs+WFieeJqeS4muacjeWKoeaciemZkOWFrOWPuCIsImNvbW1pdHRlZVBob25lIjoiMDU3MS04ODg4ODg4OCIsInByb3BlcnR5UGhvbmUiOiIwNTcxLTg4ODg4ODg5IiwibG9nbyI6ImFzc2V0cy9sb2dvLnBuZyIsInNsb2dhbiI6IuWFseW7uuWSjOiwkOekvuWMuu+8jOWFseS6q+e+juWlveeUn+a0uyIsImZhdmljb24iOiJhc3NldHMvbG9nby5wbmcifSwic2V0dGluZ3MiOnsibWF4QW5ub3VuY2VtZW50cyI6MjAwLCJpdGVtc1BlclBhZ2UiOjEwLCJhbGxvd0d1ZXN0VmlldyI6dHJ1ZSwiZGVmYXVsdFRoZW1lIjoiVDEiLCJ0aGVtZU9wdGlvbnMiOlt7ImlkIjoiVDEiLCJuYW1lIjoi5pil5pmT57u/IiwiY29sb3IiOiIjMkU4QjU3IiwiZGVzYyI6Iua4heaWsOiHqueEtiJ9LHsiaWQiOiJUMiIsIm5hbWUiOiLlpKnnqbrok50iLCJjb2xvciI6IiMxOTc2RDIiLCJkZXNjIjoi56iz6YeN5LiT5LiaIn0seyJpZCI6IlQzIiwibmFtZSI6IuaalumYs+apmSIsImNvbG9yIjoiI0U2NTEwMCIsImRlc2MiOiLmuKnppqjmtLvlipsifSx7ImlkIjoiVDQiLCJuYW1lIjoi5Lit5Zu957qiIiwiY29sb3IiOiIjQzYyODI4IiwiZGVzYyI6IuW6hOmHjeWWnOW6hiJ9LHsiaWQiOiJUNSIsIm5hbWUiOiLkvJjpm4XntKsiLCJjb2xvciI6IiM2QTFCOUEiLCJkZXNjIjoi6auY56uv5YW46ZuFIn1dfSwiYXV0aCI6eyJwYXNzd29yZEhhc2giOiIyMDJkNDNmYmVkNjBlMDhjMWIxZGYxYjE0MzRjMGNjYTk0ZTQ1YjE3MDRjZjg2ZTAzMGVlMTdjNjg5Nzk2MTBhIiwic2FsdCI6IlN1bmxpZ2h0Q29tbXVuaXR5MjAyNiIsIm1heEF0dGVtcHRzIjo1LCJsb2Nrb3V0TWludXRlcyI6MzAsImxhc3RDaGFuZ2VkIjoiMjAyNi0wNy0yNSJ9LCJhZG1pbnMiOlt7ImlkIjoiYWRtaW4tMSIsIm5hbWUiOiLnrqHnkIblkZhBIiwicm9sZSI6InN1cGVyIiwicGVybWlzc2lvbnMiOlsiYWxsIl19LHsiaWQiOiJhZG1pbi0yIiwibmFtZSI6IueuoeeQhuWRmEIiLCJyb2xlIjoiZWRpdG9yIiwicGVybWlzc2lvbnMiOlsiYW5ub3VuY2VtZW50cyIsImRvY3VtZW50cyIsImFjdGl2aXRpZXMiLCJwb2xscyIsInJlc2lkZW50cyJdfSx7ImlkIjoiYWRtaW4tMyIsIm5hbWUiOiLnrqHnkIblkZhDIiwicm9sZSI6ImVkaXRvciIsInBlcm1pc3Npb25zIjpbImFubm91bmNlbWVudHMiLCJhY3Rpdml0aWVzIl19LHsiaWQiOiJhZG1pbi00IiwibmFtZSI6IueuoeeQhuWRmEQiLCJyb2xlIjoiZWRpdG9yIiwicGVybWlzc2lvbnMiOlsicG9sbHMiLCJyZXNpZGVudHMiXX0seyJpZCI6ImFkbWluLTUiLCJuYW1lIjoi566h55CG5ZGYRSIsInJvbGUiOiJ2aWV3ZXIiLCJwZXJtaXNzaW9ucyI6WyJ2aWV3IiwiYXVkaXQtbG9nIl19XX0sImFubm91bmNlbWVudHMiOlt7ImlkIjoiYW5uLTAwMSIsInRpdGxlIjoi44CQ5rWL6K+V44CR5YWz5LqO5bCP5Yy655S15qKv5bm05bqm57u05L+d55qE6YCa55+lIiwiY2F0ZWdvcnkiOiLniankuJrpgJrnn6UiLCJjb250ZW50IjoiPHA+44CQ5rWL6K+V5pWw5o2u44CR5ZCE5L2N5Lia5Li777yM5Li656Gu5L+d55S15qKv5a6J5YWo6L+Q6KGM77yM54mp5Lia5bCG5LqO5pys5pyI6L+b6KGM5bm05bqm57u05L+d77yM5YW35L2T5a6J5o6S5aaC5LiLLi4uPC9wPiIsImlzUGlubmVkIjp0cnVlLCJwdWJsaXNoRGF0ZSI6IjIwMjYtMDctMjAiLCJhdXRob3IiOiLnrqHnkIblkZhBIiwidmlld3MiOjE1NiwiYXR0YWNobWVudHMiOlt7Im5hbWUiOiLlhazlkYrnpLrmhI/lm74uanBnIiwidXJsIjoiaHR0cHM6Ly9waWNzdW0ucGhvdG9zLzgwMC82MDA/cmFuZG9tPWFubm91bmNlbWVudDEifV19LHsiaWQiOiJhbm4tMDAyIiwidGl0bGUiOiLjgJDmtYvor5XjgJHnq6/ljYjoioLmlL7lgYflj4rlgLznj63lronmjpIiLCJjYXRlZ29yeSI6IuiKguaXpemAmuefpSIsImNvbnRlbnQiOiI8cD7jgJDmtYvor5XmlbDmja7jgJHnq6/ljYjoioLmnJ/pl7TniankuJrmnI3liqHkuK3lv4PlgLznj63ml7bpl7TkuLrvvJo25pyIMjLml6UtMjTml6UgOTowMC0xNzowMC4uLjwvcD4iLCJpc1Bpbm5lZCI6ZmFsc2UsInB1Ymxpc2hEYXRlIjoiMjAyNi0wNy0xNSIsImF1dGhvciI6IueuoeeQhuWRmEIiLCJ2aWV3cyI6ODksImF0dGFjaG1lbnRzIjpbeyJuYW1lIjoi5rS75Yqo6YCa55+lLnBkZiIsInVybCI6Imh0dHBzOi8vd3d3LnczLm9yZy9XQUkvRVIvdGVzdHMveGh0bWwvdGVzdGZpbGVzL3Jlc291cmNlcy9wZGYvZHVtbXkucGRmIn1dfSx7ImlkIjoiYW5uLTAwMyIsInRpdGxlIjoi44CQ5rWL6K+V44CR5Z6D5Zy+5YiG57G75oqV5pS+54K56LCD5pW06K+05piOIiwiY2F0ZWdvcnkiOiLnpL7ljLrlhazlkYoiLCJjb250ZW50IjoiPHA+44CQ5rWL6K+V5pWw5o2u44CR5qC55o2u5LiK57qn6KaB5rGC77yM5bCP5Yy65Z6D5Zy+5YiG57G75oqV5pS+54K55bCG5YGa5aaC5LiL6LCD5pW077yaMeWPt+alvOWMl+S+py4uLjwvcD48cD7npLrmhI/lm77lpoLkuIvvvJpodHRwczovL3BpY3N1bS5waG90b3MvNjAwLzQwMD9yYW5kb209aW5saW5lMTwvcD4iLCJpc1Bpbm5lZCI6ZmFsc2UsInB1Ymxpc2hEYXRlIjoiMjAyNi0wNy0xOCIsImF1dGhvciI6IueuoeeQhuWRmEMiLCJ2aWV3cyI6MTIwLCJhdHRhY2htZW50cyI6W119LHsiaWQiOiJhbm4tMDA0IiwidGl0bGUiOiLjgJDmtYvor5XjgJHlgZzovablnLrnrqHnkIbns7vnu5/ljYfnuqfpgJrnn6UiLCJjYXRlZ29yeSI6IueJqeS4mumAmuefpSIsImNvbnRlbnQiOiI8cD7jgJDmtYvor5XmlbDmja7jgJHkuLrmj5DljYflgZzovabkvZPpqozvvIzlgZzovablnLrns7vnu5/lsIbkuo7mnKzlkajmnKvljYfnuqfvvIzmnJ/pl7Tlj6/og73nn63mmoLlvbHlk40uLi48L3A+IiwiaXNQaW5uZWQiOmZhbHNlLCJwdWJsaXNoRGF0ZSI6IjIwMjYtMDctMTkiLCJhdXRob3IiOiLnrqHnkIblkZhCIiwidmlld3MiOjc2LCJhdHRhY2htZW50cyI6W119LHsiaWQiOiJhbm4tMDA1IiwidGl0bGUiOiLjgJDmtYvor5XjgJHlhbPkuo7miJDnq4vkuJrkuLvlp5TlkZjkvJrnrbnlpIfnu4TnmoTlhazlkYoiLCJjYXRlZ29yeSI6IumHjeimgeWFrOWRiiIsImNvbnRlbnQiOiI8cD7jgJDmtYvor5XmlbDmja7jgJHmoLnmja7jgIrniankuJrnrqHnkIbmnaHkvovjgIvvvIznjrDmiJDnq4vkuJrkuLvlp5TlkZjkvJrnrbnlpIfnu4TvvIzmrKLov47ng63lv4PkuJrkuLvmiqXlkI0uLi48L3A+IiwiaXNQaW5uZWQiOnRydWUsInB1Ymxpc2hEYXRlIjoiMjAyNi0wNy0xMCIsImF1dGhvciI6IueuoeeQhuWRmEEiLCJ2aWV3cyI6MjM0LCJhdHRhY2htZW50cyI6W119LHsiaWQiOiJhbm4tMDA2IiwidGl0bGUiOiLjgJDmtYvor5XjgJHlpI/lraPnu7/ljJblhbvmiqTorqHliJIiLCJjYXRlZ29yeSI6IueOr+Wig+mAmuefpSIsImNvbnRlbnQiOiI8cD7jgJDmtYvor5XmlbDmja7jgJHkuLrkv53mjIHlsI/ljLrnu7/ljJbmma/op4LvvIzlpI/lraPlhbvmiqTorqHliJLlpoLkuIvvvJrkv67liarojYnlnarjgIHnl4XomavlrrPpmLLmsrsuLi48L3A+IiwiaXNQaW5uZWQiOmZhbHNlLCJwdWJsaXNoRGF0ZSI6IjIwMjYtMDctMTIiLCJhdXRob3IiOiLnrqHnkIblkZhDIiwidmlld3MiOjQ1LCJhdHRhY2htZW50cyI6W119LHsiaWQiOiJhbm4tMDA3IiwidGl0bGUiOiLjgJDmtYvor5XjgJHmtojpmLLmvJTnu4PmtLvliqjpgJrnn6UiLCJjYXRlZ29yeSI6IuWuieWFqOmAmuefpSIsImNvbnRlbnQiOiI8cD7jgJDmtYvor5XmlbDmja7jgJHlrprkuo7mnKzlkajlha3kuIrljYg5OjAw5byA5bGV5raI6Ziy5ryU57uD77yM6K+35Lia5Li76YWN5ZCI77yM5ZCs5Yiw6K2m5oql6K+35Yu/5oOK5oWMLi4uPC9wPiIsImlzUGlubmVkIjpmYWxzZSwicHVibGlzaERhdGUiOiIyMDI2LTA3LTIyIiwiYXV0aG9yIjoi566h55CG5ZGYRCIsInZpZXdzIjo5OCwiYXR0YWNobWVudHMiOltdfSx7ImlkIjoiYW5uLTAwOCIsInRpdGxlIjoi44CQ5rWL6K+V44CR54mp5Lia6LS55pS257y05rip6aao5o+Q56S6IiwiY2F0ZWdvcnkiOiLniankuJrpgJrnn6UiLCJjb250ZW50IjoiPHA+44CQ5rWL6K+V5pWw5o2u44CR6K+35ZCE5L2N5Lia5Li75Y+K5pe257y057qz5pys5bm05bqm54mp5Lia6LS577yM5Y+v6YCa6L+H5b6u5L+hL+aUr+S7mOWunS/pk7booYzovazotKYuLi48L3A+IiwiaXNQaW5uZWQiOmZhbHNlLCJwdWJsaXNoRGF0ZSI6IjIwMjYtMDctMjMiLCJhdXRob3IiOiLnrqHnkIblkZhCIiwidmlld3MiOjY3LCJhdHRhY2htZW50cyI6W119XSwiZG9jdW1lbnRzIjpbeyJpZCI6ImRvYy0wMDEiLCJ0aXRsZSI6IuOAkOa1i+ivleOAkeWFs+S6jui/m+S4gOatpeWKoOW8uuekvuWMuuayu+eQhuW3peS9nOeahOaMh+WvvOaEj+ingSIsInNvdXJjZSI6Inh46KGX6YGT5Yqe5LqL5aSEIiwicHVibGlzaERhdGUiOiIyMDI2LTA3LTE1IiwiZmlsZVVybCI6Imh0dHBzOi8vd3d3LnczLm9yZy9XQUkvRVIvdGVzdHMveGh0bWwvdGVzdGZpbGVzL3Jlc291cmNlcy9wZGYvZHVtbXkucGRmIiwiZGVzY3JpcHRpb24iOiLjgJDmtYvor5XmlbDmja7jgJHmoLnmja7luILln47nrqHlsYDopoHmsYLvvIzlkITnpL7ljLrpnIDliqDlvLrmsrvnkIblt6XkvZzvvIzokL3lrp7nvZHmoLzljJbnrqHnkIYuLi4iLCJjYXRlZ29yeSI6IuS4iue6p+aWh+S7tiJ9LHsiaWQiOiJkb2MtMDAyIiwidGl0bGUiOiLjgJDmtYvor5XjgJEyMDI25bm05bqm6ICB5pen5bCP5Yy65pS56YCg5a6e5pa95pa55qGIIiwic291cmNlIjoi5biC5L2P5bu65bGAIiwicHVibGlzaERhdGUiOiIyMDI2LTA3LTEwIiwiZmlsZVVybCI6Imh0dHBzOi8vcGljc3VtLnBob3Rvcy84MDAvNjAwP3JhbmRvbT1kb2N1bWVudDEiLCJkZXNjcmlwdGlvbiI6IuOAkOa1i+ivleaVsOaNruOAkeacrOW5tOW6puaUuemAoOmHjeeCueWMheaLrOWkluWimee/u+aWsOOAgeeuoemBk+abtOaNouOAgeWKoOijheeUteair+etiS4uLiIsImNhdGVnb3J5Ijoi5LiK57qn5paH5Lu2In0seyJpZCI6ImRvYy0wMDMiLCJ0aXRsZSI6IuOAkOa1i+ivleOAkeekvuWMuua2iOmYsuWuieWFqOajgOafpeagh+WHhuWPiuimgeaxgiIsInNvdXJjZSI6IuWMuua2iOmYsuWkp+mYnyIsInB1Ymxpc2hEYXRlIjoiMjAyNi0wNy0wNSIsImZpbGVVcmwiOiIiLCJkZXNjcmlwdGlvbiI6IuOAkOa1i+ivleaVsOaNruOAkeWQhOekvuWMuumcgOaMieeFp+S7peS4i+agh+WHhuW8gOWxlea2iOmYsuWuieWFqOiHquafpe+8jOehruS/nea2iOmYsuiuvuaWveWujOWlvS4uLiIsImNhdGVnb3J5Ijoi5LiK57qn5paH5Lu2In1dLCJhY3Rpdml0aWVzIjpbeyJpZCI6ImFjdC0wMDEiLCJ0aXRsZSI6IuOAkOa1i+ivleOAkeerr+WNiOiKguWMheeyveWtkOa0u+WKqOWchua7oee7k+adnyIsImRhdGUiOiIyMDI2LTA1LTMwIiwibG9jYXRpb24iOiLlsI/ljLrkuK3lv4Plub/lnLoiLCJjb250ZW50IjoiPHA+44CQ5rWL6K+V5pWw5o2u44CR5rS75Yqo546w5Zy654Ot6Ze56Z2e5Yeh77yM5YWx5pyJODDkvZnkvY3kuJrkuLvlj4LkuI7vvIzlpKflrrbkurLmiYvljIXnsr3lrZDjgIHlgZrpppnlm4ouLi48L3A+IiwiY292ZXJJbWFnZSI6Imh0dHBzOi8vcGljc3VtLnBob3Rvcy84MDAvNDAwP3JhbmRvbT0xIiwiaW1hZ2VzIjpbImh0dHBzOi8vcGljc3VtLnBob3Rvcy80MDAvMzAwP3JhbmRvbT0xMSIsImh0dHBzOi8vcGljc3VtLnBob3Rvcy80MDAvMzAwP3JhbmRvbT0xMiJdLCJ2aWRlb1VybCI6Imh0dHBzOi8vd3d3LmJpbGliaWxpLmNvbS92aWRlby9CVjFHSjQxMXg3aDciLCJleHRlcm5hbExpbmsiOiJodHRwczovL3d3dy5leGFtcGxlLmNvbS9hY3Rpdml0eS8xIiwic3RhdHVzIjoi5bey57uT5p2fIn0seyJpZCI6ImFjdC0wMDIiLCJ0aXRsZSI6IuOAkOa1i+ivleOAkeaakeacn+WwkeWEv+e7mOeUu+WfueiureePreW8gOePreWVpiIsImRhdGUiOiIyMDI2LTA3LTIwIiwibG9jYXRpb24iOiLnpL7ljLrmtLvliqjlrqQiLCJjb250ZW50IjoiPHA+44CQ5rWL6K+V5pWw5o2u44CR5pqR5pyf57uY55S754+t5Y2z5pel6LW35o6l5Y+X5oql5ZCN77yM6ZmQMjDkurrvvIznlLHkuJPkuJrnvo7mnK/ogIHluIjmjojor74uLi48L3A+IiwiY292ZXJJbWFnZSI6Imh0dHBzOi8vcGljc3VtLnBob3Rvcy84MDAvNDAwP3JhbmRvbT0yIiwiaW1hZ2VzIjpbImh0dHBzOi8vcGljc3VtLnBob3Rvcy80MDAvMzAwP3JhbmRvbT0yMSJdLCJ2aWRlb1VybCI6IiIsImV4dGVybmFsTGluayI6Imh0dHBzOi8vd3d3LmV4YW1wbGUuY29tL2FjdGl2aXR5LzIiLCJzdGF0dXMiOiLov5vooYzkuK0ifSx7ImlkIjoiYWN0LTAwMyIsInRpdGxlIjoi44CQ5rWL6K+V44CR56S+5Yy65YGl5bq35LmJ6K+K5rS75Yqo6aKE5ZGKIiwiZGF0ZSI6IjIwMjYtMDgtMDUiLCJsb2NhdGlvbiI6IuWwj+WMuuS4reW/g+W5v+WcuiIsImNvbnRlbnQiOiI8cD7jgJDmtYvor5XmlbDmja7jgJHnibnpgoDluILkuInnlLLljLvpmaLljLvnlJ/mnaXlsI/ljLrlvIDlsZXkuYnor4rvvIzmj5DkvpvlhY3otLnooYDljovooYDns5bmo4DmtYsuLi48L3A+IiwiY292ZXJJbWFnZSI6Imh0dHBzOi8vcGljc3VtLnBob3Rvcy84MDAvNDAwP3JhbmRvbT0zIiwiaW1hZ2VzIjpbXSwidmlkZW9VcmwiOiIiLCJleHRlcm5hbExpbmsiOiJodHRwczovL3d3dy5leGFtcGxlLmNvbS9hY3Rpdml0eS8zIiwic3RhdHVzIjoi6aKE5ZGKIn0seyJpZCI6ImFjdC0wMDQiLCJ0aXRsZSI6IuOAkOa1i+ivleOAkeS4muS4u+e+veavm+eQg+WPi+iwiui1m+eyvuW9qeWbnumhviIsImRhdGUiOiIyMDI2LTA2LTE1IiwibG9jYXRpb24iOiLlsI/ljLrnvr3mr5vnkIPppoYiLCJjb250ZW50IjoiPHA+44CQ5rWL6K+V5pWw5o2u44CR5pys5qyh5q+U6LWb5YWx5pyJMTbmlK/pmJ/kvI3lj4LliqDvvIznu4/ov4fmv4Dng4jop5LpgJDvvIzmnIDnu4hB5qCL5Luj6KGo6Zif5aS65YagLi4uPC9wPiIsImNvdmVySW1hZ2UiOiJodHRwczovL3BpY3N1bS5waG90b3MvODAwLzQwMD9yYW5kb209NCIsImltYWdlcyI6WyJodHRwczovL3BpY3N1bS5waG90b3MvNDAwLzMwMD9yYW5kb209MzEiLCJodHRwczovL3BpY3N1bS5waG90b3MvNDAwLzMwMD9yYW5kb209MzIiLCJodHRwczovL3BpY3N1bS5waG90b3MvNDAwLzMwMD9yYW5kb209MzMiXSwidmlkZW9VcmwiOiJodHRwczovL3d3dy5iaWxpYmlsaS5jb20vdmlkZW8vQlYxR0o0MTF4N2g3IiwiZXh0ZXJuYWxMaW5rIjoiIiwic3RhdHVzIjoi5bey57uT5p2fIn1dLCJwb2xscyI6W3siaWQiOiJwb2xsLTAwMSIsImNhc2VObyI6IjIwMjYtWUotMDAxIiwidGl0bGUiOiLjgJDmtYvor5XjgJHlhbPkuo7lop7orr7lhL/nq6XmuLjkuZDorr7mlr3nmoTmhI/op4HlvoHpm4YiLCJ0eXBlIjoib3BpbmlvbiIsImRlc2NyaXB0aW9uIjoi44CQ5rWL6K+V5pWw5o2u44CR5Li65Liw5a+M5bCP5Yy65YS/56ul5rS75Yqo56m66Ze077yM5ouf5Zyo5Lit5b+D6Iqx5Zut5aKe6K6+5ri45LmQ6K6+5pa977yM546w5b6B6ZuG5Lia5Li75oSP6KeBLi4uIiwidGVuY2VudFVybCI6Imh0dHBzOi8vd2oucXEuY29tL3MyLzI3MzY2MzUwLzM1NjEvIiwic3RhcnREYXRlIjoiMjAyNi0wNy0yMCIsImVuZERhdGUiOiIyMDI2LTA4LTIwIiwic3RhdHVzIjoi6L+b6KGM5LitIiwicHJvZ3Jlc3MiOnsidGFyZ2V0IjozMDAsImN1cnJlbnQiOjE1NiwidW5pdCI6IuaItyJ9LCJyZXN1bHRzIjp7ImlzUHVibGlzaGVkIjpmYWxzZSwic3VtbWFyeSI6IiIsImRldGFpbFVybCI6IiJ9LCJjcmVhdGVkQnkiOiLnrqHnkIblkZhBIiwiY3JlYXRlZEF0IjoiMjAyNi0wNy0yMFQwOTowMDowMFoifSx7ImlkIjoicG9sbC0wMDIiLCJjYXNlTm8iOiIyMDI2LVlKLTAwMiIsInRpdGxlIjoi44CQ5rWL6K+V44CR5bCP5Yy65YGc6L2m5L2N566h55CG5pa55qGI5oqV56WoIiwidHlwZSI6InZvdGUiLCJkZXNjcmlwdGlvbiI6IuOAkOa1i+ivleaVsOaNruOAkemSiOWvueWwj+WMuuWBnOi9puS9jee0p+W8oOmXrumimO+8jOeOsOaPkOS+m+S4ieenjeeuoeeQhuaWueahiOS+m+S4muS4u+aKleelqOmAieaLqS4uLiIsInRlbmNlbnRVcmwiOiJodHRwczovL3dqLnFxLmNvbS9zMi8yNzM2NjM1MC8zNTYxLyIsInN0YXJ0RGF0ZSI6IjIwMjYtMDYtMDEiLCJlbmREYXRlIjoiMjAyNi0wNi0xNSIsInN0YXR1cyI6IuW3sue7k+adnyIsInByb2dyZXNzIjp7InRhcmdldCI6MzAwLCJjdXJyZW50IjoyNzgsInVuaXQiOiLmiLcifSwicmVzdWx0cyI6eyJpc1B1Ymxpc2hlZCI6dHJ1ZSwic3VtbWFyeSI6IuaWueahiEHojrflvpc2OCXmlK/mjIHnjofvvIgxODnmiLfvvInvvIzmlrnmoYhC6I635b6XMjIl77yINjHmiLfvvInvvIzmlrnmoYhD6I635b6XMTAl77yIMjjmiLfvvIkiLCJkZXRhaWxVcmwiOiIifSwiY3JlYXRlZEJ5Ijoi566h55CG5ZGYRCIsImNyZWF0ZWRBdCI6IjIwMjYtMDYtMDFUMDk6MDA6MDBaIn1dLCJyZXNpZGVudHMiOlt7ImlkIjoici0wMDEiLCJyb29tTm8iOiIxLTEtMTAxIiwibmFtZSI6Iua1i+ivleS4muS4uzAxIiwicGhvbmVTdWZmaXgiOiIwMDAxIiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDAyIiwicm9vbU5vIjoiMS0xLTEwMiIsIm5hbWUiOiLmtYvor5XkuJrkuLswMiIsInBob25lU3VmZml4IjoiMDAwMiIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAwMyIsInJvb21ObyI6IjEtMS0xMDMiLCJuYW1lIjoi5rWL6K+V5Lia5Li7MDMiLCJwaG9uZVN1ZmZpeCI6IjAwMDMiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wMDQiLCJyb29tTm8iOiIxLTEtMTA0IiwibmFtZSI6Iua1i+ivleS4muS4uzA0IiwicGhvbmVTdWZmaXgiOiIwMDA0Iiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDA1Iiwicm9vbU5vIjoiMS0xLTEwNSIsIm5hbWUiOiLmtYvor5XkuJrkuLswNSIsInBob25lU3VmZml4IjoiMDAwNSIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAwNiIsInJvb21ObyI6IjEtMS0xMDYiLCJuYW1lIjoi5rWL6K+V5Lia5Li7MDYiLCJwaG9uZVN1ZmZpeCI6IjAwMDYiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wMDciLCJyb29tTm8iOiIxLTEtMTA3IiwibmFtZSI6Iua1i+ivleS4muS4uzA3IiwicGhvbmVTdWZmaXgiOiIwMDA3Iiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDA4Iiwicm9vbU5vIjoiMS0xLTEwOCIsIm5hbWUiOiLmtYvor5XkuJrkuLswOCIsInBob25lU3VmZml4IjoiMDAwOCIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAwOSIsInJvb21ObyI6IjEtMS0xMDkiLCJuYW1lIjoi5rWL6K+V5Lia5Li7MDkiLCJwaG9uZVN1ZmZpeCI6IjAwMDkiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wMTAiLCJyb29tTm8iOiIxLTEtMTEwIiwibmFtZSI6Iua1i+ivleS4muS4uzEwIiwicGhvbmVTdWZmaXgiOiIwMDEwIiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDExIiwicm9vbU5vIjoiMS0yLTEwMSIsIm5hbWUiOiLmtYvor5XkuJrkuLsxMSIsInBob25lU3VmZml4IjoiMDAxMSIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAxMiIsInJvb21ObyI6IjEtMi0xMDIiLCJuYW1lIjoi5rWL6K+V5Lia5Li7MTIiLCJwaG9uZVN1ZmZpeCI6IjAwMTIiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wMTMiLCJyb29tTm8iOiIxLTItMTAzIiwibmFtZSI6Iua1i+ivleS4muS4uzEzIiwicGhvbmVTdWZmaXgiOiIwMDEzIiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDE0Iiwicm9vbU5vIjoiMS0yLTEwNCIsIm5hbWUiOiLmtYvor5XkuJrkuLsxNCIsInBob25lU3VmZml4IjoiMDAxNCIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAxNSIsInJvb21ObyI6IjEtMi0xMDUiLCJuYW1lIjoi5rWL6K+V5Lia5Li7MTUiLCJwaG9uZVN1ZmZpeCI6IjAwMTUiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wMTYiLCJyb29tTm8iOiIxLTItMTA2IiwibmFtZSI6Iua1i+ivleS4muS4uzE2IiwicGhvbmVTdWZmaXgiOiIwMDE2Iiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDE3Iiwicm9vbU5vIjoiMS0yLTEwNyIsIm5hbWUiOiLmtYvor5XkuJrkuLsxNyIsInBob25lU3VmZml4IjoiMDAxNyIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAxOCIsInJvb21ObyI6IjEtMi0xMDgiLCJuYW1lIjoi5rWL6K+V5Lia5Li7MTgiLCJwaG9uZVN1ZmZpeCI6IjAwMTgiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wMTkiLCJyb29tTm8iOiIxLTItMTA5IiwibmFtZSI6Iua1i+ivleS4muS4uzE5IiwicGhvbmVTdWZmaXgiOiIwMDE5Iiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDIwIiwicm9vbU5vIjoiMS0yLTExMCIsIm5hbWUiOiLmtYvor5XkuJrkuLsyMCIsInBob25lU3VmZml4IjoiMDAyMCIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAyMSIsInJvb21ObyI6IjEtMy0xMDEiLCJuYW1lIjoi5rWL6K+V5Lia5Li7MjEiLCJwaG9uZVN1ZmZpeCI6IjAwMjEiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wMjIiLCJyb29tTm8iOiIxLTMtMTAyIiwibmFtZSI6Iua1i+ivleS4muS4uzIyIiwicGhvbmVTdWZmaXgiOiIwMDIyIiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDIzIiwicm9vbU5vIjoiMS0zLTEwMyIsIm5hbWUiOiLmtYvor5XkuJrkuLsyMyIsInBob25lU3VmZml4IjoiMDAyMyIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAyNCIsInJvb21ObyI6IjEtMy0xMDQiLCJuYW1lIjoi5rWL6K+V5Lia5Li7MjQiLCJwaG9uZVN1ZmZpeCI6IjAwMjQiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wMjUiLCJyb29tTm8iOiIxLTMtMTA1IiwibmFtZSI6Iua1i+ivleS4muS4uzI1IiwicGhvbmVTdWZmaXgiOiIwMDI1Iiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDI2Iiwicm9vbU5vIjoiMS0zLTEwNiIsIm5hbWUiOiLmtYvor5XkuJrkuLsyNiIsInBob25lU3VmZml4IjoiMDAyNiIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAyNyIsInJvb21ObyI6IjEtMy0xMDciLCJuYW1lIjoi5rWL6K+V5Lia5Li7MjciLCJwaG9uZVN1ZmZpeCI6IjAwMjciLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wMjgiLCJyb29tTm8iOiIxLTMtMTA4IiwibmFtZSI6Iua1i+ivleS4muS4uzI4IiwicGhvbmVTdWZmaXgiOiIwMDI4Iiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDI5Iiwicm9vbU5vIjoiMS0zLTEwOSIsIm5hbWUiOiLmtYvor5XkuJrkuLsyOSIsInBob25lU3VmZml4IjoiMDAyOSIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAzMCIsInJvb21ObyI6IjEtMy0xMTAiLCJuYW1lIjoi5rWL6K+V5Lia5Li7MzAiLCJwaG9uZVN1ZmZpeCI6IjAwMzAiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wMzEiLCJyb29tTm8iOiIxLTQtMTAxIiwibmFtZSI6Iua1i+ivleS4muS4uzMxIiwicGhvbmVTdWZmaXgiOiIwMDMxIiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDMyIiwicm9vbU5vIjoiMS00LTEwMiIsIm5hbWUiOiLmtYvor5XkuJrkuLszMiIsInBob25lU3VmZml4IjoiMDAzMiIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAzMyIsInJvb21ObyI6IjEtNC0xMDMiLCJuYW1lIjoi5rWL6K+V5Lia5Li7MzMiLCJwaG9uZVN1ZmZpeCI6IjAwMzMiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wMzQiLCJyb29tTm8iOiIxLTQtMTA0IiwibmFtZSI6Iua1i+ivleS4muS4uzM0IiwicGhvbmVTdWZmaXgiOiIwMDM0Iiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDM1Iiwicm9vbU5vIjoiMS00LTEwNSIsIm5hbWUiOiLmtYvor5XkuJrkuLszNSIsInBob25lU3VmZml4IjoiMDAzNSIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAzNiIsInJvb21ObyI6IjEtNC0xMDYiLCJuYW1lIjoi5rWL6K+V5Lia5Li7MzYiLCJwaG9uZVN1ZmZpeCI6IjAwMzYiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wMzciLCJyb29tTm8iOiIxLTQtMTA3IiwibmFtZSI6Iua1i+ivleS4muS4uzM3IiwicGhvbmVTdWZmaXgiOiIwMDM3Iiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDM4Iiwicm9vbU5vIjoiMS00LTEwOCIsIm5hbWUiOiLmtYvor5XkuJrkuLszOCIsInBob25lU3VmZml4IjoiMDAzOCIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTAzOSIsInJvb21ObyI6IjEtNC0xMDkiLCJuYW1lIjoi5rWL6K+V5Lia5Li7MzkiLCJwaG9uZVN1ZmZpeCI6IjAwMzkiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wNDAiLCJyb29tTm8iOiIxLTQtMTEwIiwibmFtZSI6Iua1i+ivleS4muS4uzQwIiwicGhvbmVTdWZmaXgiOiIwMDQwIiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDQxIiwicm9vbU5vIjoiMS01LTEwMSIsIm5hbWUiOiLmtYvor5XkuJrkuLs0MSIsInBob25lU3VmZml4IjoiMDA0MSIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTA0MiIsInJvb21ObyI6IjEtNS0xMDIiLCJuYW1lIjoi5rWL6K+V5Lia5Li7NDIiLCJwaG9uZVN1ZmZpeCI6IjAwNDIiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wNDMiLCJyb29tTm8iOiIxLTUtMTAzIiwibmFtZSI6Iua1i+ivleS4muS4uzQzIiwicGhvbmVTdWZmaXgiOiIwMDQzIiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDQ0Iiwicm9vbU5vIjoiMS01LTEwNCIsIm5hbWUiOiLmtYvor5XkuJrkuLs0NCIsInBob25lU3VmZml4IjoiMDA0NCIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTA0NSIsInJvb21ObyI6IjEtNS0xMDUiLCJuYW1lIjoi5rWL6K+V5Lia5Li7NDUiLCJwaG9uZVN1ZmZpeCI6IjAwNDUiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wNDYiLCJyb29tTm8iOiIxLTUtMTA2IiwibmFtZSI6Iua1i+ivleS4muS4uzQ2IiwicGhvbmVTdWZmaXgiOiIwMDQ2Iiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDQ3Iiwicm9vbU5vIjoiMS01LTEwNyIsIm5hbWUiOiLmtYvor5XkuJrkuLs0NyIsInBob25lU3VmZml4IjoiMDA0NyIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9LHsiaWQiOiJyLTA0OCIsInJvb21ObyI6IjEtNS0xMDgiLCJuYW1lIjoi5rWL6K+V5Lia5Li7NDgiLCJwaG9uZVN1ZmZpeCI6IjAwNDgiLCJzdGF0dXMiOiJhY3RpdmUiLCJpc1Rlc3QiOnRydWUsInJlZ2lzdGVyZWRBdCI6IjIwMjYtMDctMDEifSx7ImlkIjoici0wNDkiLCJyb29tTm8iOiIxLTUtMTA5IiwibmFtZSI6Iua1i+ivleS4muS4uzQ5IiwicGhvbmVTdWZmaXgiOiIwMDQ5Iiwic3RhdHVzIjoiYWN0aXZlIiwiaXNUZXN0Ijp0cnVlLCJyZWdpc3RlcmVkQXQiOiIyMDI2LTA3LTAxIn0seyJpZCI6InItMDUwIiwicm9vbU5vIjoiMS01LTExMCIsIm5hbWUiOiLmtYvor5XkuJrkuLs1MCIsInBob25lU3VmZml4IjoiMDA1MCIsInN0YXR1cyI6ImFjdGl2ZSIsImlzVGVzdCI6dHJ1ZSwicmVnaXN0ZXJlZEF0IjoiMjAyNi0wNy0wMSJ9XSwiYXVkaXQtbG9nIjpbeyJpZCI6ImxvZy0wMDEiLCJ0aW1lc3RhbXAiOiIyMDI2LTA3LTI1VDEwOjAwOjAwWiIsImFkbWluTmFtZSI6Iuezu+e7n+WIneWni+WMliIsImFkbWluSWQiOiJzeXN0ZW0iLCJhY3Rpb24iOiJpbml0IiwidGFyZ2V0IjoiYWxsIiwidGFyZ2V0SWQiOiIiLCJkZXRhaWxzIjoi57O757uf6aKE6K6+5pWw5o2u5Yid5aeL5YyW5a6M5oiQ77yM6K6k6K+B5pa55byP77ya6aKE6K6+5a+G56CBK1NIQS0yNTblk4jluIwiLCJjbGllbnRJbmZvIjoiU3lzdGVtIn1dfQ==</textarea>
+</body>
+</html>

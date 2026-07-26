@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台 - 春天阳光小区</title>
+<style>
+:root {
+  --primary: #2E8B57; --primary-light: #3da76b; --primary-dark: #1f6b41;
+  --bg: #f0f2f5; --card: #fff; --text: #333; --text-secondary: #666;
+  --border: #e0e0e0; --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --radius: 8px; --sidebar-w: 220px; --header-h: 56px;
+  --danger: #c62828; --warning: #f9a825; --success: #2e7d32;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+
+.login-page { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); }
+.login-box { background:#fff; border-radius:16px; padding:40px; width:90%; max-width:420px; box-shadow:0 12px 40px rgba(0,0,0,0.2); }
+.login-box h2 { text-align:center; margin-bottom:8px; font-size:22px; }
+.login-box .subtitle { text-align:center; color:var(--text-secondary); font-size:14px; margin-bottom:24px; }
+.login-box input { width:100%; padding:12px 14px; margin-bottom:12px; border:1px solid var(--border); border-radius:8px; font-size:14px; }
+.login-box button { width:100%; padding:12px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:15px; cursor:pointer; font-weight:500; }
+.login-box button:hover { background:var(--primary-dark); }
+.login-box button:disabled { background:#ccc; cursor:not-allowed; }
+.login-box .error { color:var(--danger); font-size:13px; text-align:center; margin-bottom:12px; display:none; }
+.login-box .tip { font-size:12px; color:var(--text-secondary); text-align:center; margin-top:12px; }
+
+.admin-layout { display:none; min-height:100vh; }
+.admin-layout.active { display:flex; }
+
+.sidebar { width:var(--sidebar-w); background:#fff; border-right:1px solid var(--border); position:fixed; top:0; bottom:0; left:0; overflow-y:auto; z-index:100; }
+.sidebar-header { padding:16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+.sidebar-header .logo { width:36px; height:36px; background:var(--primary); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.sidebar-header .title { font-size:15px; font-weight:600; }
+.sidebar-header .role { font-size:11px; color:var(--text-secondary); }
+.sidebar-nav { padding:8px; }
+.nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:6px; cursor:pointer; font-size:14px; color:var(--text); transition:.15s; margin-bottom:2px; }
+.nav-item:hover { background:#f5f5f5; }
+.nav-item.active { background:var(--primary); color:#fff; }
+.nav-item .icon { font-size:18px; width:24px; text-align:center; }
+.sidebar-footer { padding:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-secondary); }
+.sidebar-footer button { width:100%; padding:8px; background:#f5f5f5; border:1px solid var(--border); border-radius:6px; cursor:pointer; font-size:13px; margin-top:8px; }
+
+.main-content { flex:1; margin-left:var(--sidebar-w); min-height:100vh; }
+.topbar { height:var(--header-h); background:#fff; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 24px; position:sticky; top:0; z-index:50; }
+.topbar h1 { font-size:18px; font-weight:600; }
+.topbar-actions { display:flex; gap:8px; }
+.topbar-actions button { padding:6px 14px; border:1px solid var(--border); background:#fff; border-radius:6px; cursor:pointer; font-size:13px; }
+.topbar-actions button.primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+.content-area { padding:24px; max-width:1200px; }
+
+.card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:20px; }
+.card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.card-header h3 { font-size:16px; font-weight:600; }
+.card-header .actions { display:flex; gap:8px; }
+
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px; }
+.stat-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; }
+.stat-card .label { font-size:13px; color:var(--text-secondary); margin-bottom:8px; }
+.stat-card .value { font-size:28px; font-weight:700; color:var(--primary); }
+
+.data-table { width:100%; border-collapse:collapse; font-size:14px; }
+.data-table th { text-align:left; padding:12px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary); font-size:13px; }
+.data-table td { padding:12px; border-bottom:1px solid var(--border); }
+.data-table tr:hover td { background:#fafafa; }
+.data-table .actions { display:flex; gap:6px; }
+.data-table .actions button { padding:4px 10px; border:1px solid var(--border); background:#fff; border-radius:4px; cursor:pointer; font-size:12px; }
+.data-table .actions button.danger { color:var(--danger); border-color:var(--danger); }
+.data-table .actions button:hover { background:#f5f5f5; }
+
+.form-group { margin-bottom:16px; }
+.form-group label { display:block; font-size:13px; font-weight:500; margin-bottom:6px; }
+.form-group input, .form-group select, .form-group textarea { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:6px; font-size:14px; font-family:inherit; }
+.form-group textarea { min-height:120px; resize:vertical; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline:none; border-color:var(--primary); }
+.form-row { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+.form-check { display:flex; align-items:center; gap:8px; }
+.form-check input { width:auto; }
+
+.btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:6px; font-size:14px; cursor:pointer; border:1px solid var(--border); background:#fff; }
+.btn:hover { background:#f5f5f5; }
+.btn-primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+.btn-primary:hover { background:var(--primary-dark); }
+.btn-danger { color:var(--danger); border-color:var(--danger); }
+.btn-danger:hover { background:#ffebee; }
+.btn-sm { padding:6px 12px; font-size:13px; }
+
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; display:none; align-items:center; justify-content:center; }
+.modal-overlay.active { display:flex; }
+.modal-box { background:#fff; border-radius:12px; width:90%; max-width:600px; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,0.2); }
+.modal-box .modal-header { padding:20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.modal-box .modal-header h3 { font-size:18px; }
+.modal-box .modal-header .close { font-size:24px; cursor:pointer; color:var(--text-secondary); }
+.modal-box .modal-body { padding:20px; }
+.modal-box .modal-footer { padding:16px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; }
+
+.toast-container { position:fixed; top:20px; right:20px; z-index:2000; display:flex; flex-direction:column; gap:8px; }
+.toast { background:#fff; border-radius:8px; padding:12px 16px; box-shadow:0 4px 16px rgba(0,0,0,0.15); display:flex; align-items:center; gap:10px; min-width:280px; animation:slideIn .3s ease; }
+.toast.success { border-left:4px solid var(--success); }
+.toast.error { border-left:4px solid var(--danger); }
+.toast.info { border-left:4px solid var(--primary); }
+@keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+
+.progress-bar { background:#e0e0e0; border-radius:6px; height:8px; overflow:hidden; }
+.progress-bar-fill { height:100%; background:var(--primary); border-radius:6px; }
+
+.tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.tag-test { background:#fff3e0; color:#e65100; }
+.tag-active { background:#e8f5e9; color:#2e7d32; }
+.tag-disabled { background:#eceff1; color:#546e7a; }
+
+@media (max-width:768px) {
+  .sidebar { transform:translateX(-100%); transition:.3s; }
+  .sidebar.open { transform:translateX(0); }
+  .main-content { margin-left:0; }
+  .stats-grid { grid-template-columns:repeat(2,1fr); }
+  .form-row { grid-template-columns:1fr; }
+}
+
+.loading-overlay { position:fixed; inset:0; background:rgba(255,255,255,0.8); z-index:3000; display:none; align-items:center; justify-content:center; }
+.loading-overlay.active { display:flex; }
+.spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.empty-state { text-align:center; padding:60px 20px; color:var(--text-secondary); }
+.empty-state .icon { font-size:48px; margin-bottom:16px; }
+
+.batch-textarea { width:100%; min-height:200px; padding:12px; border:1px solid var(--border); border-radius:6px; font-family:monospace; font-size:13px; }
+</style>
+  <link rel="icon" id="faviconLink" type="image/png" href="">
+</head>
+<body>
+
+<div class="login-page" id="loginPage">
+  <div class="login-box">
+    <h2>🔐 管理员登录</h2>
+    <p class="subtitle">春天阳光小区 · 管理后台</p>
+    <div class="error" id="loginError"></div>
+    <input type="password" id="loginPassword" placeholder="请输入管理密码">
+    <button id="loginBtn" onclick="doAdminLogin()">登录</button>
+    <p class="tip">默认密码：Sunlight2026<br>首次登录后请立即修改密码</p>
+  </div>
+</div>
+
+<div class="login-page" id="tokenPage" style="display:none;">
+  <div class="login-box">
+    <h2>🔑 配置 GitHub Token</h2>
+    <p class="subtitle">需要 GitHub Personal Access Token 才能保存数据</p>
+    <div class="error" id="tokenError"></div>
+    <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx">
+    <input type="text" id="adminName" placeholder="管理员名称（用于审计日志）">
+    <input type="text" id="repoName" placeholder="仓库名（如 community-platform，可选）">
+    <button onclick="saveToken()">保存并进入后台</button>
+    <p class="tip">Token 类型：classic，需勾选 repo 权限<br>Token 仅保存在本浏览器，不会上传</p>
+  </div>
+</div>
+
+<div class="admin-layout" id="adminLayout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">⚙️</div>
+      <div>
+        <div class="title">管理后台</div>
+        <div class="role" id="adminRole">超级管理员</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav"></nav>
+    <div class="sidebar-footer">
+      <div id="adminInfo">管理员A</div>
+      <button onclick="logout()">退出登录</button>
+    </div>
+  </aside>
+  <main class="main-content">
+    <div class="topbar">
+      <h1 id="pageTitle">仪表盘</h1>
+      <div class="topbar-actions">
+        <button onclick="window.open('index.html','_blank')">🌐 查看前台</button>
+        <button class="primary" id="saveBtn" onclick="saveCurrentModule()" style="display:none;">💾 保存</button>
+      </div>
+    </div>
+    <div class="content-area" id="contentArea"></div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-header">
+      <h3 id="modalTitle">标题</h3>
+      <span class="close" onclick="closeModal()">&times;</span>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const EMBEDDED_DATA = {"config":{"community":{"name":"春天阳光小区","address":"阳光大道 100 号","totalUnits":1200,"builtYear":"2018","area":"5.2万平方米","propertyCompany":"阳光物业服务有限公司","committeePhone":"0571-88888888","propertyPhone":"0571-88888889","logo":"assets/logo.png","slogan":"共建和谐社区，共享美好生活","favicon":"assets/logo.png"},"settings":{"maxAnnouncements":200,"itemsPerPage":10,"allowGuestView":true,"defaultTheme":"T1","themeOptions":[{"id":"T1","name":"春晓绿","color":"#2E8B57","desc":"清新自然"},{"id":"T2","name":"天空蓝","color":"#1976D2","desc":"稳重专业"},{"id":"T3","name":"暖阳橙","color":"#E65100","desc":"温馨活力"},{"id":"T4","name":"中国红","color":"#C62828","desc":"庄重喜庆"},{"id":"T5","name":"优雅紫","color":"#6A1B9A","desc":"高端典雅"}]},"auth":{"passwordHash":"202d43fbed60e08c1b1df1b1434c0cca94e45b1704cf86e030ee17c68979610a","salt":"SunlightCommunity2026","maxAttempts":5,"lockoutMinutes":30,"lastChanged":"2026-07-25"},"admins":[{"id":"admin-1","name":"管理员A","role":"super","permissions":["all"]},{"id":"admin-2","name":"管理员B","role":"editor","permissions":["announcements","documents","activities","polls","residents"]},{"id":"admin-3","name":"管理员C","role":"editor","permissions":["announcements","activities"]},{"id":"admin-4","name":"管理员D","role":"editor","permissions":["polls","residents"]},{"id":"admin-5","name":"管理员E","role":"viewer","permissions":["view","audit-log"]}]},"announcements":[{"id":"ann-001","title":"【测试】关于小区电梯年度维保的通知","category":"物业通知","content":"<p>【测试数据】各位业主，为确保电梯安全运行，物业将于本月进行年度维保，具体安排如下...</p>","isPinned":true,"publishDate":"2026-07-20","author":"管理员A","views":156,"attachments":[]},{"id":"ann-002","title":"【测试】端午节放假及值班安排","category":"节日通知","content":"<p>【测试数据】端午节期间物业服务中心值班时间为：6月22日-24日 9:00-17:00...</p>","isPinned":false,"publishDate":"2026-07-15","author":"管理员B","views":89,"attachments":[]},{"id":"ann-003","title":"【测试】垃圾分类投放点调整说明","category":"社区公告","content":"<p>【测试数据】根据上级要求，小区垃圾分类投放点将做如下调整：1号楼北侧...</p>","isPinned":false,"publishDate":"2026-07-18","author":"管理员C","views":120,"attachments":[]},{"id":"ann-004","title":"【测试】停车场管理系统升级通知","category":"物业通知","content":"<p>【测试数据】为提升停车体验，停车场系统将于本周末升级，期间可能短暂影响...</p>","isPinned":false,"publishDate":"2026-07-19","author":"管理员B","views":76,"attachments":[]},{"id":"ann-005","title":"【测试】关于成立业主委员会筹备组的公告","category":"重要公告","content":"<p>【测试数据】根据《物业管理条例》，现成立业主委员会筹备组，欢迎热心业主报名...</p>","isPinned":true,"publishDate":"2026-07-10","author":"管理员A","views":234,"attachments":[]},{"id":"ann-006","title":"【测试】夏季绿化养护计划","category":"环境通知","content":"<p>【测试数据】为保持小区绿化景观，夏季养护计划如下：修剪草坪、病虫害防治...</p>","isPinned":false,"publishDate":"2026-07-12","author":"管理员C","views":45,"attachments":[]},{"id":"ann-007","title":"【测试】消防演练活动通知","category":"安全通知","content":"<p>【测试数据】定于本周六上午9:00开展消防演练，请业主配合，听到警报请勿惊慌...</p>","isPinned":false,"publishDate":"2026-07-22","author":"管理员D","views":98,"attachments":[]},{"id":"ann-008","title":"【测试】物业费收缴温馨提示","category":"物业通知","content":"<p>【测试数据】请各位业主及时缴纳本年度物业费，可通过微信/支付宝/银行转账...</p>","isPinned":false,"publishDate":"2026-07-23","author":"管理员B","views":67,"attachments":[]}],"documents":[{"id":"doc-001","title":"【测试】关于进一步加强社区治理工作的指导意见","source":"xx街道办事处","publishDate":"2026-07-15","fileUrl":"","description":"【测试数据】根据市城管局要求，各社区需加强治理工作，落实网格化管理...","category":"上级文件"},{"id":"doc-002","title":"【测试】2026年度老旧小区改造实施方案","source":"市住建局","publishDate":"2026-07-10","fileUrl":"","description":"【测试数据】本年度改造重点包括外墙翻新、管道更换、加装电梯等...","category":"上级文件"},{"id":"doc-003","title":"【测试】社区消防安全检查标准及要求","source":"区消防大队","publishDate":"2026-07-05","fileUrl":"","description":"【测试数据】各社区需按照以下标准开展消防安全自查，确保消防设施完好...","category":"上级文件"}],"activities":[{"id":"act-001","title":"【测试】端午节包粽子活动圆满结束","date":"2026-05-30","location":"小区中心广场","content":"<p>【测试数据】活动现场热闹非凡，共有80余位业主参与，大家亲手包粽子、做香囊...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"已结束"},{"id":"act-002","title":"【测试】暑期少儿绘画培训班开班啦","date":"2026-07-20","location":"社区活动室","content":"<p>【测试数据】暑期绘画班即日起接受报名，限20人，由专业美术老师授课...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"进行中"},{"id":"act-003","title":"【测试】社区健康义诊活动预告","date":"2026-08-05","location":"小区中心广场","content":"<p>【测试数据】特邀市三甲医院医生来小区开展义诊，提供免费血压血糖检测...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"预告"},{"id":"act-004","title":"【测试】业主羽毛球友谊赛精彩回顾","date":"2026-06-15","location":"小区羽毛球馆","content":"<p>【测试数据】本次比赛共有16支队伍参加，经过激烈角逐，最终A栋代表队夺冠...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"已结束"}],"polls":[{"id":"poll-001","caseNo":"2026-YJ-001","title":"【测试】关于增设儿童游乐设施的意见征集","type":"opinion","description":"【测试数据】为丰富小区儿童活动空间，拟在中心花园增设游乐设施，现征集业主意见...","tencentUrl":"https://wj.qq.com/s2/xxxx/xxxx","startDate":"2026-07-20","endDate":"2026-08-20","status":"进行中","progress":{"target":300,"current":156,"unit":"户"},"results":{"isPublished":false,"summary":"","detailUrl":""},"createdBy":"管理员A","createdAt":"2026-07-20T09:00:00Z"},{"id":"poll-002","caseNo":"2026-YJ-002","title":"【测试】小区停车位管理方案投票","type":"vote","description":"【测试数据】针对小区停车位紧张问题，现提供三种管理方案供业主投票选择...","tencentUrl":"https://wj.qq.com/s2/xxxx/xxxx2","startDate":"2026-06-01","endDate":"2026-06-15","status":"已结束","progress":{"target":300,"current":278,"unit":"户"},"results":{"isPublished":true,"summary":"方案A获得68%支持率（189户），方案B获得22%（61户），方案C获得10%（28户）","detailUrl":""},"createdBy":"管理员D","createdAt":"2026-06-01T09:00:00Z"}],"residents":[{"id":"r-001","roomNo":"1-1-101","name":"测试业主01","phoneSuffix":"0001","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-002","roomNo":"1-1-102","name":"测试业主02","phoneSuffix":"0002","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-003","roomNo":"1-1-103","name":"测试业主03","phoneSuffix":"0003","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-004","roomNo":"1-1-104","name":"测试业主04","phoneSuffix":"0004","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-005","roomNo":"1-1-105","name":"测试业主05","phoneSuffix":"0005","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-006","roomNo":"1-1-106","name":"测试业主06","phoneSuffix":"0006","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-007","roomNo":"1-1-107","name":"测试业主07","phoneSuffix":"0007","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-008","roomNo":"1-1-108","name":"测试业主08","phoneSuffix":"0008","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-009","roomNo":"1-1-109","name":"测试业主09","phoneSuffix":"0009","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-010","roomNo":"1-1-110","name":"测试业主10","phoneSuffix":"0010","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-011","roomNo":"1-2-101","name":"测试业主11","phoneSuffix":"0011","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-012","roomNo":"1-2-102","name":"测试业主12","phoneSuffix":"0012","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-013","roomNo":"1-2-103","name":"测试业主13","phoneSuffix":"0013","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-014","roomNo":"1-2-104","name":"测试业主14","phoneSuffix":"0014","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-015","roomNo":"1-2-105","name":"测试业主15","phoneSuffix":"0015","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-016","roomNo":"1-2-106","name":"测试业主16","phoneSuffix":"0016","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-017","roomNo":"1-2-107","name":"测试业主17","phoneSuffix":"0017","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-018","roomNo":"1-2-108","name":"测试业主18","phoneSuffix":"0018","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-019","roomNo":"1-2-109","name":"测试业主19","phoneSuffix":"0019","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-020","roomNo":"1-2-110","name":"测试业主20","phoneSuffix":"0020","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-021","roomNo":"1-3-101","name":"测试业主21","phoneSuffix":"0021","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-022","roomNo":"1-3-102","name":"测试业主22","phoneSuffix":"0022","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-023","roomNo":"1-3-103","name":"测试业主23","phoneSuffix":"0023","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-024","roomNo":"1-3-104","name":"测试业主24","phoneSuffix":"0024","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-025","roomNo":"1-3-105","name":"测试业主25","phoneSuffix":"0025","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-026","roomNo":"1-3-106","name":"测试业主26","phoneSuffix":"0026","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-027","roomNo":"1-3-107","name":"测试业主27","phoneSuffix":"0027","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-028","roomNo":"1-3-108","name":"测试业主28","phoneSuffix":"0028","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-029","roomNo":"1-3-109","name":"测试业主29","phoneSuffix":"0029","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-030","roomNo":"1-3-110","name":"测试业主30","phoneSuffix":"0030","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-031","roomNo":"1-4-101","name":"测试业主31","phoneSuffix":"0031","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-032","roomNo":"1-4-102","name":"测试业主32","phoneSuffix":"0032","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-033","roomNo":"1-4-103","name":"测试业主33","phoneSuffix":"0033","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-034","roomNo":"1-4-104","name":"测试业主34","phoneSuffix":"0034","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-035","roomNo":"1-4-105","name":"测试业主35","phoneSuffix":"0035","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-036","roomNo":"1-4-106","name":"测试业主36","phoneSuffix":"0036","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-037","roomNo":"1-4-107","name":"测试业主37","phoneSuffix":"0037","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-038","roomNo":"1-4-108","name":"测试业主38","phoneSuffix":"0038","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-039","roomNo":"1-4-109","name":"测试业主39","phoneSuffix":"0039","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-040","roomNo":"1-4-110","name":"测试业主40","phoneSuffix":"0040","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-041","roomNo":"1-5-101","name":"测试业主41","phoneSuffix":"0041","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-042","roomNo":"1-5-102","name":"测试业主42","phoneSuffix":"0042","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-043","roomNo":"1-5-103","name":"测试业主43","phoneSuffix":"0043","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-044","roomNo":"1-5-104","name":"测试业主44","phoneSuffix":"0044","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-045","roomNo":"1-5-105","name":"测试业主45","phoneSuffix":"0045","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-046","roomNo":"1-5-106","name":"测试业主46","phoneSuffix":"0046","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-047","roomNo":"1-5-107","name":"测试业主47","phoneSuffix":"0047","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-048","roomNo":"1-5-108","name":"测试业主48","phoneSuffix":"0048","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-049","roomNo":"1-5-109","name":"测试业主49","phoneSuffix":"0049","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-050","roomNo":"1-5-110","name":"测试业主50","phoneSuffix":"0050","status":"active","isTest":true,"registeredAt":"2026-07-01"}],"audit-log":[{"id":"log-001","timestamp":"2026-07-25T10:00:00Z","adminName":"系统初始化","adminId":"system","action":"init","target":"all","targetId":"","details":"系统预设数据初始化完成，认证方式：预设密码+SHA-256哈希","clientInfo":"System"}]};
+let appData = {};
+let currentModule = 'dashboard';
+let adminSession = null;
+let githubToken = localStorage.getItem('githubToken') || '';
+let currentAdmin = null;
+const SALT = "SunlightCommunity2026";
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadAllData();
+  checkLoginState();
+});
+
+async function loadAllData() {
+  const files = ['config','announcements','documents','activities','polls','residents','audit-log'];
+  for (const f of files) {
+    try {
+      const r = await fetch('data/' + f + '.json?t=' + Date.now());
+      if (!r.ok) throw new Error('fetch failed');
+      appData[f] = await r.json();
+    } catch(e) { appData[f] = EMBEDDED_DATA[f] || []; }
+  }
+  updateFavicon();
+}
+
+function updateFavicon() {
+  const favicon = appData.config && appData.config.community && appData.config.community.favicon;
+  if (favicon) {
+    document.getElementById('faviconLink').href = favicon;
+  }
+}
+function checkLoginState() {
+  const session = localStorage.getItem('adminSession');
+  if (session) {
+    try {
+      adminSession = JSON.parse(session);
+      const admin = (appData.config && appData.config.admins || []).find(a => a.id === adminSession.adminId);
+      if (admin && githubToken) {
+        currentAdmin = admin;
+        showAdminLayout();
+        return;
+      }
+    } catch(e) {}
+  }
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('tokenPage').style.display = 'none';
+  document.getElementById('adminLayout').classList.remove('active');
+}
+
+async function doAdminLogin() {
+  const pwd = document.getElementById('loginPassword').value.trim();
+  const err = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  if (!pwd) { err.textContent = '请输入密码'; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = '验证中...';
+  const hash = await sha256(pwd + SALT);
+  const storedHash = appData.config && appData.config.auth && appData.config.auth.passwordHash;
+  if (hash !== storedHash) {
+    err.textContent = '密码错误'; err.style.display = 'block';
+    btn.disabled = false; btn.textContent = '登录';
+    return;
+  }
+  document.getElementById('loginPage').style.display = 'none';
+  if (!githubToken) {
+    document.getElementById('tokenPage').style.display = 'flex';
+  } else {
+    showAdminLayout();
+  }
+}
+
+async function saveToken() {
+  const token = document.getElementById('githubToken').value.trim();
+  const name = document.getElementById('adminName').value.trim();
+  const err = document.getElementById('tokenError');
+  if (!token) { err.textContent = '请输入Token'; err.style.display = 'block'; return; }
+  if (!name) { err.textContent = '请输入管理员名称'; err.style.display = 'block'; return; }
+  showLoading(true);
+  try {
+    const r = await fetch('https://api.github.com/user', {
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (!r.ok) throw new Error('Token验证失败');
+    githubToken = token;
+    localStorage.setItem('githubToken', token);
+    const repoName = document.getElementById('repoName').value.trim();
+    if (repoName) localStorage.setItem('githubRepo', repoName);
+    const admins = appData.config && appData.config.admins || [];
+    let admin = admins.find(a => a.name === name);
+    if (!admin) admin = admins[0];
+    currentAdmin = admin;
+    adminSession = { adminId: admin.id, loginTime: new Date().toISOString() };
+    localStorage.setItem('adminSession', JSON.stringify(adminSession));
+    showLoading(false);
+    document.getElementById('tokenPage').style.display = 'none';
+    showAdminLayout();
+    showToast('登录成功', 'success');
+  } catch(e) {
+    showLoading(false);
+    err.textContent = 'Token验证失败：' + e.message;
+    err.style.display = 'block';
+  }
+}
+
+function showAdminLayout() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('tokenPage').style.display = 'none';
+  document.getElementById('adminLayout').classList.add('active');
+  document.getElementById('adminInfo').textContent = currentAdmin && currentAdmin.name || '管理员';
+  document.getElementById('adminRole').textContent = currentAdmin && currentAdmin.role === 'super' ? '超级管理员' : (currentAdmin && currentAdmin.role === 'editor' ? '编辑员' : '查看员');
+  renderSidebar();
+  navigateTo('dashboard');
+}
+
+function logout() {
+  if (confirm('确定要退出登录吗？')) {
+    localStorage.removeItem('adminSession');
+    localStorage.removeItem('githubToken');
+    localStorage.removeItem('githubRepo');
+    adminSession = null; currentAdmin = null; githubToken = '';
+    location.reload();
+  }
+}
+
+async function sha256(str) {
+  const buf = new TextEncoder().encode(str);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function renderSidebar() {
+  const perms = currentAdmin && currentAdmin.permissions || [];
+  const isSuper = currentAdmin && currentAdmin.role === 'super';
+  const isViewer = currentAdmin && currentAdmin.role === 'viewer';
+  const items = [
+    { id: 'dashboard', label: '仪表盘', icon: '📊', perm: 'view' },
+    { id: 'config', label: '社区配置', icon: '⚙️', perm: 'all', super: true },
+    { id: 'announcements', label: '公告管理', icon: '📢', perm: 'announcements' },
+    { id: 'documents', label: '文件管理', icon: '📄', perm: 'documents' },
+    { id: 'activities', label: '动态管理', icon: '🎉', perm: 'activities' },
+    { id: 'polls', label: '投票管理', icon: '🗳️', perm: 'polls' },
+    { id: 'residents', label: '业主管理', icon: '👥', perm: 'residents' },
+    { id: 'audit', label: '操作日志', icon: '📋', perm: 'audit-log' },
+    { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', super: true }
+  ];
+  let html = '';
+  items.forEach(item => {
+    const hasPerm = isSuper || isViewer || perms.indexOf(item.perm) >= 0 || perms.indexOf('all') >= 0;
+    if (!hasPerm) return;
+    if (item.super && !isSuper) return;
+    html += `<div class="nav-item ${item.id==='dashboard'?'active':''}" data-module="${item.id}" onclick="navigateTo('${item.id}')">`;
+    html += '<span class="icon">' + item.icon + '</span><span>' + item.label + '</span></div>';
+  });
+  document.getElementById('sidebarNav').innerHTML = html;
+}
+
+function navigateTo(module) {
+  currentModule = module;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === module));
+  const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', audit: '操作日志', settings: '系统设置' };
+  document.getElementById('pageTitle').textContent = titles[module] || module;
+  document.getElementById('saveBtn').style.display = ['dashboard','audit'].indexOf(module) >= 0 ? 'none' : 'inline-block';
+  const renderers = {
+    dashboard: renderDashboard, config: renderConfig, announcements: renderAnnouncementsAdmin,
+    documents: renderDocumentsAdmin, activities: renderActivitiesAdmin, polls: renderPollsAdmin,
+    residents: renderResidentsAdmin, audit: renderAuditLog, settings: renderSettings
+  };
+  const fn = renderers[module] || renderDashboard;
+  document.getElementById('contentArea').innerHTML = fn();
+}
+
+function renderDashboard() {
+  const annCount = (appData.announcements || []).length;
+  const docCount = (appData.documents || []).length;
+  const actCount = (appData.activities || []).length;
+  const pollCount = (appData.polls || []).filter(p => p.status === '进行中').length;
+  const resCount = (appData.residents || []).filter(r => r.status === 'active' && !r.isTest).length;
+  const testCount = (appData.residents || []).filter(r => r.isTest).length;
+  return '<div class="stats-grid">' +
+    '<div class="stat-card"><div class="label">公告总数</div><div class="value">' + annCount + '</div></div>' +
+    '<div class="stat-card"><div class="label">上级文件</div><div class="value">' + docCount + '</div></div>' +
+    '<div class="stat-card"><div class="label">社区动态</div><div class="value">' + actCount + '</div></div>' +
+    '<div class="stat-card"><div class="label">进行中投票</div><div class="value">' + pollCount + '</div></div>' +
+    '</div><div class="stats-grid">' +
+    '<div class="stat-card"><div class="label">正式业主</div><div class="value">' + resCount + '</div></div>' +
+    '<div class="stat-card"><div class="label">测试数据</div><div class="value" style="color:var(--warning)">' + testCount + '</div></div>' +
+    '</div><div class="card"><div class="card-header"><h3>🚀 快捷入口</h3></div>' +
+    '<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">' +
+    `<button class="btn btn-primary" onclick="navigateTo('announcements');openEditModal('announcements',null)">➕ 发布公告</button>` +
+    `<button class="btn btn-primary" onclick="navigateTo('activities');openEditModal('activities',null)">➕ 发布动态</button>` +
+    `<button class="btn btn-primary" onclick="navigateTo('polls');openEditModal('polls',null)">➕ 发起投票</button>` +
+    `<button class="btn btn-primary" onclick="navigateTo('residents');openEditModal('residents',null)">➕ 添加业主</button>` +
+    '</div></div>';
+}
+
+function renderConfig() {
+  const c = appData.config && appData.config.community || {};
+  const s = appData.config && appData.config.settings || {};
+  const themes = s.themeOptions || [];
+  return '<div class="card"><div class="card-header"><h3>🏘️ 社区基本信息</h3></div>' +
+    '<div class="form-row"><div class="form-group"><label>社区名称</label><input type="text" id="cfgName" value="' + (c.name||'') + '"></div>' +
+    '<div class="form-group"><label>地址</label><input type="text" id="cfgAddress" value="' + (c.address||'') + '"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label>总户数</label><input type="number" id="cfgUnits" value="' + (c.totalUnits||'') + '"></div>' +
+    '<div class="form-group"><label>建成年份</label><input type="text" id="cfgYear" value="' + (c.builtYear||'') + '"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label>占地面积</label><input type="text" id="cfgArea" value="' + (c.area||'') + '"></div>' +
+    '<div class="form-group"><label>物业公司</label><input type="text" id="cfgProperty" value="' + (c.propertyCompany||'') + '"></div></div>' +
+    '<div class="form-row"><div class="form-group"><label>居委会电话</label><input type="text" id="cfgCommittee" value="' + (c.committeePhone||'') + '"></div>' +
+    '<div class="form-group"><label>物业电话</label><input type="text" id="cfgPropertyPhone" value="' + (c.propertyPhone||'') + '"></div></div>' +
+    '<div class="form-group"><label>社区口号</label><input type="text" id="cfgSlogan" value="' + (c.slogan||'') + '"></div>' +
+  '<div class="form-group"><label>浏览器图标（favicon）链接</label><input type="text" id="cfgFavicon" value="' + (c.favicon||'') + '" placeholder="assets/logo.png 或 https://..."></div></div>' +
+    '<div class="card"><div class="card-header"><h3>🎨 主题设置</h3></div>' +
+    '<div class="form-group"><label>默认主题</label><select id="cfgTheme">' +
+    themes.map(t => '<option value="' + t.id + '" ' + (s.defaultTheme===t.id?'selected':'') + '>' + t.name + ' (' + t.desc + ')</option>').join('') +
+    '</select></div></div>';
+}
+
+function renderAnnouncementsAdmin() {
+  const list = appData.announcements || [];
+  return `<div class="card"><div class="card-header"><h3>📢 公告管理</h3><button class="btn btn-primary" onclick="openEditModal('announcements',null)">➕ 新增公告</button></div>` +
+    '<table class="data-table"><thead><tr><th>标题</th><th>分类</th><th>日期</th><th>置顶</th><th>作者</th><th>操作</th></tr></thead><tbody>' +
+    list.map(item => `<tr><td>${item.title}</td><td>${item.category}</td><td>${item.publishDate}</td><td>${item.isPinned?"📌":""}</td><td>${item.author}</td><td class="actions"><button onclick="openEditModal('announcements','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('announcements','${item.id}')">删除</button></td></tr>`).join(``) +
+    '</tbody></table></div>';
+}
+
+function renderDocumentsAdmin() {
+  const list = appData.documents || [];
+  return `<div class="card"><div class="card-header"><h3>📄 文件管理</h3><button class="btn btn-primary" onclick="openEditModal('documents',null)">➕ 新增文件</button></div>` +
+    '<table class="data-table"><thead><tr><th>标题</th><th>来源</th><th>日期</th><th>操作</th></tr></thead><tbody>' +
+    list.map(item => `<tr><td>${item.title}</td><td>${item.source}</td><td>${item.publishDate}</td><td class="actions"><button onclick="openEditModal('documents','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('documents','${item.id}')">删除</button></td></tr>`).join(``) +
+    '</tbody></table></div>';
+}
+
+function renderActivitiesAdmin() {
+  const list = appData.activities || [];
+  return `<div class="card"><div class="card-header"><h3>🎉 动态管理</h3><button class="btn btn-primary" onclick="openEditModal('activities',null)">➕ 新增动态</button></div>` +
+    '<table class="data-table"><thead><tr><th>标题</th><th>日期</th><th>地点</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
+    list.map(item => `<tr><td>${item.title}</td><td>${item.date}</td><td>${item.location}</td><td><span class="tag ${item.status==="进行中"?"tag-active":(item.status==="预告"?"tag-test":"tag-disabled")}">${item.status}</span></td><td class="actions"><button onclick="openEditModal('activities','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('activities','${item.id}')">删除</button></td></tr>`).join(``) +
+    '</tbody></table></div>';
+}
+
+function renderPollsAdmin() {
+  const list = appData.polls || [];
+  return `<div class="card"><div class="card-header"><h3>🗳️ 投票管理</h3><button class="btn btn-primary" onclick="openEditModal('polls',null)">➕ 新增投票</button></div>` +
+    '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>状态</th><th>进度</th><th>操作</th></tr></thead><tbody>' +
+    list.map(item => {
+      const pct = Math.round((item.progress && item.progress.current||0)/(item.progress && item.progress.target||1)*100);
+      return `<tr><td>${item.caseNo}</td><td>${item.title}</td><td><span class="tag ${item.status==="进行中"?"tag-active":"tag-disabled"}">${item.status}</span></td><td><div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div> ${pct}%</td><td class="actions"><button onclick="openEditModal('polls','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('polls','${item.id}')">删除</button></td></tr>`;
+    }).join('') +
+    '</tbody></table></div>';
+}
+
+function renderResidentsAdmin() {
+  const list = appData.residents || [];
+  return `<div class="card"><div class="card-header"><h3>👥 业主管理</h3><div class="actions"><button class="btn" onclick="showBatchImport()">📥 批量导入</button><button class="btn btn-primary" onclick="openEditModal('residents',null)">➕ 添加业主</button></div></div>` +
+    '<table class="data-table"><thead><tr><th>房号</th><th>姓名</th><th>手机后四位</th><th>状态</th><th>标记</th><th>操作</th></tr></thead><tbody>' +
+    list.map(item => `<tr><td>${item.roomNo}</td><td>${item.name}</td><td>${item.phoneSuffix}</td><td><span class="tag ${item.status==="active"?"tag-active":"tag-disabled"}">${item.status==="active"?"正常":"禁用"}</span></td><td>${item.isTest?`<span class="tag tag-test">测</span>`:""}</td><td class="actions"><button onclick="openEditModal('residents','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('residents','${item.id}')">删除</button></td></tr>`).join(``) +
+    '</tbody></table></div>';
+}
+
+function renderAuditLog() {
+  const list = appData['audit-log'] || [];
+  return '<div class="card"><div class="card-header"><h3>📋 操作日志</h3></div>' +
+    '<table class="data-table"><thead><tr><th>时间</th><th>管理员</th><th>操作</th><th>目标</th><th>详情</th></tr></thead><tbody>' +
+    list.slice().reverse().map(item => '<tr><td>' + formatDateTime(item.timestamp) + '</td><td>' + item.adminName + '</td><td>' + item.action + '</td><td>' + item.target + '</td><td>' + item.details + '</td></tr>').join('') +
+    '</tbody></table></div>';
+}
+
+function renderSettings() {
+  return '<div class="card"><div class="card-header"><h3>🔐 修改管理密码</h3></div>' +
+    '<div class="form-group"><label>当前密码</label><input type="password" id="oldPassword"></div>' +
+    '<div class="form-group"><label>新密码（8位以上，含字母和数字）</label><input type="password" id="newPassword"></div>' +
+    '<div class="form-group"><label>确认新密码</label><input type="password" id="confirmPassword"></div>' +
+    '<button class="btn btn-primary" onclick="changePassword()">修改密码</button></div>' +
+    '<div class="card"><div class="card-header"><h3>🔑 GitHub Token</h3></div>' +
+    '<div class="form-group"><label>当前Token</label><input type="text" value="' + (githubToken?'已配置（' + githubToken.substring(0,8) + '...）':'未配置') + '" disabled></div>' +
+    '<button class="btn" onclick="showTokenModal()">更换Token</button></div>';
+}
+
+function openEditModal(module, id) {
+  const isNew = !id;
+  let item = {};
+  if (!isNew) {
+    const list = appData[module] || [];
+    item = list.find(x => x.id === id) || {};
+  }
+  const titles = { announcements: '公告', documents: '文件', activities: '动态', polls: '投票', residents: '业主' };
+  document.getElementById('modalTitle').textContent = (isNew ? '新增' : '编辑') + (titles[module] || module);
+  let body = '';
+  if (module === 'announcements') {
+    body = '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
+      '<div class="form-row"><div class="form-group"><label>分类</label><input type="text" id="edCategory" value="' + (item.category||'物业通知') + '"></div>' +
+      '<div class="form-group"><label>发布日期</label><input type="date" id="edDate" value="' + (item.publishDate||new Date().toISOString().split('T')[0]) + '"></div></div>' +
+      '<div class="form-group"><label>作者</label><input type="text" id="edAuthor" value="' + (item.author||currentAdmin&&currentAdmin.name||'') + '"></div>' +
+      '<div class="form-group form-check"><input type="checkbox" id="edPinned" ' + (item.isPinned?'checked':'') + '><label for="edPinned">置顶</label></div>' +
+      '<div class="form-group"><label>内容（支持HTML）</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>';
+  } else if (module === 'documents') {
+    body = '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
+      '<div class="form-row"><div class="form-group"><label>来源</label><input type="text" id="edSource" value="' + (item.source||'') + '"></div>' +
+      '<div class="form-group"><label>发布日期</label><input type="date" id="edDate" value="' + (item.publishDate||new Date().toISOString().split('T')[0]) + '"></div></div>' +
+      '<div class="form-group"><label>文件链接</label><input type="text" id="edFileUrl" value="' + (item.fileUrl||'') + '" placeholder="assets/files/xxx.pdf 或外部链接"></div>' +
+      '<div class="form-group"><label>描述</label><textarea id="edDesc">' + (item.description||'') + '</textarea></div>';
+  } else if (module === 'activities') {
+    body = '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
+      '<div class="form-row"><div class="form-group"><label>日期</label><input type="date" id="edDate" value="' + (item.date||'') + '"></div>' +
+      '<div class="form-group"><label>地点</label><input type="text" id="edLocation" value="' + (item.location||'') + '"></div></div>' +
+      '<div class="form-group"><label>状态</label><select id="edStatus"><option value="预告" ' + (item.status==='预告'?'selected':'') + '>预告</option><option value="进行中" ' + (item.status==='进行中'?'selected':'') + '>进行中</option><option value="已结束" ' + (item.status==='已结束'?'selected':'') + '>已结束</option></select></div>' +
+      '<div class="form-group"><label>封面图片链接</label><input type="text" id="edCoverImage" value="' + (item.coverImage||'') + '" placeholder="https://example.com/cover.jpg"></div>' +
+      '<div class="form-group"><label>活动图集链接（每行一个）</label><textarea id="edImages" rows="3" placeholder="https://example.com/img1.jpg\nhttps://example.com/img2.jpg">' + (item.images||[]).join('\n') + '</textarea></div>' +
+      '<div class="form-group"><label>视频链接</label><input type="text" id="edVideo" value="' + (item.videoUrl||'') + '"></div>' +
+      '<div class="form-group"><label>外部链接</label><input type="text" id="edExternal" value="' + (item.externalLink||'') + '"></div>' +
+      '<div class="form-group"><label>内容</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>';
+  } else if (module === 'polls') {
+    const nextCaseNo = generateCaseNo();
+    body = '<div class="form-group"><label>案卷编号</label><input type="text" id="edCaseNo" value="' + (item.caseNo||nextCaseNo) + '" ' + (!isNew?'readonly style="background:#f5f5f5;"':'') + '></div>' +
+      '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
+      '<div class="form-row"><div class="form-group"><label>开始日期</label><input type="date" id="edStart" value="' + (item.startDate||'') + '"></div>' +
+      '<div class="form-group"><label>结束日期</label><input type="date" id="edEnd" value="' + (item.endDate||'') + '"></div></div>' +
+      '<div class="form-group"><label>状态</label><select id="edStatus"><option value="进行中" ' + (item.status==='进行中'?'selected':'') + '>进行中</option><option value="已结束" ' + (item.status==='已结束'?'selected':'') + '>已结束</option></select></div>' +
+      '<div class="form-group"><label>腾讯问卷链接</label><input type="text" id="edTencent" value="' + (item.tencentUrl||'') + '"></div>' +
+      '<div class="form-row"><div class="form-group"><label>目标户数</label><input type="number" id="edTarget" value="' + (item.progress&&item.progress.target||300) + '"></div>' +
+      '<div class="form-group"><label>当前参与</label><input type="number" id="edCurrent" value="' + (item.progress&&item.progress.current||0) + '"></div></div>' +
+      '<div class="form-group form-check"><input type="checkbox" id="edPublishResult" ' + (item.results&&item.results.isPublished?'checked':'') + '><label for="edPublishResult">公示结果</label></div>' +
+      '<div class="form-group"><label>结果摘要</label><textarea id="edResultSummary">' + (item.results&&item.results.summary||'') + '</textarea></div>' +
+      '<div class="form-group"><label>描述</label><textarea id="edDesc">' + (item.description||'') + '</textarea></div>';
+  } else if (module === 'residents') {
+    body = '<div class="form-row"><div class="form-group"><label>房号</label><input type="text" id="edRoom" value="' + (item.roomNo||'') + '" placeholder="如：1-1-101"></div>' +
+      '<div class="form-group"><label>姓名</label><input type="text" id="edName" value="' + (item.name||'') + '"></div></div>' +
+      '<div class="form-group"><label>手机号后四位</label><input type="text" id="edPhone" value="' + (item.phoneSuffix||'') + '" maxlength="4"></div>' +
+      '<div class="form-group"><label>状态</label><select id="edStatus"><option value="active" ' + (item.status==='active'?'selected':'') + '>正常</option><option value="disabled" ' + (item.status==='disabled'?'selected':'') + '>禁用</option></select></div>' +
+      '<div class="form-group form-check"><input type="checkbox" id="edTest" ' + (item.isTest?'checked':'') + '><label for="edTest">标记为测试数据</label></div>';
+  }
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalFooter').innerHTML = `<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveItem('${module}','${id||''}')">保存</button>`;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function generateCaseNo() {
+  const year = new Date().getFullYear();
+  const polls = appData.polls || [];
+  const maxNum = polls.reduce((max, p) => {
+    const match = p.caseNo && p.caseNo.match(/YJ-(\d+)/);
+    return match ? Math.max(max, parseInt(match[1])) : max;
+  }, 0);
+  return year + '-YJ-' + String(maxNum + 1).padStart(3, '0');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('active');
+}
+
+async function saveCurrentModule() {
+  if (currentModule === 'config') {
+    const c = appData.config.community;
+    c.name = document.getElementById('cfgName').value;
+    c.address = document.getElementById('cfgAddress').value;
+    c.totalUnits = parseInt(document.getElementById('cfgUnits').value) || 0;
+    c.builtYear = document.getElementById('cfgYear').value;
+    c.area = document.getElementById('cfgArea').value;
+    c.propertyCompany = document.getElementById('cfgProperty').value;
+    c.committeePhone = document.getElementById('cfgCommittee').value;
+    c.propertyPhone = document.getElementById('cfgPropertyPhone').value;
+    c.slogan = document.getElementById('cfgSlogan').value;
+    c.favicon = document.getElementById('cfgFavicon').value;
+    appData.config.settings.defaultTheme = document.getElementById('cfgTheme').value;
+    updateFavicon();
+    await saveDataFile('config', appData.config, '更新社区配置');
+  }
+}
+
+async function saveItem(module, id) {
+  const isNew = !id;
+  let item = isNew ? { id: generateId(module) } : (appData[module] || []).find(x => x.id === id) || { id: id };
+  if (module === 'announcements') {
+    item.title = document.getElementById('edTitle').value;
+    item.category = document.getElementById('edCategory').value;
+    item.publishDate = document.getElementById('edDate').value;
+    item.author = document.getElementById('edAuthor').value;
+    item.isPinned = document.getElementById('edPinned').checked;
+    item.content = document.getElementById('edContent').value;
+    item.views = item.views || 0;
+    item.attachments = item.attachments || [];
+  } else if (module === 'documents') {
+    item.title = document.getElementById('edTitle').value;
+    item.source = document.getElementById('edSource').value;
+    item.publishDate = document.getElementById('edDate').value;
+    item.fileUrl = document.getElementById('edFileUrl').value;
+    item.description = document.getElementById('edDesc').value;
+    item.category = '上级文件';
+  } else if (module === 'activities') {
+    item.title = document.getElementById('edTitle').value;
+    item.date = document.getElementById('edDate').value;
+    item.location = document.getElementById('edLocation').value;
+    item.status = document.getElementById('edStatus').value;
+    item.coverImage = document.getElementById('edCoverImage').value.trim();
+    const imgText = document.getElementById('edImages').value.trim();
+    item.images = imgText ? imgText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
+    item.videoUrl = document.getElementById('edVideo').value;
+    item.externalLink = document.getElementById('edExternal').value;
+    item.content = document.getElementById('edContent').value;
+  } else if (module === 'polls') {
+    item.caseNo = document.getElementById('edCaseNo').value;
+    item.title = document.getElementById('edTitle').value;
+    item.startDate = document.getElementById('edStart').value;
+    item.endDate = document.getElementById('edEnd').value;
+    item.status = document.getElementById('edStatus').value;
+    item.tencentUrl = document.getElementById('edTencent').value;
+    item.progress = { target: parseInt(document.getElementById('edTarget').value)||0, current: parseInt(document.getElementById('edCurrent').value)||0, unit: '户' };
+    item.results = { isPublished: document.getElementById('edPublishResult').checked, summary: document.getElementById('edResultSummary').value, detailUrl: '' };
+    item.description = document.getElementById('edDesc').value;
+    item.type = item.type || 'opinion';
+    item.createdBy = item.createdBy || currentAdmin && currentAdmin.name;
+    item.createdAt = item.createdAt || new Date().toISOString();
+  } else if (module === 'residents') {
+    item.roomNo = document.getElementById('edRoom').value;
+    item.name = document.getElementById('edName').value;
+    item.phoneSuffix = document.getElementById('edPhone').value;
+    item.status = document.getElementById('edStatus').value;
+    item.isTest = document.getElementById('edTest').checked;
+    item.registeredAt = item.registeredAt || new Date().toISOString().split('T')[0];
+  }
+  const list = appData[module] || [];
+  const idx = list.findIndex(x => x.id === item.id);
+  if (idx >= 0) list[idx] = item; else list.push(item);
+  appData[module] = list;
+  const action = isNew ? 'create' : 'update';
+  const detail = (isNew ? '新增' : '更新') + getModuleName(module) + '《' + (item.title || item.name || '') + '》';
+  closeModal(); showLoading(true);
+  try {
+    await saveDataFile(module, list, detail, action);
+    showToast('保存成功', 'success');
+    navigateTo(module);
+  } catch(e) {
+    showToast('保存失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function deleteItem(module, id) {
+  if (!confirm('确定要删除吗？此操作不可恢复。')) return;
+  const list = appData[module] || [];
+  const item = list.find(x => x.id === id);
+  const newList = list.filter(x => x.id !== id);
+  appData[module] = newList;
+  showLoading(true);
+  try {
+    await saveDataFile(module, newList, '删除' + getModuleName(module) + '《' + (item && item.title || item && item.name || id) + '》', 'delete');
+    showToast('删除成功', 'success');
+    navigateTo(module);
+  } catch(e) {
+    showToast('删除失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function saveDataFile(filename, data, detail, action) {
+  action = action || 'update';
+  const ownerRepo = await getRepoInfo();
+  if (!ownerRepo) throw new Error('无法获取仓库信息');
+  const owner = ownerRepo[0], repo = ownerRepo[1];
+  const path = 'data/' + filename + '.json';
+  const getRes = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + path, {
+    headers: { 'Authorization': 'token ' + githubToken, 'Accept': 'application/vnd.github.v3+json' }
+  });
+  if (!getRes.ok) throw new Error('无法读取文件，请检查Token权限');
+  const fileInfo = await getRes.json();
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+  const putRes = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + path, {
+    method: 'PUT',
+    headers: { 'Authorization': 'token ' + githubToken, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: '[' + (currentAdmin && currentAdmin.name || '') + '] ' + detail, content: content, sha: fileInfo.sha })
+  });
+  if (!putRes.ok) {
+    const err = await putRes.json();
+    throw new Error(err.message || '保存失败');
+  }
+  await appendAuditLog(action, filename, data.id || '', detail);
+}
+
+async function appendAuditLog(action, target, targetId, detail) {
+  const log = appData['audit-log'] || [];
+  log.push({
+    id: 'log-' + Date.now(),
+    timestamp: new Date().toISOString(),
+    adminName: currentAdmin && currentAdmin.name || '未知',
+    adminId: currentAdmin && currentAdmin.id || '',
+    action: action,
+    target: target,
+    targetId: targetId,
+    details: detail,
+    clientInfo: navigator.userAgent
+  });
+  appData['audit-log'] = log;
+  const ownerRepo = await getRepoInfo();
+  if (!ownerRepo) return;
+  const owner = ownerRepo[0], repo = ownerRepo[1];
+  const path = 'data/audit-log.json';
+  try {
+    const getRes = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + path, {
+      headers: { 'Authorization': 'token ' + githubToken, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (!getRes.ok) return;
+    const fileInfo = await getRes.json();
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(log, null, 2))));
+    await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + path, {
+      method: 'PUT',
+      headers: { 'Authorization': 'token ' + githubToken, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: '[' + (currentAdmin && currentAdmin.name || '') + '] 审计日志更新', content: content, sha: fileInfo.sha })
+    });
+  } catch(e) { console.error('审计日志保存失败', e); }
+}
+
+async function getRepoInfo() {
+  try {
+    const r = await fetch('https://api.github.com/user', {
+      headers: { 'Authorization': 'token ' + githubToken }
+    });
+    if (!r.ok) return null;
+    const user = await r.json();
+    const savedRepo = localStorage.getItem('githubRepo');
+    if (savedRepo) return [user.login, savedRepo];
+    const path = window.location.pathname;
+    const parts = path.split('/');
+    if (parts.length >= 2 && parts[1] && !parts[1].includes('.')) return [user.login, parts[1]];
+    return null;
+  } catch(e) { return null; }
+}
+
+function showBatchImport() {
+  document.getElementById('modalTitle').textContent = '📥 批量导入业主';
+  document.getElementById('modalBody').innerHTML = '<p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">请粘贴Excel内容，格式：房号 | 姓名 | 手机后四位（每行一条，可用制表符或竖线分隔）</p>' +
+    '<textarea class="batch-textarea" id="batchData" placeholder="1-1-101	张三	1234\n1-1-102	李四	5678"></textarea>' +
+    '<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);">示例：1-1-101  测试业主01  0001</div>';
+  document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="doBatchImport()">导入</button>';
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function doBatchImport() {
+  const text = document.getElementById('batchData').value.trim();
+  if (!text) { showToast('请输入数据', 'error'); return; }
+  const lines = text.split('\n');
+  const newResidents = [];
+  let success = 0, fail = 0;
+  lines.forEach(line => {
+    line = line.trim();
+    if (!line) return;
+    const parts = line.split(/[\t|\|\s]+/);
+    if (parts.length >= 3) {
+      const room = parts[0].trim();
+      const name = parts[1].trim();
+      const suffix = parts[2].trim().replace(/[^0-9]/g, '').substring(0,4);
+      if (room && name && suffix) {
+        newResidents.push({ id: 'r-' + Date.now() + '-' + Math.random().toString(36).substr(2,4), roomNo: room, name: name, phoneSuffix: suffix, status: 'active', isTest: false, registeredAt: new Date().toISOString().split('T')[0] });
+        success++;
+      } else { fail++; }
+    } else { fail++; }
+  });
+  if (newResidents.length === 0) { showToast('未解析到有效数据', 'error'); return; }
+  const list = appData.residents || [];
+  list.push.apply(list, newResidents);
+  appData.residents = list;
+  closeModal(); showLoading(true);
+  try {
+    await saveDataFile('residents', list, '批量导入 ' + success + ' 位业主', 'batch-import');
+    showToast('成功导入 ' + success + ' 位业主' + (fail?'，' + fail + '行失败':''), 'success');
+    navigateTo('residents');
+  } catch(e) {
+    showToast('导入失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function changePassword() {
+  const oldPwd = document.getElementById('oldPassword').value;
+  const newPwd = document.getElementById('newPassword').value;
+  const confirmPwd = document.getElementById('confirmPassword').value;
+  if (!oldPwd || !newPwd || !confirmPwd) { showToast('请填写所有字段', 'error'); return; }
+  if (newPwd !== confirmPwd) { showToast('两次输入的新密码不一致', 'error'); return; }
+  if (newPwd.length < 8 || !/[a-zA-Z]/.test(newPwd) || !/[0-9]/.test(newPwd)) { showToast('新密码需8位以上且同时包含字母和数字', 'error'); return; }
+  const oldHash = await sha256(oldPwd + SALT);
+  if (oldHash !== appData.config.auth.passwordHash) { showToast('当前密码错误', 'error'); return; }
+  const newHash = await sha256(newPwd + SALT);
+  appData.config.auth.passwordHash = newHash;
+  appData.config.auth.lastChanged = new Date().toISOString().split('T')[0];
+  showLoading(true);
+  try {
+    await saveDataFile('config', appData.config, '修改管理密码', 'password-change');
+    showToast('密码修改成功，请重新登录', 'success');
+    setTimeout(() => { logout(); }, 1500);
+  } catch(e) {
+    showToast('修改失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+function showTokenModal() {
+  document.getElementById('modalTitle').textContent = '🔑 更换 GitHub Token';
+  document.getElementById('modalBody').innerHTML = '<div class="form-group"><label>新Token</label><input type="password" id="newToken" placeholder="ghp_xxxxxxxxxxxx"></div><p style="font-size:12px;color:var(--text-secondary);">Token 类型：classic，需勾选 repo 权限</p>';
+  document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="updateToken()">保存</button>';
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function updateToken() {
+  const token = document.getElementById('newToken').value.trim();
+  if (!token) { showToast('请输入Token', 'error'); return; }
+  showLoading(true);
+  try {
+    const r = await fetch('https://api.github.com/user', { headers: { 'Authorization': 'token ' + token } });
+    if (!r.ok) throw new Error('Token验证失败');
+    githubToken = token;
+    localStorage.setItem('githubToken', token);
+    closeModal();
+    showToast('Token已更新', 'success');
+    navigateTo('settings');
+  } catch(e) {
+    showToast(e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+function generateId(module) {
+  const prefix = { announcements: 'ann', documents: 'doc', activities: 'act', polls: 'poll', residents: 'r' };
+  const list = appData[module] || [];
+  const maxNum = list.reduce((max, item) => {
+    const match = item.id && item.id.match(/\d+/);
+    return match ? Math.max(max, parseInt(match[0])) : max;
+  }, 0);
+  return (prefix[module] || 'item') + '-' + String(maxNum + 1).padStart(3, '0');
+}
+
+function getModuleName(module) {
+  const names = { announcements: '公告', documents: '文件', activities: '动态', polls: '投票', residents: '业主', config: '配置' };
+  return names[module] || module;
+}
+
+function showLoading(show) {
+  document.getElementById('loadingOverlay').classList.toggle('active', show);
+}
+
+function showToast(message, type) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => { toast.remove(); }, 3000);
+}
+
+function formatDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+</script>
+</body>
+</html>
