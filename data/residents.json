@@ -439,14 +439,5 @@
     "status": "active",
     "isTest": true,
     "registeredAt": "2026-07-01"
-  },
-  {
-    "id": "r-050",
-    "roomNo": "1-5-110",
-    "name": "测试业主50",
-    "phoneSuffix": "0050",
-    "status": "active",
-    "isTest": true,
-    "registeredAt": "2026-07-01"
   }
 ]
