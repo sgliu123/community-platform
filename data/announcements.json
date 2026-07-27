@@ -107,5 +107,21 @@
     "content": "好人一生平安",
     "views": 0,
     "attachments": []
+  },
+  {
+    "id": "ann-010",
+    "title": "测试一下",
+    "category": "国务院",
+    "publishDate": "2026-07-27",
+    "author": "管理员A",
+    "isPinned": false,
+    "content": "人的操控性能",
+    "views": 0,
+    "attachments": [
+      {
+        "name": "阅读条例.pdf",
+        "url": "assets/uploads/1785129065682_wokqyc_____.pdf"
+      }
+    ]
   }
 ]
