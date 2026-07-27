@@ -133,6 +133,349 @@ a { text-decoration:none; color:var(--primary); }
 
 .loading { text-align:center; padding:40px; color:var(--text-secondary); }
 .empty { text-align:center; padding:40px; color:var(--text-secondary); font-size:14px; }
+
+/* ===== Activity Detail Enhancements ===== */
+.activity-hero {
+  position: relative;
+  overflow: hidden;
+}
+.activity-hero img {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  display: block;
+}
+.activity-hero-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
+  padding: 32px 20px 20px;
+  color: #fff;
+}
+.activity-hero-overlay .status-tag {
+  margin-bottom: 10px;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+}
+.activity-hero-overlay h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.3;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.activity-meta-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, var(--primary-light), var(--primary));
+  margin: 0 20px 20px;
+  border-radius: var(--radius);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.activity-meta-bar .meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.activity-content-box {
+  background: #fafbfc;
+  border-radius: var(--radius);
+  padding: 20px;
+  border: 1px solid #eef0f3;
+}
+.activity-content-box .detail-content {
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--text);
+}
+.activity-content-box .detail-content p {
+  margin-bottom: 14px;
+}
+.activity-content-box .detail-content img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+/* Video Player */
+.video-wrapper {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;
+  background: #0f0f0f;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.video-wrapper iframe,
+.video-wrapper video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+.video-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.video-placeholder:hover {
+  transform: scale(1.03);
+}
+.video-placeholder > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.55;
+  transition: opacity 0.3s;
+}
+.video-placeholder:hover > img {
+  opacity: 0.7;
+}
+.video-placeholder .play-btn {
+  position: relative;
+  z-index: 2;
+  width: 72px;
+  height: 72px;
+  background: rgba(255,255,255,0.95);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  transition: all 0.3s;
+}
+.video-placeholder:hover .play-btn {
+  transform: scale(1.12);
+  background: #fff;
+}
+.video-placeholder .play-btn::after {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 22px solid var(--primary);
+  border-top: 14px solid transparent;
+  border-bottom: 14px solid transparent;
+  margin-left: 6px;
+}
+.video-player {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+.video-player.active {
+  display: block;
+}
+.video-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 16px;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  transition: all 0.2s;
+}
+.video-close:hover {
+  background: rgba(0,0,0,0.8);
+  transform: scale(1.1);
+}
+
+/* Image Gallery */
+.image-gallery {
+  position: relative;
+  width: 100%;
+  background: #0a0a0a;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  user-select: none;
+}
+.gallery-container {
+  display: flex;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 420px;
+}
+.gallery-slide {
+  min-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-in;
+}
+.gallery-slide img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.gallery-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  background: rgba(255,255,255,0.9);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 22px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: all 0.25s;
+  z-index: 5;
+  opacity: 0;
+}
+.image-gallery:hover .gallery-nav {
+  opacity: 1;
+}
+.gallery-nav:hover {
+  background: #fff;
+  transform: translateY(-50%) scale(1.12);
+}
+.gallery-nav.prev { left: 14px; }
+.gallery-nav.next { right: 14px; }
+.gallery-dots {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 5;
+  padding: 6px 14px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+}
+.gallery-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.45);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.gallery-dots span.active {
+  background: #fff;
+  width: 24px;
+  border-radius: 4px;
+}
+.gallery-counter {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 5;
+  backdrop-filter: blur(6px);
+  letter-spacing: 0.5px;
+}
+
+/* Single image display */
+.single-image-box {
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  cursor: zoom-in;
+  transition: transform 0.3s;
+}
+.single-image-box:hover {
+  transform: translateY(-2px);
+}
+.single-image-box img {
+  width: 100%;
+  display: block;
+  transition: transform 0.5s;
+}
+.single-image-box:hover img {
+  transform: scale(1.02);
+}
+
+/* Action buttons */
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+.action-btn.primary {
+  background: var(--primary);
+  color: #fff;
+}
+.action-btn.primary:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.action-btn.secondary {
+  background: #f0f2f5;
+  color: var(--text);
+}
+.action-btn.secondary:hover {
+  background: #e4e6e9;
+  transform: translateY(-2px);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .activity-hero img { height: 200px; }
+  .activity-hero-overlay h2 { font-size: 18px; }
+  .gallery-container { height: 280px; }
+  .gallery-nav { opacity: 1; width: 36px; height: 36px; font-size: 18px; }
+  .video-placeholder .play-btn { width: 56px; height: 56px; }
+  .video-placeholder .play-btn::after { border-left-width: 18px; border-top-width: 11px; border-bottom-width: 11px; }
+}
 </style>
   <link rel="icon" id="faviconLink" type="image/png" href="">
 </head>
@@ -460,29 +803,202 @@ function renderDocumentDetail(id) {
   return h;
 }
 
+function getEmbedUrl(url) {
+  if (!url) return url;
+  // Bilibili
+  const bvMatch = url.match(/bilibili\.com\/video\/(BV[\w]+)/i);
+  if (bvMatch) {
+    return 'https://player.bilibili.com/player.html?bvid=' + bvMatch[1] + '&page=1&high_quality=1&danmaku=0';
+  }
+  // YouTube
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/i);
+  if (ytMatch) {
+    return 'https://www.youtube.com/embed/' + ytMatch[1];
+  }
+  return url;
+}
+
+function showVideoPlayer(wrapperId) {
+  const wrapper = document.getElementById(wrapperId);
+  if (!wrapper) return;
+  const player = wrapper.querySelector('.video-player');
+  const placeholder = wrapper.querySelector('.video-placeholder');
+  if (player && placeholder) {
+    placeholder.style.display = 'none';
+    player.style.display = 'block';
+    player.classList.add('active');
+  }
+}
+
+function hideVideoPlayer(wrapperId) {
+  const wrapper = document.getElementById(wrapperId);
+  if (!wrapper) return;
+  const player = wrapper.querySelector('.video-player');
+  const placeholder = wrapper.querySelector('.video-placeholder');
+  if (player && placeholder) {
+    player.style.display = 'none';
+    player.classList.remove('active');
+    placeholder.style.display = 'flex';
+    // Stop iframe by resetting src
+    const iframe = player.querySelector('iframe');
+    if (iframe) iframe.src = iframe.src;
+  }
+}
+
+function initGallery(gid) {
+  const gallery = document.getElementById(gid);
+  if (!gallery) return;
+  const auto = gallery.dataset.auto === 'true';
+  if (!auto) return;
+  // Auto advance every 5s
+  gallery._timer = setInterval(function() {
+    if (gallery.matches(':hover')) return;
+    nextSlide(gid);
+  }, 5000);
+}
+
+function updateGallery(gid) {
+  const gallery = document.getElementById(gid);
+  if (!gallery) return;
+  const container = gallery.querySelector('.gallery-container');
+  const dots = gallery.querySelectorAll('.gallery-dots span');
+  const counter = gallery.querySelector('.gallery-counter');
+  const idx = parseInt(gallery.dataset.index || '0');
+  const total = parseInt(gallery.dataset.total || '1');
+  if (container) container.style.transform = 'translateX(-' + (idx * 100) + '%)';
+  dots.forEach(function(d, i) { d.classList.toggle('active', i === idx); });
+  if (counter) counter.textContent = (idx + 1) + ' / ' + total;
+}
+
+function nextSlide(gid, event) {
+  if (event) event.stopPropagation();
+  const gallery = document.getElementById(gid);
+  if (!gallery) return;
+  const total = parseInt(gallery.dataset.total || '1');
+  let idx = parseInt(gallery.dataset.index || '0');
+  idx = (idx + 1) % total;
+  gallery.dataset.index = idx;
+  updateGallery(gid);
+}
+
+function prevSlide(gid, event) {
+  if (event) event.stopPropagation();
+  const gallery = document.getElementById(gid);
+  if (!gallery) return;
+  const total = parseInt(gallery.dataset.total || '1');
+  let idx = parseInt(gallery.dataset.index || '0');
+  idx = (idx - 1 + total) % total;
+  gallery.dataset.index = idx;
+  updateGallery(gid);
+}
+
+function goToSlide(gid, index, event) {
+  if (event) event.stopPropagation();
+  const gallery = document.getElementById(gid);
+  if (!gallery) return;
+  gallery.dataset.index = index;
+  updateGallery(gid);
+}
+
 function renderActivityDetail(id) {
   const a = (appData.activities||[]).find(x => x.id === id);
   if (!a) return '<div class="empty">动态不存在</div>';
   const sc = a.status === "进行中" ? "status-ongoing" : (a.status === "预告" ? "status-upcoming" : "status-ended");
-  let h = '<div class="card"><div class="detail-header"><h1>' + a.title + '</h1><div class="detail-meta">';
-  h += '<span class="status-tag ' + sc + '">' + a.status + '</span><span>时间：' + a.date + '</span><span>地点：' + a.location + '</span></div></div>';
+
+  let h = '<div class="card" style="padding:0;overflow:hidden;">';
+
+  // Hero cover
   if (a.coverImage) {
-    h += '<div style="margin:16px 0;"><img src="' + a.coverImage + '" style="width:100%;border-radius:8px;max-height:320px;object-fit:cover;"></div>';
-  }
-  h += '<div class="detail-content">' + a.content + '</div>';
-  if (a.images && a.images.length > 0) {
-    h += '<div style="margin-top:16px;"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">📷 活动图集</div>';
-    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;">';
-    a.images.forEach(function(img) {
-      h += '<div style="border-radius:8px;overflow:hidden;cursor:pointer;" onclick="window.open(String.fromCharCode(39) + img + String.fromCharCode(39))">';
-      h += '<img src="' + img + '" style="width:100%;height:120px;object-fit:cover;display:block;">';
-      h += '</div>';
-    });
+    h += '<div class="activity-hero">';
+    h += '<img src="' + a.coverImage + '" alt="' + a.title + '" onerror="this.style.display=\'none\'">';
+    h += '<div class="activity-hero-overlay">';
+    h += '<span class="status-tag ' + sc + '">' + a.status + '</span>';
+    h += '<h2>' + a.title + '</h2>';
     h += '</div></div>';
+  } else {
+    h += '<div style="padding:24px 24px 0;">';
+    h += '<div class="detail-header" style="margin-bottom:0;"><h1>' + a.title + '</h1></div>';
+    h += '</div>';
   }
-  if (a.videoUrl) h += '<div style="margin-top:16px;"><a href="' + a.videoUrl + '" target="_blank" class="poll-btn">▶️ 观看视频</a></div>';
-  if (a.externalLink) h += '<div style="margin-top:8px;"><a href="' + a.externalLink + '" target="_blank" class="poll-btn" style="background:var(--text-secondary);">🔗 查看原文</a></div>';
-  h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
+
+  // Meta bar
+  h += '<div class="activity-meta-bar">';
+  h += '<div class="meta-item">📅 ' + (a.date||"--") + '</div>';
+  h += '<div class="meta-item">📍 ' + (a.location||"--") + '</div>';
+  if (a.status) h += '<div class="meta-item">🏷️ ' + a.status + '</div>';
+  h += '</div>';
+
+  // Content
+  h += '<div style="padding:0 24px 24px;">';
+  h += '<div class="activity-content-box"><div class="detail-content">' + (a.content||"") + '</div></div>';
+
+  // Video
+  if (a.videoUrl) {
+    const vidId = 'vid-' + id.replace(/[^a-zA-Z0-9]/g, '');
+    const embedUrl = getEmbedUrl(a.videoUrl);
+    h += '<div style="margin:24px 0;">';
+    h += '<div style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;display:flex;align-items:center;gap:6px;">🎬 活动视频</div>';
+    h += '<div class="video-wrapper" id="' + vidId + '">';
+    // Placeholder
+    h += '<div class="video-placeholder" onclick="showVideoPlayer(\'' + vidId + '\')">';
+    if (a.coverImage) {
+      h += '<img src="' + a.coverImage + '" alt="cover">';
+    }
+    h += '<div class="play-btn"></div>';
+    h += '</div>';
+    // Player
+    h += '<div class="video-player" id="' + vidId + '-player">';
+    h += '<button class="video-close" onclick="hideVideoPlayer(\'' + vidId + '\')">✕</button>';
+    h += '<iframe src="' + embedUrl + '" allowfullscreen allow="autoplay; fullscreen"></iframe>';
+    h += '</div></div></div>';
+  }
+
+  // Image Gallery
+  if (a.images && a.images.length > 0) {
+    h += '<div style="margin:24px 0;">';
+    h += '<div style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;display:flex;align-items:center;gap:6px;">📷 活动图集</div>';
+    if (a.images.length === 1) {
+      h += '<div class="single-image-box" onclick="window.open(\'' + a.images[0] + '\')">';
+      h += '<img src="' + a.images[0] + '" alt="活动图片">';
+      h += '</div>';
+    } else {
+      const gid = 'gal-' + id.replace(/[^a-zA-Z0-9]/g, '');
+      h += '<div class="image-gallery" id="' + gid + '" data-index="0" data-total="' + a.images.length + '" data-auto="true">';
+      h += '<div class="gallery-counter">1 / ' + a.images.length + '</div>';
+      h += '<div class="gallery-container">';
+      a.images.forEach(function(img, idx) {
+        h += '<div class="gallery-slide" onclick="window.open(\'' + img + '\')">';
+        h += '<img src="' + img + '" alt="图' + (idx+1) + '">';
+        h += '</div>';
+      });
+      h += '</div>';
+      h += '<button class="gallery-nav prev" onclick="prevSlide(\'' + gid + '\', event)">‹</button>';
+      h += '<button class="gallery-nav next" onclick="nextSlide(\'' + gid + '\', event)">›</button>';
+      h += '<div class="gallery-dots">';
+      a.images.forEach(function(_, idx) {
+        h += '<span class="' + (idx===0 ? 'active' : '') + '" onclick="goToSlide(\'' + gid + '\', ' + idx + ', event)"></span>';
+      });
+      h += '</div></div>';
+    }
+    h += '</div>';
+  }
+
+  // Action buttons
+  h += '<div class="action-buttons">';
+  h += '<button class="action-btn primary" onclick="history.back()">← 返回列表</button>';
+  if (a.externalLink) {
+    h += '<a href="' + a.externalLink + '" target="_blank" class="action-btn secondary">🔗 查看原文</a>';
+  }
+  h += '</div>';
+
+  h += '</div></div>';
+
+  setTimeout(function() {
+    document.querySelectorAll('.image-gallery').forEach(function(g) {
+      initGallery(g.id);
+    });
+  }, 100);
+
   return h;
 }
 
