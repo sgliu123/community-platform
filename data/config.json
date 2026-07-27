@@ -1,16 +1,16 @@
 {
   "community": {
-    "name": "渝能国际社区党工委",
-    "address": "双湖路87号",
-    "totalUnits": 7000,
-    "builtYear": "2005",
+    "name": "春天",
+    "address": "阳光大道 100 号",
+    "totalUnits": 1200,
+    "builtYear": "2018",
     "area": "5.2万平方米",
     "propertyCompany": "阳光物业服务有限公司",
     "committeePhone": "0571-88888888",
     "propertyPhone": "0571-88888889",
-    "logo": "assets/uploads/1785129579169_18djos_DSC00052.JPG",
+    "logo": "assets/logo.png",
     "slogan": "共建和谐社区，共享美好生活",
-    "favicon": "assets/uploads/1785129764563_pjqid0_jimeng-2026-04-24-9978-_________1______________________________....png"
+    "favicon": "assets/logo.png"
   },
   "settings": {
     "maxAnnouncements": 200,
