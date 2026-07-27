@@ -67,5 +67,17 @@
     "videoUrl": "",
     "externalLink": "",
     "content": ""
+  },
+  {
+    "id": "act-006",
+    "title": "测试一下",
+    "date": "2026-07-27",
+    "location": "",
+    "status": "进行中",
+    "coverImage": "https://www.bilibili.com/video/BV1bZgd6TEmM/?spm_id_from=333.1365.list.card_archive.click&vd_source=4a2e231a6ad0940074d0c0bba1079866",
+    "images": [],
+    "videoUrl": "https://www.bilibili.com/video/BV1bZgd6TEmM/?spm_id_from=333.1365.list.card_archive.click&vd_source=4a2e231a6ad0940074d0c0bba1079866",
+    "externalLink": "",
+    "content": ""
   }
 ]
