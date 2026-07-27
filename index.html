@@ -437,8 +437,8 @@ function renderDocumentDetail(id) {
   h += '<div class="detail-content">' + d.description + '</div>';
   h = renderInlineMedia(h);
   if (d.fileUrl) {
-    const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(d.fileUrl);
-    const isPdf = /\.pdf$/i.test(d.fileUrl);
+    const isImg = d.fileUrl.startsWith('data:image/') || /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(d.fileUrl);
+    const isPdf = d.fileUrl.startsWith('data:application/pdf') || /\.pdf$/i.test(d.fileUrl);
     if (isImg) {
       h += '<div style="margin-top:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><img src="' + d.fileUrl + '" style="width:100%;display:block;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div style="display:none;padding:20px;text-align:center;color:var(--text-secondary);">图片加载失败</div></div>';
     } else if (isPdf) {
@@ -470,7 +470,13 @@ function renderActivityDetail(id) {
     });
     h += '</div></div>';
   }
-  if (a.videoUrl) h += '<div style="margin-top:16px;"><a href="' + a.videoUrl + '" target="_blank" class="poll-btn">▶️ 观看视频</a></div>';
+  if (a.videoUrl) {
+    if (a.videoUrl.startsWith('data:video/') || a.videoUrl.match(/\.(mp4|webm|ogg|mov)$/i)) {
+      h += '<div style="margin-top:16px;"><video src="' + a.videoUrl + '" controls style="width:100%;max-height:420px;border-radius:8px;border:1px solid var(--border);" preload="metadata"></video></div>';
+    } else {
+      h += '<div style="margin-top:16px;"><a href="' + a.videoUrl + '" target="_blank" class="poll-btn">▶️ 观看视频</a></div>';
+    }
+  }
   if (a.externalLink) h += '<div style="margin-top:8px;"><a href="' + a.externalLink + '" target="_blank" class="poll-btn" style="background:var(--text-secondary);">🔗 查看原文</a></div>';
   h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
   return h;

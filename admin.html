@@ -128,8 +128,32 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
 .empty-state .icon { font-size:48px; margin-bottom:16px; }
 
 .batch-textarea { width:100%; min-height:200px; padding:12px; border:1px solid var(--border); border-radius:6px; font-family:monospace; font-size:13px; }
+
+/* Upload Zone */
+.upload-zone { border:2px dashed var(--border); border-radius:8px; padding:20px; text-align:center; cursor:pointer; transition:.2s; background:#fafafa; margin-top:8px; }
+.upload-zone:hover, .upload-zone.dragover { border-color:var(--primary); background:#f0f7f4; }
+.upload-zone .hint { font-size:13px; color:var(--text-secondary); line-height:1.6; }
+.upload-zone .hint .big { font-size:28px; display:block; margin-bottom:6px; }
+.file-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.file-chip { display:flex; align-items:center; gap:6px; background:#e8f5e9; padding:5px 12px; border-radius:20px; font-size:12px; color:var(--primary-dark); }
+.file-chip .remove { cursor:pointer; font-weight:bold; margin-left:4px; color:var(--danger); }
+.file-chip .size { font-size:11px; opacity:.7; }
+.file-preview-inline { margin-top:8px; }
+.file-preview-inline img { max-width:140px; max-height:90px; border-radius:4px; border:1px solid var(--border); }
+.file-preview-inline video { max-width:240px; max-height:140px; border-radius:4px; border:1px solid var(--border); }
+.upload-error { color:var(--danger); font-size:12px; margin-top:6px; }
+.upload-row { display:flex; gap:12px; align-items:flex-start; margin-top:8px; }
+.upload-row .upload-zone { flex:1; margin-top:0; }
+.upload-or { display:flex; align-items:center; color:var(--text-secondary); font-size:13px; }
+
+/* Excel import */
+.excel-preview { max-height:240px; overflow:auto; margin-top:12px; border:1px solid var(--border); border-radius:6px; }
+.excel-preview table { width:100%; border-collapse:collapse; font-size:13px; }
+.excel-preview th { background:#f5f5f5; padding:8px; border-bottom:1px solid var(--border); text-align:left; font-weight:600; }
+.excel-preview td { padding:8px; border-bottom:1px solid var(--border); }
 </style>
   <link rel="icon" id="faviconLink" type="image/png" href="">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -204,6 +228,7 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
 <script>
 const EMBEDDED_DATA = {"config":{"community":{"name":"春天阳光小区","address":"阳光大道 100 号","totalUnits":1200,"builtYear":"2018","area":"5.2万平方米","propertyCompany":"阳光物业服务有限公司","committeePhone":"0571-88888888","propertyPhone":"0571-88888889","logo":"assets/logo.png","slogan":"共建和谐社区，共享美好生活","favicon":"assets/logo.png"},"settings":{"maxAnnouncements":200,"itemsPerPage":10,"allowGuestView":true,"defaultTheme":"T1","themeOptions":[{"id":"T1","name":"春晓绿","color":"#2E8B57","desc":"清新自然"},{"id":"T2","name":"天空蓝","color":"#1976D2","desc":"稳重专业"},{"id":"T3","name":"暖阳橙","color":"#E65100","desc":"温馨活力"},{"id":"T4","name":"中国红","color":"#C62828","desc":"庄重喜庆"},{"id":"T5","name":"优雅紫","color":"#6A1B9A","desc":"高端典雅"}]},"auth":{"passwordHash":"202d43fbed60e08c1b1df1b1434c0cca94e45b1704cf86e030ee17c68979610a","salt":"SunlightCommunity2026","maxAttempts":5,"lockoutMinutes":30,"lastChanged":"2026-07-25"},"admins":[{"id":"admin-1","name":"管理员A","role":"super","permissions":["all"]},{"id":"admin-2","name":"管理员B","role":"editor","permissions":["announcements","documents","activities","polls","residents"]},{"id":"admin-3","name":"管理员C","role":"editor","permissions":["announcements","activities"]},{"id":"admin-4","name":"管理员D","role":"editor","permissions":["polls","residents"]},{"id":"admin-5","name":"管理员E","role":"viewer","permissions":["view","audit-log"]}]},"announcements":[{"id":"ann-001","title":"【测试】关于小区电梯年度维保的通知","category":"物业通知","content":"<p>【测试数据】各位业主，为确保电梯安全运行，物业将于本月进行年度维保，具体安排如下...</p>","isPinned":true,"publishDate":"2026-07-20","author":"管理员A","views":156,"attachments":[]},{"id":"ann-002","title":"【测试】端午节放假及值班安排","category":"节日通知","content":"<p>【测试数据】端午节期间物业服务中心值班时间为：6月22日-24日 9:00-17:00...</p>","isPinned":false,"publishDate":"2026-07-15","author":"管理员B","views":89,"attachments":[]},{"id":"ann-003","title":"【测试】垃圾分类投放点调整说明","category":"社区公告","content":"<p>【测试数据】根据上级要求，小区垃圾分类投放点将做如下调整：1号楼北侧...</p>","isPinned":false,"publishDate":"2026-07-18","author":"管理员C","views":120,"attachments":[]},{"id":"ann-004","title":"【测试】停车场管理系统升级通知","category":"物业通知","content":"<p>【测试数据】为提升停车体验，停车场系统将于本周末升级，期间可能短暂影响...</p>","isPinned":false,"publishDate":"2026-07-19","author":"管理员B","views":76,"attachments":[]},{"id":"ann-005","title":"【测试】关于成立业主委员会筹备组的公告","category":"重要公告","content":"<p>【测试数据】根据《物业管理条例》，现成立业主委员会筹备组，欢迎热心业主报名...</p>","isPinned":true,"publishDate":"2026-07-10","author":"管理员A","views":234,"attachments":[]},{"id":"ann-006","title":"【测试】夏季绿化养护计划","category":"环境通知","content":"<p>【测试数据】为保持小区绿化景观，夏季养护计划如下：修剪草坪、病虫害防治...</p>","isPinned":false,"publishDate":"2026-07-12","author":"管理员C","views":45,"attachments":[]},{"id":"ann-007","title":"【测试】消防演练活动通知","category":"安全通知","content":"<p>【测试数据】定于本周六上午9:00开展消防演练，请业主配合，听到警报请勿惊慌...</p>","isPinned":false,"publishDate":"2026-07-22","author":"管理员D","views":98,"attachments":[]},{"id":"ann-008","title":"【测试】物业费收缴温馨提示","category":"物业通知","content":"<p>【测试数据】请各位业主及时缴纳本年度物业费，可通过微信/支付宝/银行转账...</p>","isPinned":false,"publishDate":"2026-07-23","author":"管理员B","views":67,"attachments":[]}],"documents":[{"id":"doc-001","title":"【测试】关于进一步加强社区治理工作的指导意见","source":"xx街道办事处","publishDate":"2026-07-15","fileUrl":"","description":"【测试数据】根据市城管局要求，各社区需加强治理工作，落实网格化管理...","category":"上级文件"},{"id":"doc-002","title":"【测试】2026年度老旧小区改造实施方案","source":"市住建局","publishDate":"2026-07-10","fileUrl":"","description":"【测试数据】本年度改造重点包括外墙翻新、管道更换、加装电梯等...","category":"上级文件"},{"id":"doc-003","title":"【测试】社区消防安全检查标准及要求","source":"区消防大队","publishDate":"2026-07-05","fileUrl":"","description":"【测试数据】各社区需按照以下标准开展消防安全自查，确保消防设施完好...","category":"上级文件"}],"activities":[{"id":"act-001","title":"【测试】端午节包粽子活动圆满结束","date":"2026-05-30","location":"小区中心广场","content":"<p>【测试数据】活动现场热闹非凡，共有80余位业主参与，大家亲手包粽子、做香囊...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"已结束"},{"id":"act-002","title":"【测试】暑期少儿绘画培训班开班啦","date":"2026-07-20","location":"社区活动室","content":"<p>【测试数据】暑期绘画班即日起接受报名，限20人，由专业美术老师授课...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"进行中"},{"id":"act-003","title":"【测试】社区健康义诊活动预告","date":"2026-08-05","location":"小区中心广场","content":"<p>【测试数据】特邀市三甲医院医生来小区开展义诊，提供免费血压血糖检测...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"预告"},{"id":"act-004","title":"【测试】业主羽毛球友谊赛精彩回顾","date":"2026-06-15","location":"小区羽毛球馆","content":"<p>【测试数据】本次比赛共有16支队伍参加，经过激烈角逐，最终A栋代表队夺冠...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"已结束"}],"polls":[{"id":"poll-001","caseNo":"2026-YJ-001","title":"【测试】关于增设儿童游乐设施的意见征集","type":"opinion","description":"【测试数据】为丰富小区儿童活动空间，拟在中心花园增设游乐设施，现征集业主意见...","tencentUrl":"https://wj.qq.com/s2/xxxx/xxxx","startDate":"2026-07-20","endDate":"2026-08-20","status":"进行中","progress":{"target":300,"current":156,"unit":"户"},"results":{"isPublished":false,"summary":"","detailUrl":""},"createdBy":"管理员A","createdAt":"2026-07-20T09:00:00Z"},{"id":"poll-002","caseNo":"2026-YJ-002","title":"【测试】小区停车位管理方案投票","type":"vote","description":"【测试数据】针对小区停车位紧张问题，现提供三种管理方案供业主投票选择...","tencentUrl":"https://wj.qq.com/s2/xxxx/xxxx2","startDate":"2026-06-01","endDate":"2026-06-15","status":"已结束","progress":{"target":300,"current":278,"unit":"户"},"results":{"isPublished":true,"summary":"方案A获得68%支持率（189户），方案B获得22%（61户），方案C获得10%（28户）","detailUrl":""},"createdBy":"管理员D","createdAt":"2026-06-01T09:00:00Z"}],"residents":[{"id":"r-001","roomNo":"1-1-101","name":"测试业主01","phoneSuffix":"0001","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-002","roomNo":"1-1-102","name":"测试业主02","phoneSuffix":"0002","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-003","roomNo":"1-1-103","name":"测试业主03","phoneSuffix":"0003","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-004","roomNo":"1-1-104","name":"测试业主04","phoneSuffix":"0004","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-005","roomNo":"1-1-105","name":"测试业主05","phoneSuffix":"0005","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-006","roomNo":"1-1-106","name":"测试业主06","phoneSuffix":"0006","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-007","roomNo":"1-1-107","name":"测试业主07","phoneSuffix":"0007","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-008","roomNo":"1-1-108","name":"测试业主08","phoneSuffix":"0008","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-009","roomNo":"1-1-109","name":"测试业主09","phoneSuffix":"0009","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-010","roomNo":"1-1-110","name":"测试业主10","phoneSuffix":"0010","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-011","roomNo":"1-2-101","name":"测试业主11","phoneSuffix":"0011","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-012","roomNo":"1-2-102","name":"测试业主12","phoneSuffix":"0012","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-013","roomNo":"1-2-103","name":"测试业主13","phoneSuffix":"0013","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-014","roomNo":"1-2-104","name":"测试业主14","phoneSuffix":"0014","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-015","roomNo":"1-2-105","name":"测试业主15","phoneSuffix":"0015","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-016","roomNo":"1-2-106","name":"测试业主16","phoneSuffix":"0016","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-017","roomNo":"1-2-107","name":"测试业主17","phoneSuffix":"0017","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-018","roomNo":"1-2-108","name":"测试业主18","phoneSuffix":"0018","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-019","roomNo":"1-2-109","name":"测试业主19","phoneSuffix":"0019","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-020","roomNo":"1-2-110","name":"测试业主20","phoneSuffix":"0020","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-021","roomNo":"1-3-101","name":"测试业主21","phoneSuffix":"0021","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-022","roomNo":"1-3-102","name":"测试业主22","phoneSuffix":"0022","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-023","roomNo":"1-3-103","name":"测试业主23","phoneSuffix":"0023","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-024","roomNo":"1-3-104","name":"测试业主24","phoneSuffix":"0024","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-025","roomNo":"1-3-105","name":"测试业主25","phoneSuffix":"0025","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-026","roomNo":"1-3-106","name":"测试业主26","phoneSuffix":"0026","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-027","roomNo":"1-3-107","name":"测试业主27","phoneSuffix":"0027","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-028","roomNo":"1-3-108","name":"测试业主28","phoneSuffix":"0028","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-029","roomNo":"1-3-109","name":"测试业主29","phoneSuffix":"0029","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-030","roomNo":"1-3-110","name":"测试业主30","phoneSuffix":"0030","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-031","roomNo":"1-4-101","name":"测试业主31","phoneSuffix":"0031","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-032","roomNo":"1-4-102","name":"测试业主32","phoneSuffix":"0032","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-033","roomNo":"1-4-103","name":"测试业主33","phoneSuffix":"0033","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-034","roomNo":"1-4-104","name":"测试业主34","phoneSuffix":"0034","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-035","roomNo":"1-4-105","name":"测试业主35","phoneSuffix":"0035","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-036","roomNo":"1-4-106","name":"测试业主36","phoneSuffix":"0036","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-037","roomNo":"1-4-107","name":"测试业主37","phoneSuffix":"0037","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-038","roomNo":"1-4-108","name":"测试业主38","phoneSuffix":"0038","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-039","roomNo":"1-4-109","name":"测试业主39","phoneSuffix":"0039","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-040","roomNo":"1-4-110","name":"测试业主40","phoneSuffix":"0040","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-041","roomNo":"1-5-101","name":"测试业主41","phoneSuffix":"0041","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-042","roomNo":"1-5-102","name":"测试业主42","phoneSuffix":"0042","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-043","roomNo":"1-5-103","name":"测试业主43","phoneSuffix":"0043","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-044","roomNo":"1-5-104","name":"测试业主44","phoneSuffix":"0044","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-045","roomNo":"1-5-105","name":"测试业主45","phoneSuffix":"0045","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-046","roomNo":"1-5-106","name":"测试业主46","phoneSuffix":"0046","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-047","roomNo":"1-5-107","name":"测试业主47","phoneSuffix":"0047","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-048","roomNo":"1-5-108","name":"测试业主48","phoneSuffix":"0048","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-049","roomNo":"1-5-109","name":"测试业主49","phoneSuffix":"0049","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-050","roomNo":"1-5-110","name":"测试业主50","phoneSuffix":"0050","status":"active","isTest":true,"registeredAt":"2026-07-01"}],"audit-log":[{"id":"log-001","timestamp":"2026-07-25T10:00:00Z","adminName":"系统初始化","adminId":"system","action":"init","target":"all","targetId":"","details":"系统预设数据初始化完成，认证方式：预设密码+SHA-256哈希","clientInfo":"System"}]};
 let appData = {};
+let uploadBuffers = {};
 let currentModule = 'dashboard';
 let adminSession = null;
 let githubToken = localStorage.getItem('githubToken') || '';
@@ -495,12 +520,22 @@ function openEditModal(module, id) {
       '<div class="form-group"><label>发布日期</label><input type="date" id="edDate" value="' + (item.publishDate||new Date().toISOString().split('T')[0]) + '"></div></div>' +
       '<div class="form-group"><label>作者</label><input type="text" id="edAuthor" value="' + (item.author||currentAdmin&&currentAdmin.name||'') + '"></div>' +
       '<div class="form-group form-check"><input type="checkbox" id="edPinned" ' + (item.isPinned?'checked':'') + '><label for="edPinned">置顶</label></div>' +
-      '<div class="form-group"><label>内容（支持HTML）</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>';
+      '<div class="form-group"><label>内容（支持HTML）</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>' +
+      '<div class="form-group"><label>附件（图片/PDF，单个≤100KB，支持拖入/点击）</label>' +
+      '<div id="existingAttachments" style="margin-bottom:8px;"></div>' +
+      '<div class="upload-zone" id="annUploadZone"><div class="hint"><span class="big">📎</span>拖入文件或点击上传<br><small>支持 jpg/png/pdf，单个不超过100KB，可多选</small></div></div>' +
+      '<input type="file" id="annUploadInput" style="display:none" accept="image/*,.pdf" multiple>' +
+      '<div class="file-list" id="annUploadPreview"></div></div>';
   } else if (module === 'documents') {
     body = '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
       '<div class="form-row"><div class="form-group"><label>来源</label><input type="text" id="edSource" value="' + (item.source||'') + '"></div>' +
       '<div class="form-group"><label>发布日期</label><input type="date" id="edDate" value="' + (item.publishDate||new Date().toISOString().split('T')[0]) + '"></div></div>' +
       '<div class="form-group"><label>文件链接</label><input type="text" id="edFileUrl" value="' + (item.fileUrl||'') + '" placeholder="assets/files/xxx.pdf 或外部链接"></div>' +
+      '<div style="text-align:center;color:var(--text-secondary);font-size:13px;margin:4px 0;">— 或 —</div>' +
+      '<div class="form-group"><label>上传本地文件（PDF，≤100KB）</label>' +
+      '<div class="upload-zone" id="docUploadZone"><div class="hint"><span class="big">📄</span>拖入PDF或点击上传<br><small>不超过100KB</small></div></div>' +
+      '<input type="file" id="docUploadInput" style="display:none" accept=".pdf,application/pdf">' +
+      '<div class="file-list" id="docUploadPreview"></div></div>' +
       '<div class="form-group"><label>描述</label><textarea id="edDesc">' + (item.description||'') + '</textarea></div>';
   } else if (module === 'activities') {
     body = '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
@@ -535,6 +570,7 @@ function openEditModal(module, id) {
   document.getElementById('modalBody').innerHTML = body;
   document.getElementById('modalFooter').innerHTML = `<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveItem('${module}','${id||''}')">保存</button>`;
   document.getElementById('modalOverlay').classList.add('active');
+  setTimeout(() => initModalUploads(module, item), 0);
 }
 
 function generateCaseNo() {
@@ -545,6 +581,30 @@ function generateCaseNo() {
     return match ? Math.max(max, parseInt(match[1])) : max;
   }, 0);
   return year + '-YJ-' + String(maxNum + 1).padStart(3, '0');
+}
+
+
+function initModalUploads(module, item) {
+  if (module === 'announcements') {
+    uploadBuffers['annAttachments'] = [];
+    setupUploadZone('annUploadZone', 'annUploadInput', { accept: 'image/*,.pdf', maxSize: 102400, multiple: true, previewId: 'annUploadPreview' });
+    const existing = item.attachments || [];
+    const el = document.getElementById('existingAttachments');
+    if (existing.length && el) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">现有附件（点击×移除）：</div>' +
+        existing.map((a,i) => '<div class="file-chip" id="att-chip-'+i+'"><span>'+a.name+'</span><span class="remove" onclick="document.getElementById('att-chip-'+i+'').remove();document.getElementById('att-chip-'+i+'').dataset.removed='1'">&times;</span></div>').join('');
+    }
+  } else if (module === 'documents') {
+    uploadBuffers['docFile'] = [];
+    setupUploadZone('docUploadZone', 'docUploadInput', { accept: '.pdf,application/pdf', maxSize: 102400, multiple: false, previewId: 'docUploadPreview', targetInputId: 'edFileUrl' });
+  } else if (module === 'activities') {
+    uploadBuffers['actCover'] = [];
+    uploadBuffers['actImages'] = [];
+    uploadBuffers['actVideo'] = [];
+    setupUploadZone('actCoverUploadZone', 'actCoverUploadInput', { accept: 'image/*', maxSize: 102400, multiple: false, previewId: 'actCoverUploadPreview', targetInputId: 'edCoverImage' });
+    setupUploadZone('actImagesUploadZone', 'actImagesUploadInput', { accept: 'image/*', maxSize: 102400, multiple: true, previewId: 'actImagesUploadPreview' });
+    setupUploadZone('actVideoUploadZone', 'actVideoUploadInput', { accept: 'video/*', maxSize: 10485760, multiple: false, previewId: 'actVideoUploadPreview', targetInputId: 'edVideo' });
+  }
 }
 
 function closeModal() {
@@ -581,12 +641,22 @@ async function saveItem(module, id) {
     item.isPinned = document.getElementById('edPinned').checked;
     item.content = document.getElementById('edContent').value;
     item.views = item.views || 0;
-    item.attachments = item.attachments || [];
+    // 收集附件：保留未被删除的现有附件 + 新上传的附件
+    let attachments = [];
+    const existingItem = (appData[module] || []).find(x => x.id === item.id);
+    const existingAtt = existingItem ? (existingItem.attachments || []) : [];
+    existingAtt.forEach((a, i) => {
+      const chip = document.getElementById('att-chip-' + i);
+      if (chip && chip.dataset.removed !== '1') attachments.push(a);
+    });
+    (uploadBuffers['annAttachments'] || []).forEach(f => attachments.push({ name: f.name, url: f.dataUrl }));
+    item.attachments = attachments;
   } else if (module === 'documents') {
     item.title = document.getElementById('edTitle').value;
     item.source = document.getElementById('edSource').value;
     item.publishDate = document.getElementById('edDate').value;
-    item.fileUrl = document.getElementById('edFileUrl').value;
+    const docUploaded = uploadBuffers['docFile'] && uploadBuffers['docFile'][0];
+    item.fileUrl = docUploaded ? docUploaded.dataUrl : document.getElementById('edFileUrl').value;
     item.description = document.getElementById('edDesc').value;
     item.category = '上级文件';
   } else if (module === 'activities') {
@@ -594,10 +664,14 @@ async function saveItem(module, id) {
     item.date = document.getElementById('edDate').value;
     item.location = document.getElementById('edLocation').value;
     item.status = document.getElementById('edStatus').value;
-    item.coverImage = document.getElementById('edCoverImage').value.trim();
+    const coverUploaded = uploadBuffers['actCover'] && uploadBuffers['actCover'][0];
+    item.coverImage = coverUploaded ? coverUploaded.dataUrl : document.getElementById('edCoverImage').value.trim();
     const imgText = document.getElementById('edImages').value.trim();
-    item.images = imgText ? imgText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
-    item.videoUrl = document.getElementById('edVideo').value;
+    let imgArr = imgText ? imgText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
+    (uploadBuffers['actImages'] || []).forEach(f => imgArr.push(f.dataUrl));
+    item.images = imgArr;
+    const videoUploaded = uploadBuffers['actVideo'] && uploadBuffers['actVideo'][0];
+    item.videoUrl = videoUploaded ? videoUploaded.dataUrl : document.getElementById('edVideo').value;
     item.externalLink = document.getElementById('edExternal').value;
     item.content = document.getElementById('edContent').value;
   } else if (module === 'polls') {
@@ -728,6 +802,100 @@ async function getRepoInfo() {
     if (parts.length >= 2 && parts[1] && !parts[1].includes('.')) return [user.login, parts[1]];
     return null;
   } catch(e) { return null; }
+}
+
+
+function formatSize(b) {
+  if (b < 1024) return b + 'B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + 'KB';
+  return (b/1024/1024).toFixed(1) + 'MB';
+}
+
+function setupUploadZone(zoneId, inputId, options) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  if (!zone || !input) return;
+  const { accept, maxSize, multiple, onChange, previewId, targetInputId } = options;
+
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+  input.addEventListener('change', e => handleFiles(e.target.files));
+
+  function handleFiles(files) {
+    const arr = Array.from(files).filter(f => {
+      if (accept) {
+        const ok = accept.split(',').some(a => {
+          const pat = a.trim();
+          if (!pat) return false;
+          if (pat.startsWith('.')) return f.name.toLowerCase().endsWith(pat.toLowerCase());
+          return f.type.match(pat) || f.name.toLowerCase().endsWith(pat.replace('*','').toLowerCase());
+        });
+        if (!ok) { showToast('不支持的文件类型：' + f.name, 'error'); return false; }
+      }
+      if (maxSize && f.size > maxSize) {
+        showToast('文件过大：' + f.name + ' (' + formatSize(f.size) + ' > ' + formatSize(maxSize) + ')', 'error'); return false;
+      }
+      return true;
+    });
+    if (arr.length === 0) return;
+    if (!multiple) {
+      uploadBuffers[zoneId] = [];
+      if (previewId) { const p=document.getElementById(previewId); if(p) p.innerHTML=''; }
+      if (targetInputId) { const t=document.getElementById(targetInputId); if(t) t.value=''; }
+    }
+    arr.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const dataUrl = e.target.result;
+        uploadBuffers[zoneId] = uploadBuffers[zoneId] || [];
+        uploadBuffers[zoneId].push({ name: file.name, size: file.size, dataUrl: dataUrl, type: file.type });
+        if (onChange) onChange(uploadBuffers[zoneId]);
+        renderPreview(previewId, uploadBuffers[zoneId], zoneId);
+        if (targetInputId && !multiple) {
+          const t = document.getElementById(targetInputId);
+          if (t) t.value = dataUrl;
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+}
+
+function renderPreview(previewId, files, zoneId) {
+  if (!previewId) return;
+  const el = document.getElementById(previewId);
+  if (!el) return;
+  if (!files || files.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = files.map((f,i) => {
+    let thumb = '';
+    if (f.type && f.type.startsWith('image/')) thumb = '<img src="' + f.dataUrl + '" style="max-width:120px;max-height:80px;border-radius:4px;">';
+    else if (f.type && f.type.startsWith('video/')) thumb = '<video src="' + f.dataUrl + '" style="max-width:180px;max-height:100px;border-radius:4px;" controls></video>';
+    else if (f.type === 'application/pdf') thumb = '<span style="font-size:24px;">📄</span>';
+    else thumb = '<span style="font-size:24px;">📎</span>';
+    return '<div class="file-chip">' + thumb + '<span>' + f.name + '</span><span class="size">' + formatSize(f.size) + '</span><span class="remove" onclick="removeFile('' + zoneId + '',' + i + ','' + previewId + '')">&times;</span></div>';
+  }).join('');
+}
+
+function removeFile(zoneId, index, previewId) {
+  if (!uploadBuffers[zoneId]) return;
+  uploadBuffers[zoneId].splice(index, 1);
+  renderPreview(previewId, uploadBuffers[zoneId], zoneId);
+}
+
+function readExcelFile(file, callback) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+      callback(null, json);
+    } catch(err) { callback(err, null); }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function showBatchImport() {
