@@ -196,5 +196,16 @@
     "targetId": "",
     "details": "更新社区配置",
     "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+  },
+  {
+    "id": "log-1785149600287",
+    "timestamp": "2026-07-27T10:53:20.287Z",
+    "adminName": "管理员A",
+    "adminId": "admin-1",
+    "action": "create",
+    "target": "documents",
+    "targetId": "",
+    "details": "新增文件《测试一下》",
+    "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
   }
 ]
