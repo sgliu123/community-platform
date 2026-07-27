@@ -583,9 +583,11 @@ function openEditModal(module, id) {
       '<div class="form-row"><div class="form-group"><label>日期</label><input type="date" id="edDate" value="' + (item.date||'') + '"></div>' +
       '<div class="form-group"><label>地点</label><input type="text" id="edLocation" value="' + (item.location||'') + '"></div></div>' +
       '<div class="form-group"><label>状态</label><select id="edStatus"><option value="预告" ' + (item.status==='预告'?'selected':'') + '>预告</option><option value="进行中" ' + (item.status==='进行中'?'selected':'') + '>进行中</option><option value="已结束" ' + (item.status==='已结束'?'selected':'') + '>已结束</option></select></div>' +
-      '<div class="form-group"><label>封面图片链接</label><input type="text" id="edCoverImage" value="' + (item.coverImage||'') + '" placeholder="https://example.com/cover.jpg"></div>' +
+      '<div class="form-group"><label>封面图片链接</label><input type="text" id="edCoverImage" value="' + (item.coverImage||'') + '" placeholder="https://example.com/cover.jpg 或本地上传">' +
+      createFileUploaderHTML({id:'actCover', accept:'image/*', hint:'支持拖拽或点击上传封面图（100K以内）'}) + '</div>' +
       '<div class="form-group"><label>活动图集链接（每行一个）</label><textarea id="edImages" rows="3" placeholder="https://example.com/img1.jpg\nhttps://example.com/img2.jpg">' + (item.images||[]).join('\n') + '</textarea></div>' +
-      '<div class="form-group"><label>视频链接</label><input type="text" id="edVideo" value="' + (item.videoUrl||'') + '"></div>' +
+      '<div class="form-group"><label>视频链接</label><input type="text" id="edVideo" value="' + (item.videoUrl||'') + '" placeholder="https://example.com/video.mp4 或本地上传">' +
+      createFileUploaderHTML({id:'actVideo', accept:'video/*', hint:'支持拖拽或点击上传视频（30M以内）'}) + '</div>' +
       '<div class="form-group"><label>外部链接</label><input type="text" id="edExternal" value="' + (item.externalLink||'') + '"></div>' +
       '<div class="form-group"><label>内容</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>';
   } else if (module === 'polls') {
@@ -845,7 +847,9 @@ function showBatchImport() {
   document.getElementById('modalTitle').textContent = '📥 批量导入业主';
   document.getElementById('modalBody').innerHTML = '<p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">请粘贴Excel内容，格式：房号 | 姓名 | 手机后四位（每行一条，可用制表符或竖线分隔）</p>' +
     '<textarea class="batch-textarea" id="batchData" placeholder="1-1-101	张三	1234\n1-1-102	李四	5678"></textarea>' +
-    '<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);">示例：1-1-101  测试业主01  0001</div>';
+    '<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);">示例：1-1-101  测试业主01  0001</div>' +
+    '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);"><p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">或上传文件导入（支持 .csv / .xlsx / .vcf）</p>' +
+    createFileUploaderHTML({id:'batchFile', accept:'.csv,.xlsx,.xls,.vcf,.vcd', hint:'支持拖拽或点击上传 .csv / .xlsx / .vcf 文件（5MB以内）'}) + '</div>';
   document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="doBatchImport()">导入</button>';
   document.getElementById('modalOverlay').classList.add('active');
 }
