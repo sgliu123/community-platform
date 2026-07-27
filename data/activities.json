@@ -67,5 +67,17 @@
     "videoUrl": "https://www.bilibili.com/video/BV1bZgd6TEmM/?spm_id_from=333.1365.list.card_archive.click&vd_source=4a2e231a6ad0940074d0c0bba1079866",
     "externalLink": "",
     "content": ""
+  },
+  {
+    "id": "act-007",
+    "title": "小区美景",
+    "date": "2026-07-27",
+    "location": "景观大道",
+    "status": "进行中",
+    "coverImage": "assets/uploads/1785150157453_6rfhdi______20260727062006_9490_667.png",
+    "images": [],
+    "videoUrl": "assets/uploads/1785150064473_16arb8_____2026-07-27_185552_013.mp4",
+    "externalLink": "",
+    "content": ""
   }
 ]
