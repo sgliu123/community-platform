@@ -188,6 +188,58 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
   font-size: 12px;
   color: var(--primary);
 }
+
+/* 多图上传预览 */
+.multi-image-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.multi-preview-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #f5f5f5;
+  cursor: default;
+}
+.multi-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.multi-preview-item .remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  border-radius: 50%;
+  border: none;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.multi-preview-item .idx {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
 </style>
   <link rel="icon" id="faviconLink" type="image/png" href="">
 </head>
@@ -583,11 +635,13 @@ function openEditModal(module, id) {
       '<div class="form-row"><div class="form-group"><label>日期</label><input type="date" id="edDate" value="' + (item.date||'') + '"></div>' +
       '<div class="form-group"><label>地点</label><input type="text" id="edLocation" value="' + (item.location||'') + '"></div></div>' +
       '<div class="form-group"><label>状态</label><select id="edStatus"><option value="预告" ' + (item.status==='预告'?'selected':'') + '>预告</option><option value="进行中" ' + (item.status==='进行中'?'selected':'') + '>进行中</option><option value="已结束" ' + (item.status==='已结束'?'selected':'') + '>已结束</option></select></div>' +
-      '<div class="form-group"><label>封面图片链接</label><input type="text" id="edCoverImage" value="' + (item.coverImage||'') + '" placeholder="https://example.com/cover.jpg 或本地上传">' +
-      createFileUploaderHTML({id:'actCover', accept:'image/*', hint:'支持拖拽或点击上传封面图（100K以内）'}) + '</div>' +
-      '<div class="form-group"><label>活动图集链接（每行一个）</label><textarea id="edImages" rows="3" placeholder="https://example.com/img1.jpg\nhttps://example.com/img2.jpg">' + (item.images||[]).join('\n') + '</textarea></div>' +
-      '<div class="form-group"><label>视频链接</label><input type="text" id="edVideo" value="' + (item.videoUrl||'') + '" placeholder="https://example.com/video.mp4 或本地上传">' +
-      createFileUploaderHTML({id:'actVideo', accept:'video/*', hint:'支持拖拽或点击上传视频（30M以内）'}) + '</div>' +
+      '<div class="form-group"><label>封面图片链接</label><input type="text" id="edCoverImage" value="' + (item.coverImage||'') + '" placeholder="https://example.com/cover.jpg"></div>' +
+      createFileUploaderHTML({id:'actCover', accept:'image/*', hint:'支持拖拽或点击上传封面图（100K以内），上传后自动填充上方链接'}) +
+      '<div class="form-group"><label>活动图集链接（每行一个，最多15张）</label><textarea id="edImages" rows="3" placeholder="https://example.com/img1.jpg\nhttps://example.com/img2.jpg">' + (item.images||[]).join('\n') + '</textarea></div>' +
+      '<div class="form-group"><label>上传活动图片（支持多选拖拽，最多15张，100K以内/张）</label>' +
+      createMultiImageUploaderHTML('actImages', '支持拖拽或点击上传多张图片（100K以内/张）') + '</div>' +
+      '<div class="form-group"><label>视频链接</label><input type="text" id="edVideo" value="' + (item.videoUrl||'') + '" placeholder="https://example.com/video.mp4"></div>' +
+      createFileUploaderHTML({id:'actVideo', accept:'video/*', hint:'支持拖拽或点击上传视频（30M以内），上传后自动填充上方链接'}) +
       '<div class="form-group"><label>外部链接</label><input type="text" id="edExternal" value="' + (item.externalLink||'') + '"></div>' +
       '<div class="form-group"><label>内容</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>';
   } else if (module === 'polls') {
@@ -619,6 +673,7 @@ function openEditModal(module, id) {
     if (module === 'activities') {
       if (item.coverImage) setUploadedPath('actCover', item.coverImage, 'cover');
       if (item.videoUrl) setUploadedPath('actVideo', item.videoUrl, 'video');
+      if (item.images && item.images.length) setMultiUploadedPaths('actImages', item.images);
     } else if (module === 'documents') {
       if (item.fileUrl) setUploadedPath('docFile', item.fileUrl, 'file');
     } else if (module === 'announcements') {
@@ -707,7 +762,10 @@ async function saveItem(module, id) {
     if (coverPath) item.coverImage = coverPath;
     else item.coverImage = document.getElementById('edCoverImage').value.trim();
     const imgText = document.getElementById('edImages').value.trim();
-    item.images = imgText ? imgText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
+    let allImages = imgText ? imgText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
+    const uploadedImages = getMultiUploadedPaths('actImages');
+    allImages = [...new Set([...allImages, ...uploadedImages])].slice(0, 15);
+    item.images = allImages;
     const videoPath = getUploadedPath('actVideo');
     if (videoPath) item.videoUrl = videoPath;
     else item.videoUrl = document.getElementById('edVideo').value;
@@ -847,9 +905,9 @@ function showBatchImport() {
   document.getElementById('modalTitle').textContent = '📥 批量导入业主';
   document.getElementById('modalBody').innerHTML = '<p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">请粘贴Excel内容，格式：房号 | 姓名 | 手机后四位（每行一条，可用制表符或竖线分隔）</p>' +
     '<textarea class="batch-textarea" id="batchData" placeholder="1-1-101	张三	1234\n1-1-102	李四	5678"></textarea>' +
-    '<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);">示例：1-1-101  测试业主01  0001</div>' +
-    '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);"><p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">或上传文件导入（支持 .csv / .xlsx / .vcf）</p>' +
-    createFileUploaderHTML({id:'batchFile', accept:'.csv,.xlsx,.xls,.vcf,.vcd', hint:'支持拖拽或点击上传 .csv / .xlsx / .vcf 文件（5MB以内）'}) + '</div>';
+    '<div style="margin-top:16px;margin-bottom:8px;font-size:13px;color:var(--text-secondary);font-weight:500;">或上传文件（.csv / .xlsx / .vcf）：</div>' +
+    createFileUploaderHTML({id:'batchFile', accept:'.csv,.xlsx,.xls,.vcf,.vcd', hint:'支持拖拽或点击上传 .csv / .xlsx / .vcf 文件'}) +
+    '<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);">示例：1-1-101  测试业主01  0001</div>';
   document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="doBatchImport()">导入</button>';
   document.getElementById('modalOverlay').classList.add('active');
 }
@@ -1122,6 +1180,110 @@ function setUploadedPath(id, path, name) {
     else html = `<div class="file-preview-item"><div class="file-icon">📄</div><button class="remove" onclick="clearUpload('${id}')">×</button></div>`;
     previewEl.innerHTML = html;
   }
+}
+
+
+
+/* ========== 多图上传相关 ========== */
+
+function createMultiImageUploaderHTML(id, hint) {
+  return `<div class="file-upload-wrap" id="wrap-${id}">
+    <div class="file-dropzone" id="drop-${id}" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleMultiFileDrop(event,'${id}')" onclick="document.getElementById('inp-${id}').click()">
+      <div>📎 点击或拖拽文件到此处上传</div>
+      <div class="hint">${hint || '支持拖拽或点击上传多张图片（100K以内/张）'}</div>
+      <div class="hint" style="color:var(--primary);font-weight:500;">已上传 <span id="count-${id}">0</span> / 15 张</div>
+    </div>
+    <input type="file" id="inp-${id}" style="display:none" accept="image/*" multiple onchange="handleMultiFileSelect(event,'${id}')">
+    <div class="multi-image-preview" id="preview-${id}"></div>
+    <div class="upload-progress" id="progress-${id}"></div>
+  </div>`;
+}
+
+async function handleMultiFileDrop(e, id) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+  if (files.length) await processMultiFileUpload(files, id);
+}
+
+async function handleMultiFileSelect(e, id) {
+  const files = Array.from(e.target.files);
+  if (files.length) await processMultiFileUpload(files, id);
+}
+
+async function processMultiFileUpload(files, id) {
+  const progressEl = document.getElementById('progress-' + id);
+  const wrapEl = document.getElementById('wrap-' + id);
+  let currentPaths = getMultiUploadedPaths(id);
+
+  if (currentPaths.length + files.length > 15) {
+    showToast('最多只能上传15张图片', 'error');
+    files = files.slice(0, 15 - currentPaths.length);
+  }
+
+  if (files.length === 0) return;
+
+  progressEl.textContent = '⏳ 上传中 ' + files.length + ' 张...';
+
+  for (const file of files) {
+    if (file.size > 100 * 1024) {
+      showToast('图片 "' + file.name + '" 超过100K，已跳过', 'error');
+      continue;
+    }
+    try {
+      const path = await uploadFileToRepo(file, 'images');
+      currentPaths.push(path);
+      renderMultiImagePreview(id, currentPaths);
+      document.getElementById('count-' + id).textContent = currentPaths.length;
+    } catch(e) {
+      showToast('"' + file.name + '" 上传失败：' + e.message, 'error');
+    }
+  }
+
+  progressEl.textContent = currentPaths.length > 0 ? '✅ 已上传 ' + currentPaths.length + ' 张' : '';
+  wrapEl.dataset.uploadedPaths = JSON.stringify(currentPaths);
+}
+
+function renderMultiImagePreview(id, paths) {
+  const previewEl = document.getElementById('preview-' + id);
+  if (!previewEl) return;
+  let html = '';
+  paths.forEach((path, idx) => {
+    html += `<div class="multi-preview-item">
+      <img src="${path}" onerror="this.src=''" loading="lazy">
+      <button class="remove" onclick="removeMultiImage('${id}', ${idx})" title="删除">×</button>
+      <div class="idx">${idx + 1}</div>
+    </div>`;
+  });
+  previewEl.innerHTML = html;
+}
+
+function removeMultiImage(id, idx) {
+  const wrapEl = document.getElementById('wrap-' + id);
+  let paths = getMultiUploadedPaths(id);
+  paths.splice(idx, 1);
+  wrapEl.dataset.uploadedPaths = JSON.stringify(paths);
+  renderMultiImagePreview(id, paths);
+  const countEl = document.getElementById('count-' + id);
+  if (countEl) countEl.textContent = paths.length;
+  const progressEl = document.getElementById('progress-' + id);
+  if (progressEl) progressEl.textContent = paths.length > 0 ? '✅ 已上传 ' + paths.length + ' 张' : '';
+}
+
+function getMultiUploadedPaths(id) {
+  const wrapEl = document.getElementById('wrap-' + id);
+  if (!wrapEl || !wrapEl.dataset.uploadedPaths) return [];
+  try { return JSON.parse(wrapEl.dataset.uploadedPaths); } catch(e) { return []; }
+}
+
+function setMultiUploadedPaths(id, paths) {
+  const wrapEl = document.getElementById('wrap-' + id);
+  if (!wrapEl) return;
+  const validPaths = (paths || []).filter(p => p && typeof p === 'string');
+  wrapEl.dataset.uploadedPaths = JSON.stringify(validPaths);
+  renderMultiImagePreview(id, validPaths);
+  const countEl = document.getElementById('count-' + id);
+  if (countEl) countEl.textContent = validPaths.length;
 }
 
 /* ========== Excel / VCF 解析 ========== */
