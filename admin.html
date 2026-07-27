@@ -1028,10 +1028,72 @@ async function updateToken() {
 }
 
 
+/* ========== 图片压缩 ========== */
+
+async function compressImageToBlob(file, maxSizeMB = 1) {
+  const maxSize = maxSizeMB * 1024 * 1024;
+  if (file.size <= maxSize) return file;
+  if (!file.type.startsWith('image/')) return file;
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = async () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      const toBlob = (q) => new Promise((res) => {
+        canvas.toBlob((b) => res(b), 'image/jpeg', q);
+      });
+
+      // 质量压缩（二分查找最佳质量）
+      let low = 0.1, high = 0.92, bestBlob = null;
+      while (high - low > 0.05) {
+        const mid = (low + high) / 2;
+        const blob = await toBlob(mid);
+        if (blob.size > maxSize) {
+          high = mid;
+        } else {
+          low = mid;
+          bestBlob = blob;
+        }
+      }
+
+      if (bestBlob && bestBlob.size <= maxSize) {
+        resolve(new File([bestBlob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        return;
+      }
+
+      // 尺寸压缩
+      let scale = 0.9;
+      while (scale > 0.1) {
+        const w = Math.floor(img.width * scale);
+        const h = Math.floor(img.height * scale);
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
+        const blob = await toBlob(0.85);
+        if (blob.size <= maxSize) {
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+          return;
+        }
+        scale -= 0.1;
+      }
+      reject(new Error('图片压缩后仍超过' + maxSizeMB + 'MB限制'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片加载失败')); };
+    img.src = url;
+  });
+}
+
 /* ========== 文件上传相关 ========== */
 
 async function uploadFileToRepo(file, folder) {
-  const maxSizeMB = folder === 'videos' ? 30 : (folder === 'images' || folder === 'files' ? 0.1 : 5);
+  const maxSizeMB = folder === 'videos' ? 30 : (folder === 'images' ? 1 : (folder === 'files' ? 0.1 : 5));
   if (file.size > maxSizeMB * 1024 * 1024) {
     throw new Error(`文件大小超过限制（${maxSizeMB}MB）`);
   }
@@ -1112,19 +1174,29 @@ async function processFileUpload(file, id) {
 
   let folder = 'uploads';
   let maxSize = 5 * 1024 * 1024;
+  let isImage = false;
   if (id.includes('video')) { folder = 'videos'; maxSize = 30 * 1024 * 1024; }
-  else if (id.includes('image') || id.includes('cover') || id.includes('logo') || id.includes('favicon')) { folder = 'images'; maxSize = 100 * 1024; }
+  else if (id.includes('image') || id.includes('cover') || id.includes('logo') || id.includes('favicon')) { folder = 'images'; isImage = true; }
   else if (id.includes('pdf') || id.includes('file')) { folder = 'files'; maxSize = 100 * 1024; }
   else if (id.includes('batch')) { folder = 'imports'; maxSize = 5 * 1024 * 1024; }
 
-  if (file.size > maxSize) {
+  let uploadFile = file;
+  if (isImage && file.type.startsWith('image/')) {
+    progressEl.textContent = '⏳ 压缩中...';
+    try {
+      uploadFile = await compressImageToBlob(file, 1);
+      progressEl.textContent = '⏳ 上传中...';
+    } catch(e) {
+      showToast('图片压缩失败：' + e.message, 'error');
+      return;
+    }
+  } else if (file.size > maxSize) {
     showToast('文件过大，限制' + (maxSize/1024/1024) + 'MB', 'error');
     return;
   }
 
-  progressEl.textContent = '⏳ 上传中...';
   try {
-    const path = await uploadFileToRepo(file, folder);
+    const path = await uploadFileToRepo(uploadFile, folder);
     progressEl.textContent = '✅ 上传成功';
 
     // 保存路径到data属性
@@ -1133,14 +1205,14 @@ async function processFileUpload(file, id) {
 
     // 显示预览
     let previewHTML = '';
-    if (file.type.startsWith('image/')) {
-      const url = URL.createObjectURL(file);
-      previewHTML = `<div class="file-preview-item"><img src="${url}"><button class="remove" onclick="clearUpload('${id}')">×</button><div class="file-name">${file.name}</div></div>`;
-    } else if (file.type.startsWith('video/')) {
-      const url = URL.createObjectURL(file);
-      previewHTML = `<div class="file-preview-item"><video src="${url}" muted></video><button class="remove" onclick="clearUpload('${id}')">×</button><div class="file-name">${file.name}</div></div>`;
+    if (uploadFile.type.startsWith('image/')) {
+      const url = URL.createObjectURL(uploadFile);
+      previewHTML = `<div class="file-preview-item"><img src="${url}"><button class="remove" onclick="clearUpload('${id}')">×</button><div class="file-name">${uploadFile.name}</div></div>`;
+    } else if (uploadFile.type.startsWith('video/')) {
+      const url = URL.createObjectURL(uploadFile);
+      previewHTML = `<div class="file-preview-item"><video src="${url}" muted></video><button class="remove" onclick="clearUpload('${id}')">×</button><div class="file-name">${uploadFile.name}</div></div>`;
     } else {
-      previewHTML = `<div class="file-preview-item"><div class="file-icon">📄</div><button class="remove" onclick="clearUpload('${id}')">×</button><div class="file-name">${file.name}</div></div>`;
+      previewHTML = `<div class="file-preview-item"><div class="file-icon">📄</div><button class="remove" onclick="clearUpload('${id}')">×</button><div class="file-name">${uploadFile.name}</div></div>`;
     }
     previewEl.innerHTML = previewHTML;
   } catch(e) {
@@ -1223,15 +1295,20 @@ async function processMultiFileUpload(files, id) {
 
   if (files.length === 0) return;
 
-  progressEl.textContent = '⏳ 上传中 ' + files.length + ' 张...';
+  progressEl.textContent = '⏳ 处理中 ' + files.length + ' 张...';
 
   for (const file of files) {
-    if (file.size > 100 * 1024) {
-      showToast('图片 "' + file.name + '" 超过100K，已跳过', 'error');
-      continue;
+    let uploadFile = file;
+    if (file.type.startsWith('image/')) {
+      try {
+        uploadFile = await compressImageToBlob(file, 1);
+      } catch(e) {
+        showToast('"' + file.name + '" 压缩失败：' + e.message, 'error');
+        continue;
+      }
     }
     try {
-      const path = await uploadFileToRepo(file, 'images');
+      const path = await uploadFileToRepo(uploadFile, 'images');
       currentPaths.push(path);
       renderMultiImagePreview(id, currentPaths);
       document.getElementById('count-' + id).textContent = currentPaths.length;
