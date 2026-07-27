@@ -128,6 +128,66 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
 .empty-state .icon { font-size:48px; margin-bottom:16px; }
 
 .batch-textarea { width:100%; min-height:200px; padding:12px; border:1px solid var(--border); border-radius:6px; font-family:monospace; font-size:13px; }
+
+/* 文件上传相关样式 */
+.file-upload-wrap { margin-top:8px; }
+.file-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: .2s;
+  background: #fafafa;
+}
+.file-dropzone:hover, .file-dropzone.drag-over {
+  border-color: var(--primary);
+  background: #f0f7f4;
+}
+.file-dropzone .hint { font-size: 12px; margin-top: 6px; color: #999; }
+.file-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.file-preview-item {
+  position: relative;
+  width: 90px; height: 90px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #f5f5f5;
+}
+.file-preview-item img, .file-preview-item video {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.file-preview-item .file-icon {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px;
+}
+.file-preview-item .remove {
+  position: absolute; top: 2px; right: 2px;
+  width: 20px; height: 20px;
+  background: rgba(0,0,0,0.6); color: #fff;
+  border-radius: 50%; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: none; line-height: 1;
+}
+.file-preview-item .file-name {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.6); color: #fff;
+  font-size: 10px; padding: 2px 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.upload-progress {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--primary);
+}
 </style>
   <link rel="icon" id="faviconLink" type="image/png" href="">
 </head>
@@ -362,7 +422,7 @@ function navigateTo(module) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === module));
   const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', audit: '操作日志', settings: '系统设置' };
   document.getElementById('pageTitle').textContent = titles[module] || module;
-  document.getElementById('saveBtn').style.display = ['dashboard','audit'].indexOf(module) >= 0 ? 'none' : 'inline-block';
+  document.getElementById('saveBtn').style.display = ['dashboard','audit','settings'].indexOf(module) >= 0 ? 'none' : 'inline-block';
   const renderers = {
     dashboard: renderDashboard, config: renderConfig, announcements: renderAnnouncementsAdmin,
     documents: renderDocumentsAdmin, activities: renderActivitiesAdmin, polls: renderPollsAdmin,
@@ -400,7 +460,7 @@ function renderConfig() {
   const c = appData.config && appData.config.community || {};
   const s = appData.config && appData.config.settings || {};
   const themes = s.themeOptions || [];
-  return '<div class="card"><div class="card-header"><h3>🏘️ 社区基本信息</h3></div>' +
+  let html = '<div class="card"><div class="card-header"><h3>🏘️ 社区基本信息</h3></div>' +
     '<div class="form-row"><div class="form-group"><label>社区名称</label><input type="text" id="cfgName" value="' + (c.name||'') + '"></div>' +
     '<div class="form-group"><label>地址</label><input type="text" id="cfgAddress" value="' + (c.address||'') + '"></div></div>' +
     '<div class="form-row"><div class="form-group"><label>总户数</label><input type="number" id="cfgUnits" value="' + (c.totalUnits||'') + '"></div>' +
@@ -409,12 +469,24 @@ function renderConfig() {
     '<div class="form-group"><label>物业公司</label><input type="text" id="cfgProperty" value="' + (c.propertyCompany||'') + '"></div></div>' +
     '<div class="form-row"><div class="form-group"><label>居委会电话</label><input type="text" id="cfgCommittee" value="' + (c.committeePhone||'') + '"></div>' +
     '<div class="form-group"><label>物业电话</label><input type="text" id="cfgPropertyPhone" value="' + (c.propertyPhone||'') + '"></div></div>' +
-    '<div class="form-group"><label>社区口号</label><input type="text" id="cfgSlogan" value="' + (c.slogan||'') + '"></div>' +
-  '<div class="form-group"><label>浏览器图标（favicon）链接</label><input type="text" id="cfgFavicon" value="' + (c.favicon||'') + '" placeholder="assets/logo.png 或 https://..."></div></div>' +
-    '<div class="card"><div class="card-header"><h3>🎨 主题设置</h3></div>' +
+    '<div class="form-group"><label>社区口号</label><input type="text" id="cfgSlogan" value="' + (c.slogan||'') + '"></div>';
+
+  html += '<div class="form-group"><label>社区Logo</label><input type="text" id="cfgLogoInput" value="' + (c.logo||'') + '" placeholder="assets/logo.png 或 https://...">' +
+    createFileUploaderHTML({id:'cfgLogo', accept:'image/*', hint:'支持拖拽或点击上传图片（100K以内）'}) + '</div>';
+
+  html += '<div class="form-group"><label>浏览器图标（favicon）</label><input type="text" id="cfgFavicon" value="' + (c.favicon||'') + '" placeholder="assets/logo.png 或 https://...">' +
+    createFileUploaderHTML({id:'cfgFavicon', accept:'image/png,image/x-icon,image/svg+xml', hint:'支持拖拽或点击上传图标（100K以内，推荐 .png / .ico / .svg）'}) + '</div></div>';
+
+  html += '<div class="card"><div class="card-header"><h3>🎨 主题设置</h3></div>' +
     '<div class="form-group"><label>默认主题</label><select id="cfgTheme">' +
     themes.map(t => '<option value="' + t.id + '" ' + (s.defaultTheme===t.id?'selected':'') + '>' + t.name + ' (' + t.desc + ')</option>').join('') +
     '</select></div></div>';
+
+  setTimeout(function() {
+    if (c.logo) setUploadedPath('cfgLogo', c.logo, 'logo');
+    if (c.favicon) setUploadedPath('cfgFavicon', c.favicon, 'favicon');
+  }, 0);
+  return html;
 }
 
 function renderAnnouncementsAdmin() {
@@ -495,12 +567,16 @@ function openEditModal(module, id) {
       '<div class="form-group"><label>发布日期</label><input type="date" id="edDate" value="' + (item.publishDate||new Date().toISOString().split('T')[0]) + '"></div></div>' +
       '<div class="form-group"><label>作者</label><input type="text" id="edAuthor" value="' + (item.author||currentAdmin&&currentAdmin.name||'') + '"></div>' +
       '<div class="form-group form-check"><input type="checkbox" id="edPinned" ' + (item.isPinned?'checked':'') + '><label for="edPinned">置顶</label></div>' +
-      '<div class="form-group"><label>内容（支持HTML）</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>';
+      '<div class="form-group"><label>内容（支持HTML）</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>' +
+      '<div class="form-group"><label>附件（图片/PDF，100K以内）</label><div id="edAttachmentsWrap"></div>' +
+      createFileUploaderHTML({id:'annAttach', accept:'image/*,.pdf', hint:'支持拖拽或点击上传图片/PDF（100K以内）'}) + '</div>';
   } else if (module === 'documents') {
     body = '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
       '<div class="form-row"><div class="form-group"><label>来源</label><input type="text" id="edSource" value="' + (item.source||'') + '"></div>' +
       '<div class="form-group"><label>发布日期</label><input type="date" id="edDate" value="' + (item.publishDate||new Date().toISOString().split('T')[0]) + '"></div></div>' +
       '<div class="form-group"><label>文件链接</label><input type="text" id="edFileUrl" value="' + (item.fileUrl||'') + '" placeholder="assets/files/xxx.pdf 或外部链接"></div>' +
+      '<div class="form-group"><label>本地上传（图片/PDF，100K以内）</label>' +
+      createFileUploaderHTML({id:'docFile', accept:'image/*,.pdf', hint:'支持拖拽或点击上传，上传后自动填充上方链接'}) + '</div>' +
       '<div class="form-group"><label>描述</label><textarea id="edDesc">' + (item.description||'') + '</textarea></div>';
   } else if (module === 'activities') {
     body = '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
@@ -535,6 +611,18 @@ function openEditModal(module, id) {
   document.getElementById('modalBody').innerHTML = body;
   document.getElementById('modalFooter').innerHTML = `<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveItem('${module}','${id||''}')">保存</button>`;
   document.getElementById('modalOverlay').classList.add('active');
+
+  // 初始化已有文件预览
+  setTimeout(function() {
+    if (module === 'activities') {
+      if (item.coverImage) setUploadedPath('actCover', item.coverImage, 'cover');
+      if (item.videoUrl) setUploadedPath('actVideo', item.videoUrl, 'video');
+    } else if (module === 'documents') {
+      if (item.fileUrl) setUploadedPath('docFile', item.fileUrl, 'file');
+    } else if (module === 'announcements') {
+      // 附件预览可在此扩展
+    }
+  }, 50);
 }
 
 function generateCaseNo() {
@@ -564,9 +652,21 @@ async function saveCurrentModule() {
     c.propertyPhone = document.getElementById('cfgPropertyPhone').value;
     c.slogan = document.getElementById('cfgSlogan').value;
     c.favicon = document.getElementById('cfgFavicon').value;
+    const logoPath = getUploadedPath('cfgLogo');
+    if (logoPath) c.logo = logoPath;
+    const faviconPath = getUploadedPath('cfgFavicon');
+    if (faviconPath) c.favicon = faviconPath;
     appData.config.settings.defaultTheme = document.getElementById('cfgTheme').value;
     updateFavicon();
-    await saveDataFile('config', appData.config, '更新社区配置');
+    showLoading(true);
+    try {
+      await saveDataFile('config', appData.config, '更新社区配置', 'update');
+      showToast('保存成功', 'success');
+    } catch(e) {
+      showToast('保存失败：' + e.message, 'error');
+    } finally {
+      showLoading(false);
+    }
   }
 }
 
@@ -582,11 +682,18 @@ async function saveItem(module, id) {
     item.content = document.getElementById('edContent').value;
     item.views = item.views || 0;
     item.attachments = item.attachments || [];
+    const attachPath = getUploadedPath('annAttach');
+    if (attachPath) {
+      const fname = document.getElementById('wrap-annAttach').dataset.fileName || attachPath;
+      item.attachments.push({ name: fname, url: attachPath });
+    }
   } else if (module === 'documents') {
     item.title = document.getElementById('edTitle').value;
     item.source = document.getElementById('edSource').value;
     item.publishDate = document.getElementById('edDate').value;
-    item.fileUrl = document.getElementById('edFileUrl').value;
+    const docPath = getUploadedPath('docFile');
+    if (docPath) item.fileUrl = docPath;
+    else item.fileUrl = document.getElementById('edFileUrl').value;
     item.description = document.getElementById('edDesc').value;
     item.category = '上级文件';
   } else if (module === 'activities') {
@@ -594,10 +701,14 @@ async function saveItem(module, id) {
     item.date = document.getElementById('edDate').value;
     item.location = document.getElementById('edLocation').value;
     item.status = document.getElementById('edStatus').value;
-    item.coverImage = document.getElementById('edCoverImage').value.trim();
+    const coverPath = getUploadedPath('actCover');
+    if (coverPath) item.coverImage = coverPath;
+    else item.coverImage = document.getElementById('edCoverImage').value.trim();
     const imgText = document.getElementById('edImages').value.trim();
     item.images = imgText ? imgText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
-    item.videoUrl = document.getElementById('edVideo').value;
+    const videoPath = getUploadedPath('actVideo');
+    if (videoPath) item.videoUrl = videoPath;
+    else item.videoUrl = document.getElementById('edVideo').value;
     item.externalLink = document.getElementById('edExternal').value;
     item.content = document.getElementById('edContent').value;
   } else if (module === 'polls') {
@@ -740,25 +851,54 @@ function showBatchImport() {
 }
 
 async function doBatchImport() {
-  const text = document.getElementById('batchData').value.trim();
-  if (!text) { showToast('请输入数据', 'error'); return; }
-  const lines = text.split('\n');
-  const newResidents = [];
+  let rows = [];
   let success = 0, fail = 0;
-  lines.forEach(line => {
-    line = line.trim();
-    if (!line) return;
-    const parts = line.split(/[\t|\|\s]+/);
-    if (parts.length >= 3) {
-      const room = parts[0].trim();
-      const name = parts[1].trim();
-      const suffix = parts[2].trim().replace(/[^0-9]/g, '').substring(0,4);
-      if (room && name && suffix) {
-        newResidents.push({ id: 'r-' + Date.now() + '-' + Math.random().toString(36).substr(2,4), roomNo: room, name: name, phoneSuffix: suffix, status: 'active', isTest: false, registeredAt: new Date().toISOString().split('T')[0] });
-        success++;
-      } else { fail++; }
+
+  // 先尝试从上传的文件解析
+  const batchPath = getUploadedPath('batchFile');
+  if (batchPath) {
+    showLoading(true);
+    try {
+      const ownerRepo = await getRepoInfo();
+      if (ownerRepo) {
+        const [owner, repo] = ownerRepo;
+        const r = await fetch('https://raw.githubusercontent.com/' + owner + '/' + repo + '/main/' + batchPath);
+        if (r.ok) {
+          const blob = await r.blob();
+          const file = new File([blob], 'batch.' + (batchPath.split('.').pop() || 'csv'));
+          rows = await handleBatchFile(file);
+        }
+      }
+    } catch(e) { console.error(e); }
+    showLoading(false);
+  }
+
+  // 如果没有文件或文件解析失败，尝试文本框
+  if (rows.length === 0) {
+    const text = document.getElementById('batchData').value.trim();
+    if (!text) { showToast('请输入数据或上传文件', 'error'); return; }
+    const lines = text.split('\n');
+    lines.forEach(line => {
+      line = line.trim();
+      if (!line) return;
+      const parts = line.split(/[\t|\|\s]+/);
+      if (parts.length >= 3) {
+        rows.push(parts);
+      }
+    });
+  }
+
+  const newResidents = [];
+  rows.forEach(parts => {
+    const room = parts[0].trim();
+    const name = parts[1].trim();
+    const suffix = (parts[2] || '').trim().replace(/[^0-9]/g, '').substring(0,4);
+    if (room && name && suffix) {
+      newResidents.push({ id: 'r-' + Date.now() + '-' + Math.random().toString(36).substr(2,4), roomNo: room, name: name, phoneSuffix: suffix, status: 'active', isTest: false, registeredAt: new Date().toISOString().split('T')[0] });
+      success++;
     } else { fail++; }
   });
+
   if (newResidents.length === 0) { showToast('未解析到有效数据', 'error'); return; }
   const list = appData.residents || [];
   list.push.apply(list, newResidents);
@@ -823,6 +963,231 @@ async function updateToken() {
   } finally {
     showLoading(false);
   }
+}
+
+
+/* ========== 文件上传相关 ========== */
+
+async function uploadFileToRepo(file, folder) {
+  const maxSizeMB = folder === 'videos' ? 30 : (folder === 'images' || folder === 'files' ? 0.1 : 5);
+  if (file.size > maxSizeMB * 1024 * 1024) {
+    throw new Error(`文件大小超过限制（${maxSizeMB}MB）`);
+  }
+  const ownerRepo = await getRepoInfo();
+  if (!ownerRepo) throw new Error('无法获取仓库信息，请检查Token');
+  const [owner, repo] = ownerRepo;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const filename = Date.now() + '_' + Math.random().toString(36).substr(2,6) + '_' + safeName;
+  const path = 'assets/' + (folder || 'uploads') + '/' + filename;
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64 = reader.result.split(',')[1];
+        const getRes = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + path, {
+          headers: { 'Authorization': 'token ' + githubToken, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        let sha = '';
+        if (getRes.ok) {
+          const info = await getRes.json();
+          sha = info.sha;
+        }
+        const body = {
+          message: '[' + (currentAdmin && currentAdmin.name || 'admin') + '] 上传文件 ' + file.name,
+          content: base64
+        };
+        if (sha) body.sha = sha;
+        const putRes = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + path, {
+          method: 'PUT',
+          headers: { 'Authorization': 'token ' + githubToken, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!putRes.ok) {
+          const err = await putRes.json();
+          throw new Error(err.message || '上传失败');
+        }
+        resolve(path);
+      } catch(e) {
+        reject(e);
+      }
+    };
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function createFileUploaderHTML(options) {
+  const { id, accept, hint, maxSizeText } = options;
+  return `<div class="file-upload-wrap" id="wrap-${id}">
+    <div class="file-dropzone" id="drop-${id}" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleFileDrop(event,'${id}')" onclick="document.getElementById('inp-${id}').click()">
+      <div>📎 点击或拖拽文件到此处上传</div>
+      <div class="hint">${hint || ''}</div>
+    </div>
+    <input type="file" id="inp-${id}" style="display:none" accept="${accept || '*'}" onchange="handleFileSelect(event,'${id}')">
+    <div class="file-preview" id="preview-${id}"></div>
+    <div class="upload-progress" id="progress-${id}"></div>
+  </div>`;
+}
+
+async function handleFileDrop(e, id) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const files = e.dataTransfer.files;
+  if (files.length) await processFileUpload(files[0], id);
+}
+
+async function handleFileSelect(e, id) {
+  const file = e.target.files[0];
+  if (file) await processFileUpload(file, id);
+}
+
+async function processFileUpload(file, id) {
+  const progressEl = document.getElementById('progress-' + id);
+  const previewEl = document.getElementById('preview-' + id);
+  const wrapEl = document.getElementById('wrap-' + id);
+
+  let folder = 'uploads';
+  let maxSize = 5 * 1024 * 1024;
+  if (id.includes('video')) { folder = 'videos'; maxSize = 30 * 1024 * 1024; }
+  else if (id.includes('image') || id.includes('cover') || id.includes('logo') || id.includes('favicon')) { folder = 'images'; maxSize = 100 * 1024; }
+  else if (id.includes('pdf') || id.includes('file')) { folder = 'files'; maxSize = 100 * 1024; }
+  else if (id.includes('batch')) { folder = 'imports'; maxSize = 5 * 1024 * 1024; }
+
+  if (file.size > maxSize) {
+    showToast('文件过大，限制' + (maxSize/1024/1024) + 'MB', 'error');
+    return;
+  }
+
+  progressEl.textContent = '⏳ 上传中...';
+  try {
+    const path = await uploadFileToRepo(file, folder);
+    progressEl.textContent = '✅ 上传成功';
+
+    // 保存路径到data属性
+    wrapEl.dataset.uploadedPath = path;
+    wrapEl.dataset.fileName = file.name;
+
+    // 显示预览
+    let previewHTML = '';
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      previewHTML = `<div class="file-preview-item"><img src="${url}"><button class="remove" onclick="clearUpload('${id}')">×</button><div class="file-name">${file.name}</div></div>`;
+    } else if (file.type.startsWith('video/')) {
+      const url = URL.createObjectURL(file);
+      previewHTML = `<div class="file-preview-item"><video src="${url}" muted></video><button class="remove" onclick="clearUpload('${id}')">×</button><div class="file-name">${file.name}</div></div>`;
+    } else {
+      previewHTML = `<div class="file-preview-item"><div class="file-icon">📄</div><button class="remove" onclick="clearUpload('${id}')">×</button><div class="file-name">${file.name}</div></div>`;
+    }
+    previewEl.innerHTML = previewHTML;
+  } catch(e) {
+    progressEl.textContent = '';
+    showToast('上传失败：' + e.message, 'error');
+  }
+}
+
+function clearUpload(id) {
+  const wrapEl = document.getElementById('wrap-' + id);
+  const previewEl = document.getElementById('preview-' + id);
+  const progressEl = document.getElementById('progress-' + id);
+  if (wrapEl) { delete wrapEl.dataset.uploadedPath; delete wrapEl.dataset.fileName; }
+  if (previewEl) previewEl.innerHTML = '';
+  if (progressEl) progressEl.textContent = '';
+  const inp = document.getElementById('inp-' + id);
+  if (inp) inp.value = '';
+}
+
+function getUploadedPath(id) {
+  const wrapEl = document.getElementById('wrap-' + id);
+  return wrapEl && wrapEl.dataset.uploadedPath || '';
+}
+
+function setUploadedPath(id, path, name) {
+  const wrapEl = document.getElementById('wrap-' + id);
+  const previewEl = document.getElementById('preview-' + id);
+  if (!wrapEl) return;
+  wrapEl.dataset.uploadedPath = path;
+  wrapEl.dataset.fileName = name || path;
+  if (previewEl && path) {
+    const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path);
+    const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(path);
+    let html = '';
+    if (isImg) html = `<div class="file-preview-item"><img src="${path}"><button class="remove" onclick="clearUpload('${id}')">×</button></div>`;
+    else if (isVideo) html = `<div class="file-preview-item"><video src="${path}" muted></video><button class="remove" onclick="clearUpload('${id}')">×</button></div>`;
+    else html = `<div class="file-preview-item"><div class="file-icon">📄</div><button class="remove" onclick="clearUpload('${id}')">×</button></div>`;
+    previewEl.innerHTML = html;
+  }
+}
+
+/* ========== Excel / VCF 解析 ========== */
+
+function parseExcelSimple(arrayBuffer) {
+  const data = new Uint8Array(arrayBuffer);
+  let csv = '';
+  const len = data.length;
+  let i = 0;
+  // 简单解析：寻找PK头（xlsx）或纯文本（csv/xls）
+  // 这里做一个简化版：如果是CSV直接解析，如果是xlsx做简单文本提取
+  const text = new TextDecoder('utf-8').decode(data);
+  if (text.includes('\t') || text.includes(',')) {
+    return text.split('\n').map(line => line.split(/[\t,]/).map(s => s.trim())).filter(r => r.length >= 3 && r[0]);
+  }
+  // 对于真正的xlsx，这里简化处理：尝试提取所有文本中的数字和中文行
+  const lines = text.replace(/[^\x20-\x7E\u4e00-\u9fa5\n\t]/g, '\n').split('\n').filter(l => l.trim());
+  const results = [];
+  for (const line of lines) {
+    const parts = line.split(/[\t,|\s]+/).filter(s => s.trim());
+    if (parts.length >= 3 && /^[\d-]+$/.test(parts[0])) results.push(parts);
+  }
+  return results;
+}
+
+function parseVCF(vcfText) {
+  const lines = vcfText.split('\n');
+  const contacts = [];
+  let current = null;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('BEGIN:VCARD')) current = { name: '', phone: '', room: '' };
+    else if (trimmed.startsWith('END:VCARD')) {
+      if (current && current.name) contacts.push(current);
+      current = null;
+    } else if (current && trimmed.startsWith('FN:')) {
+      current.name = trimmed.substring(3);
+    } else if (current && trimmed.startsWith('TEL')) {
+      const idx = trimmed.indexOf(':');
+      if (idx > 0) current.phone = trimmed.substring(idx + 1).replace(/\D/g, '');
+    } else if (current && trimmed.startsWith('ADR') || trimmed.startsWith('NOTE')) {
+      const idx = trimmed.indexOf(':');
+      if (idx > 0) {
+        const val = trimmed.substring(idx + 1);
+        const match = val.match(/([\d]+-[\d]+-[\d]+)/);
+        if (match) current.room = match[1];
+      }
+    }
+  }
+  return contacts;
+}
+
+async function handleBatchFile(file) {
+  const name = file.name.toLowerCase();
+  let rows = [];
+  if (name.endsWith('.vcf') || name.endsWith('.vcd')) {
+    const text = await file.text();
+    const contacts = parseVCF(text);
+    rows = contacts.map(c => [c.room || '', c.name, c.phone.slice(-4)]).filter(r => r[1]);
+  } else if (name.endsWith('.csv') || name.endsWith('.txt')) {
+    const text = await file.text();
+    rows = text.split('\n').map(line => line.split(/[\t,|]/).map(s => s.trim())).filter(r => r.length >= 3 && r[0]);
+  } else if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+    const buf = await file.arrayBuffer();
+    rows = parseExcelSimple(buf);
+  } else {
+    showToast('不支持的文件格式，请使用 .csv / .xlsx / .vcf', 'error');
+    return [];
+  }
+  return rows;
 }
 
 function generateId(module) {
