@@ -123,5 +123,21 @@
         "url": "assets/uploads/1785129065682_wokqyc_____.pdf"
       }
     ]
+  },
+  {
+    "id": "ann-011",
+    "title": "测试一下",
+    "category": "物业通知",
+    "publishDate": "2026-07-27",
+    "author": "管理员A",
+    "isPinned": true,
+    "content": "",
+    "views": 0,
+    "attachments": [
+      {
+        "name": "jimeng-2026-04-24-9978-一只可爱的白色小鸡1子宝宝，大胖脸，小身子，像人一样站着，稍息姿势，一只脚掌翘起....png",
+        "url": "assets/uploads/1785149382547_kqbw55_jimeng-2026-04-24-9978-_________1______________________________....png"
+      }
+    ]
   }
 ]
