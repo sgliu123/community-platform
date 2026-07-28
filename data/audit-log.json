@@ -185,5 +185,16 @@
     "targetId": "",
     "details": "删除动态《小区美景》",
     "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+  },
+  {
+    "id": "log-1785234560275",
+    "timestamp": "2026-07-28T10:29:20.275Z",
+    "adminName": "管理员A",
+    "adminId": "admin-1",
+    "action": "create",
+    "target": "activities",
+    "targetId": "",
+    "details": "新增动态《小区美景》",
+    "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
   }
 ]
