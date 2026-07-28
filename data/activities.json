@@ -46,5 +46,38 @@
     "videoUrl": "",
     "externalLink": "",
     "status": "已结束"
+  },
+  {
+    "id": "act-005",
+    "title": "小区美景",
+    "date": "2026-07-28",
+    "location": "景观大道",
+    "status": "进行中",
+    "coverImage": "",
+    "images": [
+      "assets/images/1785234386157_jcwkz9______20240416112539.jpg",
+      "assets/images/1785234394861_se2mwc______20240416112711.jpg",
+      "assets/images/1785234404233_zqf9kk______20240416112821.jpg",
+      "assets/images/1785234413283_9nua0n______20240416112829.jpg",
+      "assets/images/1785234422999_e1de7n______20240416112835.jpg",
+      "assets/images/1785234431630_hqtf8q______20240416112841.jpg",
+      "assets/images/1785234441129_7vtwgi______20240416112847.jpg",
+      "assets/images/1785234450067_cn3pbs______20240416113551.jpg",
+      "assets/images/1785234458504_4yq4vy______20240416113558.jpg",
+      "assets/images/1785234467370_sz6tcs______20240416113603.jpg",
+      "assets/images/1785234475822_nixcqi______20240416115746.jpg",
+      "assets/images/1785234490383_gwajbq______20240418141705.jpg",
+      "assets/images/1785234499946_kv4t94______20240418141808.jpg",
+      "assets/images/1785234509040_go3wgw______20240418141919.jpg",
+      "assets/images/1785234539873_dtmp1p______20240418142216.jpg"
+    ],
+    "videos": [],
+    "videoLinks": [
+      "【本地离线智能阅读工具】 https://www.bilibili.com/video/BV1P8Tx6PEhc/?share_source=copy_web&vd_source=688cab1518250ec220c84c8df568e3e2"
+    ],
+    "videoUrl": "【本地离线智能阅读工具】 https://www.bilibili.com/video/BV1P8Tx6PEhc/?share_source=copy_web&vd_source=688cab1518250ec220c84c8df568e3e2",
+    "externalLinks": [],
+    "externalLink": "",
+    "content": ""
   }
 ]
