@@ -476,6 +476,57 @@ a { text-decoration:none; color:var(--primary); }
   .video-placeholder .play-btn { width: 56px; height: 56px; }
   .video-placeholder .play-btn::after { border-left-width: 18px; border-top-width: 11px; border-bottom-width: 11px; }
 }
+
+/* ===== Activity Detail Enhanced Styles ===== */
+.activity-detail-card { border-radius: var(--radius); overflow: hidden; }
+.section-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
+.section-title .section-icon { font-size: 18px; }
+.section-title .section-count { font-size: 12px; color: var(--text-secondary); font-weight: 500; background: var(--bg); padding: 2px 10px; border-radius: 12px; margin-left: auto; }
+.video-section { margin: 28px 0; padding: 20px; background: linear-gradient(135deg, #fafbfc 0%, #f0f4f8 100%); border-radius: var(--radius); border: 1px solid #e8ecf1; }
+.video-tabs { border-radius: var(--radius); overflow: hidden; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.video-tab-headers { display: flex; gap: 0; background: #f5f7fa; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.video-tab-headers::-webkit-scrollbar { display: none; }
+.video-tab-header { flex: 1; min-width: 100px; padding: 12px 16px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-secondary); border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.video-tab-header:hover { background: rgba(46,139,87,0.05); color: var(--primary); }
+.video-tab-header.active { color: var(--primary); border-bottom-color: var(--primary); background: #fff; }
+.tab-platform { font-size: 16px; }
+.tab-title { max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
+.video-tab-content { display: none; padding: 16px; }
+.video-tab-content.active { display: block; }
+.video-player-native { border-radius: 8px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.1); background: #0a0a0a; }
+.video-player-native video { width: 100%; display: block; max-height: 520px; }
+.video-platform-badge { position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.65); color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; z-index: 3; backdrop-filter: blur(6px); display: flex; align-items: center; gap: 4px; }
+.gallery-section { margin: 28px 0; padding: 20px; background: linear-gradient(135deg, #fafbfc 0%, #f0f4f8 100%); border-radius: var(--radius); border: 1px solid #e8ecf1; }
+.external-links-section { margin: 28px 0; padding: 20px; background: linear-gradient(135deg, #fafbfc 0%, #f0f4f8 100%); border-radius: var(--radius); border: 1px solid #e8ecf1; }
+.external-links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.external-link-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #fff; border-radius: 10px; border: 1px solid var(--border); text-decoration: none; transition: all 0.25s; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.external-link-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(46,139,87,0.12); }
+.ext-icon { font-size: 24px; flex-shrink: 0; }
+.ext-info { flex: 1; min-width: 0; }
+.ext-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.ext-domain { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ext-arrow { font-size: 20px; color: var(--text-secondary); flex-shrink: 0; }
+.video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; background: #0f0f0f; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+.video-wrapper iframe, .video-wrapper video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+.video-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+.video-placeholder:hover { transform: scale(1.02); }
+.video-placeholder > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.55; transition: opacity 0.3s; }
+.video-placeholder:hover > img { opacity: 0.75; }
+.video-placeholder .play-btn { position: relative; z-index: 2; width: 72px; height: 72px; background: rgba(255,255,255,0.95); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); transition: all 0.3s; }
+.video-placeholder:hover .play-btn { transform: scale(1.12); background: #fff; }
+.video-placeholder .play-btn::after { content: ''; width: 0; height: 0; border-left: 22px solid var(--primary); border-top: 14px solid transparent; border-bottom: 14px solid transparent; margin-left: 6px; }
+.video-player { position: absolute; inset: 0; display: none; }
+.video-player.active { display: block; }
+.video-close { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; background: rgba(0,0,0,0.55); color: #fff; border: none; border-radius: 50%; font-size: 16px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); transition: all 0.2s; }
+.video-close:hover { background: rgba(0,0,0,0.8); transform: scale(1.1); }
+@media (max-width: 600px) {
+  .video-tab-header { padding: 10px 12px; font-size: 12px; min-width: 80px; }
+  .tab-title { max-width: 60px; }
+  .video-player-native video { max-height: 280px; }
+  .external-links-grid { grid-template-columns: 1fr; }
+  .video-section, .gallery-section, .external-links-section { padding: 14px; margin: 20px 0; }
+}
+
 </style>
   <link rel="icon" id="faviconLink" type="image/png" href="">
 </head>
@@ -805,15 +856,29 @@ function renderDocumentDetail(id) {
 
 function getEmbedUrl(url) {
   if (!url) return url;
-  // Bilibili
   const bvMatch = url.match(/bilibili\.com\/video\/(BV[\w]+)/i);
   if (bvMatch) {
     return 'https://player.bilibili.com/player.html?bvid=' + bvMatch[1] + '&page=1&high_quality=1&danmaku=0';
   }
-  // YouTube
+  const b23Match = url.match(/b23\.tv\/(\w+)/i);
+  if (b23Match) {
+    return 'https://player.bilibili.com/player.html?bvid=BV' + b23Match[1] + '&page=1&high_quality=1&danmaku=0';
+  }
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/i);
   if (ytMatch) {
-    return 'https://www.youtube.com/embed/' + ytMatch[1];
+    return 'https://www.youtube.com/embed/' + ytMatch[1] + '?rel=0&modestbranding=1';
+  }
+  const dyMatch = url.match(/douyin\.com\/video\/(\d+)/i);
+  if (dyMatch) {
+    return 'https://www.douyin.com/video/' + dyMatch[1];
+  }
+  const xgMatch = url.match(/ixigua\.com\/(\d+)/i);
+  if (xgMatch) {
+    return 'https://www.ixigua.com/embed?autoplay=0&id=' + xgMatch[1];
+  }
+  const txMatch = url.match(/v\.qq\.com\/x\/cover\/[\w]+\/([\w]+)\.html/i) || url.match(/v\.qq\.com\/x\/page\/([\w]+)\.html/i);
+  if (txMatch) {
+    return 'https://v.qq.com/txp/iframe/player.html?vid=' + txMatch[1];
   }
   return url;
 }
@@ -841,7 +906,13 @@ function hideVideoPlayer(wrapperId) {
     placeholder.style.display = 'flex';
     // Stop iframe by resetting src
     const iframe = player.querySelector('iframe');
-    if (iframe) iframe.src = iframe.src;
+    if (iframe) {
+      const currentSrc = iframe.src;
+      iframe.src = '';
+      setTimeout(() => { iframe.src = currentSrc; }, 100);
+    }
+    const video = player.querySelector('video');
+    if (video) { video.pause(); video.currentTime = 0; }
   }
 }
 
@@ -905,9 +976,27 @@ function renderActivityDetail(id) {
   if (!a) return '<div class="empty">动态不存在</div>';
   const sc = a.status === "进行中" ? "status-ongoing" : (a.status === "预告" ? "status-upcoming" : "status-ended");
 
-  let h = '<div class="card" style="padding:0;overflow:hidden;">';
+  const allVideos = [];
+  if (a.videos && a.videos.length) {
+    a.videos.forEach((v, i) => { allVideos.push({ type: 'local', url: v, title: '视频 ' + (i+1) }); });
+  }
+  if (!allVideos.length && a.videoUrl) {
+    allVideos.push({ type: 'local', url: a.videoUrl, title: '视频 1' });
+  }
+  if (a.videoLinks && a.videoLinks.length) {
+    a.videoLinks.forEach((v, i) => { allVideos.push({ type: 'embed', url: v, title: '在线视频 ' + (i+1) }); });
+  }
 
-  // Hero cover
+  const allExternals = [];
+  if (a.externalLinks && a.externalLinks.length) {
+    allExternals.push.apply(allExternals, a.externalLinks);
+  }
+  if (!allExternals.length && a.externalLink) {
+    allExternals.push(a.externalLink);
+  }
+
+  let h = '<div class="card activity-detail-card" style="padding:0;overflow:hidden;">';
+
   if (a.coverImage) {
     h += '<div class="activity-hero">';
     h += '<img src="' + a.coverImage + '" alt="' + a.title + '" onerror="this.style.display=\'none\'">';
@@ -921,42 +1010,49 @@ function renderActivityDetail(id) {
     h += '</div>';
   }
 
-  // Meta bar
   h += '<div class="activity-meta-bar">';
   h += '<div class="meta-item">📅 ' + (a.date||"--") + '</div>';
   h += '<div class="meta-item">📍 ' + (a.location||"--") + '</div>';
   if (a.status) h += '<div class="meta-item">🏷️ ' + a.status + '</div>';
   h += '</div>';
 
-  // Content
   h += '<div style="padding:0 24px 24px;">';
   h += '<div class="activity-content-box"><div class="detail-content">' + (a.content||"") + '</div></div>';
 
-  // Video
-  if (a.videoUrl) {
-    const vidId = 'vid-' + id.replace(/[^a-zA-Z0-9]/g, '');
-    const embedUrl = getEmbedUrl(a.videoUrl);
-    h += '<div style="margin:24px 0;">';
-    h += '<div style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;display:flex;align-items:center;gap:6px;">🎬 活动视频</div>';
-    h += '<div class="video-wrapper" id="' + vidId + '">';
-    // Placeholder
-    h += '<div class="video-placeholder" onclick="showVideoPlayer(\'' + vidId + '\')">';
-    if (a.coverImage) {
-      h += '<img src="' + a.coverImage + '" alt="cover">';
+  if (allVideos.length > 0) {
+    h += '<div class="video-section">';
+    h += '<div class="section-title"><span class="section-icon">🎬</span>活动视频 <span class="section-count">' + allVideos.length + ' 个</span></div>';
+    if (allVideos.length === 1) {
+      const v = allVideos[0];
+      const vidId = 'vid-' + id.replace(/[^a-zA-Z0-9]/g, '') + '-0';
+      h += renderSingleVideoPlayer(v, vidId, a.coverImage);
+    } else {
+      const vidTabId = 'vidtab-' + id.replace(/[^a-zA-Z0-9]/g, '');
+      h += '<div class="video-tabs" id="' + vidTabId + '">';
+      h += '<div class="video-tab-headers">';
+      allVideos.forEach((v, idx) => {
+        const platform = detectVideoPlatform(v.url);
+        h += '<div class="video-tab-header ' + (idx===0 ? 'active' : '') + '" data-idx="' + idx + '" onclick="switchVideoTab(\'' + vidTabId + '\', ' + idx + ')">';
+        h += '<span class="tab-platform">' + platform.icon + '</span>';
+        h += '<span class="tab-title">' + v.title + '</span>';
+        h += '</div>';
+      });
+      h += '</div>';
+      h += '<div class="video-tab-contents">';
+      allVideos.forEach((v, idx) => {
+        const vidId = 'vid-' + id.replace(/[^a-zA-Z0-9]/g, '') + '-' + idx;
+        h += '<div class="video-tab-content ' + (idx===0 ? 'active' : '') + '" data-idx="' + idx + '">';
+        h += renderSingleVideoPlayer(v, vidId, a.coverImage);
+        h += '</div>';
+      });
+      h += '</div></div>';
     }
-    h += '<div class="play-btn"></div>';
     h += '</div>';
-    // Player
-    h += '<div class="video-player" id="' + vidId + '-player">';
-    h += '<button class="video-close" onclick="hideVideoPlayer(\'' + vidId + '\')">✕</button>';
-    h += '<iframe src="' + embedUrl + '" allowfullscreen allow="autoplay; fullscreen"></iframe>';
-    h += '</div></div></div>';
   }
 
-  // Image Gallery
   if (a.images && a.images.length > 0) {
-    h += '<div style="margin:24px 0;">';
-    h += '<div style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;display:flex;align-items:center;gap:6px;">📷 活动图集</div>';
+    h += '<div class="gallery-section">';
+    h += '<div class="section-title"><span class="section-icon">📷</span>活动图集 <span class="section-count">' + a.images.length + ' 张</span></div>';
     if (a.images.length === 1) {
       h += '<div class="single-image-box" onclick="window.open(\'' + a.images[0] + '\')">';
       h += '<img src="' + a.images[0] + '" alt="活动图片">';
@@ -983,12 +1079,24 @@ function renderActivityDetail(id) {
     h += '</div>';
   }
 
-  // Action buttons
+  if (allExternals.length > 0) {
+    h += '<div class="external-links-section">';
+    h += '<div class="section-title"><span class="section-icon">🔗</span>相关链接</div>';
+    h += '<div class="external-links-grid">';
+    allExternals.forEach((link, idx) => {
+      const domain = extractDomain(link);
+      h += '<a href="' + link + '" target="_blank" class="external-link-card">';
+      h += '<div class="ext-icon">🌐</div>';
+      h += '<div class="ext-info">';
+      h += '<div class="ext-title">链接 ' + (idx+1) + '</div>';
+      h += '<div class="ext-domain">' + domain + '</div>';
+      h += '</div><div class="ext-arrow">›</div></a>';
+    });
+    h += '</div></div>';
+  }
+
   h += '<div class="action-buttons">';
   h += '<button class="action-btn primary" onclick="history.back()">← 返回列表</button>';
-  if (a.externalLink) {
-    h += '<a href="' + a.externalLink + '" target="_blank" class="action-btn secondary">🔗 查看原文</a>';
-  }
   h += '</div>';
 
   h += '</div></div>';
@@ -1000,6 +1108,74 @@ function renderActivityDetail(id) {
   }, 100);
 
   return h;
+}
+
+function renderSingleVideoPlayer(video, vidId, coverImage) {
+  let h = '';
+  if (video.type === 'local') {
+    h += '<div class="video-player-native" id="' + vidId + '">';
+    h += '<video controls preload="metadata" poster="' + (coverImage || '') + '" style="width:100%;display:block;border-radius:8px;">';
+    h += '<source src="' + video.url + '" type="video/mp4">';
+    h += '<source src="' + video.url + '" type="video/webm">';
+    h += '您的浏览器不支持视频播放';
+    h += '</video></div>';
+  } else {
+    const embedUrl = getEmbedUrl(video.url);
+    const platform = detectVideoPlatform(video.url);
+    h += '<div class="video-wrapper" id="' + vidId + '">';
+    h += '<div class="video-placeholder" onclick="showVideoPlayer(\'' + vidId + '\')">';
+    if (coverImage) {
+      h += '<img src="' + coverImage + '" alt="cover">';
+    } else {
+      h += '<div style="position:absolute;inset:0;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;">';
+      h += '<div style="text-align:center;color:#fff;"><div style="font-size:48px;margin-bottom:8px;">' + platform.icon + '</div><div style="font-size:14px;opacity:0.9;">' + platform.name + '</div></div>';
+      h += '</div>';
+    }
+    h += '<div class="play-btn"></div>';
+    h += '<div class="video-platform-badge">' + platform.icon + ' ' + platform.name + '</div>';
+    h += '</div>';
+    h += '<div class="video-player" id="' + vidId + '-player">';
+    h += '<button class="video-close" onclick="hideVideoPlayer(\'' + vidId + '\')">✕</button>';
+    if (embedUrl !== video.url) {
+      h += '<iframe src="' + embedUrl + '" allowfullscreen allow="autoplay; fullscreen" sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"></iframe>';
+    } else {
+      h += '<video controls autoplay style="width:100%;height:100%;display:block;">';
+      h += '<source src="' + video.url + '" type="video/mp4">';
+      h += '</video>';
+    }
+    h += '</div></div>';
+  }
+  return h;
+}
+
+function detectVideoPlatform(url) {
+  if (!url) return { name: '未知', icon: '📹' };
+  if (/bilibili\.com|b23\.tv/i.test(url)) return { name: '哔哩哔哩', icon: '📺' };
+  if (/youtube\.com|youtu\.be/i.test(url)) return { name: 'YouTube', icon: '▶️' };
+  if (/douyin\.com|iesdouyin\.com/i.test(url)) return { name: '抖音', icon: '🎵' };
+  if (/ixigua\.com/i.test(url)) return { name: '西瓜视频', icon: '🍉' };
+  if (/weibo\.com|weibo\.cn/i.test(url)) return { name: '微博', icon: '📱' };
+  if (/qq\.com\/x\/cover|v\.qq\.com/i.test(url)) return { name: '腾讯视频', icon: '📺' };
+  if (/youku\.com/i.test(url)) return { name: '优酷', icon: '👁️' };
+  if (/iqiyi\.com/i.test(url)) return { name: '爱奇艺', icon: '▶️' };
+  if (/mp\.weixin\.qq\.com/i.test(url)) return { name: '微信视频', icon: '💬' };
+  return { name: '外部视频', icon: '📹' };
+}
+
+function extractDomain(url) {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, '');
+  } catch(e) {
+    return url.substring(0, 30) + '...';
+  }
+}
+
+function switchVideoTab(tabId, idx) {
+  const tab = document.getElementById(tabId);
+  if (!tab) return;
+  tab.querySelectorAll('.video-tab-header').forEach((h, i) => h.classList.toggle('active', i === idx));
+  tab.querySelectorAll('.video-tab-content').forEach((c, i) => c.classList.toggle('active', i === idx));
 }
 
 function renderPollDetail(id) {

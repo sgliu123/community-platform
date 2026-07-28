@@ -672,8 +672,10 @@ function openEditModal(module, id) {
   setTimeout(function() {
     if (module === 'activities') {
       if (item.coverImage) setUploadedPath('actCover', item.coverImage, 'cover');
-      if (item.videoUrl) setUploadedPath('actVideo', item.videoUrl, 'video');
       if (item.images && item.images.length) setMultiUploadedPaths('actImages', item.images);
+      let videos = item.videos || [];
+      if (!videos.length && item.videoUrl) videos = [{ path: item.videoUrl, name: 'video', size: 0 }];
+      if (videos.length) setMultiUploadedVideos('actVideos', videos);
     } else if (module === 'documents') {
       if (item.fileUrl) setUploadedPath('docFile', item.fileUrl, 'file');
     } else if (module === 'announcements') {
@@ -766,10 +768,14 @@ async function saveItem(module, id) {
     const uploadedImages = getMultiUploadedPaths('actImages');
     allImages = [...new Set([...allImages, ...uploadedImages])].slice(0, 15);
     item.images = allImages;
-    const videoPath = getUploadedPath('actVideo');
-    if (videoPath) item.videoUrl = videoPath;
-    else item.videoUrl = document.getElementById('edVideo').value;
-    item.externalLink = document.getElementById('edExternal').value;
+    const uploadedVideos = getMultiUploadedVideos('actVideos');
+    item.videos = uploadedVideos.map(v => v.path);
+    const vlinkText = document.getElementById('edVideoLinks').value.trim();
+    item.videoLinks = vlinkText ? vlinkText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
+    item.videoUrl = item.videos[0] || item.videoLinks[0] || '';
+    const extText = document.getElementById('edExternalLinks').value.trim();
+    item.externalLinks = extText ? extText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
+    item.externalLink = item.externalLinks[0] || '';
     item.content = document.getElementById('edContent').value;
   } else if (module === 'polls') {
     item.caseNo = document.getElementById('edCaseNo').value;
@@ -1093,7 +1099,7 @@ async function compressImageToBlob(file, maxSizeMB = 1) {
 /* ========== 文件上传相关 ========== */
 
 async function uploadFileToRepo(file, folder) {
-  const maxSizeMB = folder === 'videos' ? 30 : (folder === 'images' ? 1 : (folder === 'files' ? 0.1 : 5));
+  const maxSizeMB = folder === 'videos' ? 800 : (folder === 'images' ? 1 : (folder === 'files' ? 0.1 : 5));
   if (file.size > maxSizeMB * 1024 * 1024) {
     throw new Error(`文件大小超过限制（${maxSizeMB}MB）`);
   }
@@ -1175,7 +1181,7 @@ async function processFileUpload(file, id) {
   let folder = 'uploads';
   let maxSize = 5 * 1024 * 1024;
   let isImage = false;
-  if (id.includes('video')) { folder = 'videos'; maxSize = 30 * 1024 * 1024; }
+  if (id.includes('video')) { folder = 'videos'; maxSize = 800 * 1024 * 1024; }
   else if (id.includes('image') || id.includes('cover') || id.includes('logo') || id.includes('favicon')) { folder = 'images'; isImage = true; }
   else if (id.includes('pdf') || id.includes('file')) { folder = 'files'; maxSize = 100 * 1024; }
   else if (id.includes('batch')) { folder = 'imports'; maxSize = 5 * 1024 * 1024; }
@@ -1361,6 +1367,164 @@ function setMultiUploadedPaths(id, paths) {
   renderMultiImagePreview(id, validPaths);
   const countEl = document.getElementById('count-' + id);
   if (countEl) countEl.textContent = validPaths.length;
+}
+
+/* ========== 多视频上传相关 ========== */
+
+function createMultiVideoUploaderHTML(id, hint) {
+  return `<div class="file-upload-wrap" id="wrap-${id}">
+    <div class="file-dropzone" id="drop-${id}" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleMultiVideoDrop(event,'${id}')" onclick="document.getElementById('inp-${id}').click()">
+      <div>🎬 点击或拖拽视频到此处上传</div>
+      <div class="hint">${hint || '支持拖拽或点击上传视频（mp4/mov/webm/avi等，单个800M以内）'}</div>
+      <div class="hint" style="color:var(--primary);font-weight:500;">已上传 <span id="count-${id}">0</span> / 5 个</div>
+    </div>
+    <input type="file" id="inp-${id}" style="display:none" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska" multiple onchange="handleMultiVideoSelect(event,'${id}')">
+    <div class="multi-image-preview" id="preview-${id}"></div>
+    <div class="upload-progress" id="progress-${id}"></div>
+  </div>`;
+}
+
+async function handleMultiVideoDrop(e, id) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/'));
+  if (files.length) await processMultiVideoUpload(files, id);
+}
+
+async function handleMultiVideoSelect(e, id) {
+  const files = Array.from(e.target.files);
+  if (files.length) await processMultiVideoUpload(files, id);
+}
+
+async function processMultiVideoUpload(files, id) {
+  const progressEl = document.getElementById('progress-' + id);
+  const wrapEl = document.getElementById('wrap-' + id);
+  let currentVideos = getMultiUploadedVideos(id);
+  if (currentVideos.length + files.length > 5) {
+    showToast('最多只能上传5个视频', 'error');
+    files = files.slice(0, 5 - currentVideos.length);
+  }
+  if (files.length === 0) return;
+  for (const file of files) {
+    if (file.size > 800 * 1024 * 1024) {
+      showToast('"' + file.name + '" 超过800M限制', 'error');
+      continue;
+    }
+    progressEl.textContent = '⏳ 处理 "' + file.name + '" ...';
+    let uploadFile = file;
+    if (file.size > 100 * 1024 * 1024) {
+      progressEl.textContent = '⏳ 压缩 "' + file.name + '" ...';
+      try {
+        uploadFile = await compressVideo(file, 100);
+        progressEl.textContent = '✅ 压缩完成：' + file.name + ' (' + (uploadFile.size/1024/1024).toFixed(1) + 'MB) → 上传中...';
+      } catch(e) {
+        showToast('"' + file.name + '" 压缩失败：' + e.message, 'error');
+        continue;
+      }
+    }
+    try {
+      const path = await uploadFileToRepo(uploadFile, 'videos');
+      currentVideos.push({ path: path, name: file.name, size: uploadFile.size });
+      renderMultiVideoPreview(id, currentVideos);
+      document.getElementById('count-' + id).textContent = currentVideos.length;
+    } catch(e) {
+      showToast('"' + file.name + '" 上传失败：' + e.message, 'error');
+    }
+  }
+  progressEl.textContent = currentVideos.length > 0 ? '✅ 已上传 ' + currentVideos.length + ' 个视频' : '';
+  wrapEl.dataset.uploadedVideos = JSON.stringify(currentVideos);
+}
+
+async function compressVideo(file, targetMB) {
+  return new Promise((resolve, reject) => {
+    const targetSize = targetMB * 1024 * 1024;
+    if (file.size <= targetSize) { resolve(file); return; }
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    const url = URL.createObjectURL(file);
+    video.onloadedmetadata = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const scale = Math.min(1, Math.sqrt(targetSize / file.size) * 0.85);
+      canvas.width = Math.floor(video.videoWidth * scale);
+      canvas.height = Math.floor(video.videoHeight * scale);
+      const stream = canvas.captureStream();
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' :
+                       MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: mimeType,
+        videoBitsPerSecond: Math.min(8000000, Math.floor((targetSize * 8) / (video.duration || 60)))
+      });
+      const chunks = [];
+      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        URL.revokeObjectURL(url);
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.webm'), { type: 'video/webm' });
+        if (compressed.size > targetSize * 1.2) {
+          reject(new Error('压缩后仍超过目标大小，请手动压缩后上传'));
+        } else {
+          resolve(compressed);
+        }
+      };
+      mediaRecorder.onerror = (e) => { URL.revokeObjectURL(url); reject(new Error('录制失败')); };
+      mediaRecorder.start(100);
+      video.play();
+      const drawFrame = () => {
+        if (video.ended || video.paused) { mediaRecorder.stop(); return; }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(drawFrame);
+      };
+      requestAnimationFrame(drawFrame);
+    };
+    video.onerror = () => { URL.revokeObjectURL(url); reject(new Error('视频加载失败')); };
+    video.src = url;
+  });
+}
+
+function renderMultiVideoPreview(id, videos) {
+  const previewEl = document.getElementById('preview-' + id);
+  if (!previewEl) return;
+  let html = '';
+  videos.forEach((v, idx) => {
+    const sizeText = v.size ? (v.size/1024/1024).toFixed(1) + 'MB' : '';
+    html += `<div class="multi-preview-item">
+      <video src="${v.path}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>
+      <button class="remove" onclick="removeMultiVideo('${id}', ${idx})" title="删除">×</button>
+      <div class="idx">${idx + 1}</div>
+      <div style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.6);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;">${sizeText}</div>
+    </div>`;
+  });
+  previewEl.innerHTML = html;
+}
+
+function removeMultiVideo(id, idx) {
+  const wrapEl = document.getElementById('wrap-' + id);
+  let videos = getMultiUploadedVideos(id);
+  videos.splice(idx, 1);
+  wrapEl.dataset.uploadedVideos = JSON.stringify(videos);
+  renderMultiVideoPreview(id, videos);
+  const countEl = document.getElementById('count-' + id);
+  if (countEl) countEl.textContent = videos.length;
+  const progressEl = document.getElementById('progress-' + id);
+  if (progressEl) progressEl.textContent = videos.length > 0 ? '✅ 已上传 ' + videos.length + ' 个视频' : '';
+}
+
+function getMultiUploadedVideos(id) {
+  const wrapEl = document.getElementById('wrap-' + id);
+  if (!wrapEl || !wrapEl.dataset.uploadedVideos) return [];
+  try { return JSON.parse(wrapEl.dataset.uploadedVideos); } catch(e) { return []; }
+}
+
+function setMultiUploadedVideos(id, videos) {
+  const wrapEl = document.getElementById('wrap-' + id);
+  if (!wrapEl) return;
+  const validVideos = (videos || []).filter(v => v && typeof v === 'object' && v.path);
+  wrapEl.dataset.uploadedVideos = JSON.stringify(validVideos);
+  renderMultiVideoPreview(id, validVideos);
+  const countEl = document.getElementById('count-' + id);
+  if (countEl) countEl.textContent = validVideos.length;
 }
 
 /* ========== Excel / VCF 解析 ========== */
