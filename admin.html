@@ -524,10 +524,10 @@ function renderConfig() {
     '<div class="form-group"><label>社区口号</label><input type="text" id="cfgSlogan" value="' + (c.slogan||'') + '"></div>';
 
   html += '<div class="form-group"><label>社区Logo</label><input type="text" id="cfgLogoInput" value="' + (c.logo||'') + '" placeholder="assets/logo.png 或 https://...">' +
-    createFileUploaderHTML({id:'cfgLogo', accept:'image/*', hint:'支持拖拽或点击上传图片（100K以内）'}) + '</div>';
+    createFileUploaderHTML({id:'cfgLogo', accept:'image/*', hint:'支持拖拽或点击上传图片（自动压缩）'}) + '</div>';
 
   html += '<div class="form-group"><label>浏览器图标（favicon）</label><input type="text" id="cfgFavicon" value="' + (c.favicon||'') + '" placeholder="assets/logo.png 或 https://...">' +
-    createFileUploaderHTML({id:'cfgFavicon', accept:'image/png,image/x-icon,image/svg+xml', hint:'支持拖拽或点击上传图标（100K以内，推荐 .png / .ico / .svg）'}) + '</div></div>';
+    createFileUploaderHTML({id:'cfgFavicon', accept:'image/png,image/x-icon,image/svg+xml', hint:'支持拖拽或点击上传图标（自动压缩，推荐 .png / .ico / .svg）'}) + '</div></div>';
 
   html += '<div class="card"><div class="card-header"><h3>🎨 主题设置</h3></div>' +
     '<div class="form-group"><label>默认主题</label><select id="cfgTheme">' +
@@ -620,14 +620,14 @@ function openEditModal(module, id) {
       '<div class="form-group"><label>作者</label><input type="text" id="edAuthor" value="' + (item.author||currentAdmin&&currentAdmin.name||'') + '"></div>' +
       '<div class="form-group form-check"><input type="checkbox" id="edPinned" ' + (item.isPinned?'checked':'') + '><label for="edPinned">置顶</label></div>' +
       '<div class="form-group"><label>内容（支持HTML）</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>' +
-      '<div class="form-group"><label>附件（图片/PDF，100K以内）</label><div id="edAttachmentsWrap"></div>' +
-      createFileUploaderHTML({id:'annAttach', accept:'image/*,.pdf', hint:'支持拖拽或点击上传图片/PDF（100K以内）'}) + '</div>';
+      '<div class="form-group"><label>附件（图片/PDF，自动压缩）</label><div id="edAttachmentsWrap"></div>' +
+      createFileUploaderHTML({id:'annAttach', accept:'image/*,.pdf', hint:'支持拖拽或点击上传图片/PDF（自动压缩）'}) + '</div>';
   } else if (module === 'documents') {
     body = '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
       '<div class="form-row"><div class="form-group"><label>来源</label><input type="text" id="edSource" value="' + (item.source||'') + '"></div>' +
       '<div class="form-group"><label>发布日期</label><input type="date" id="edDate" value="' + (item.publishDate||new Date().toISOString().split('T')[0]) + '"></div></div>' +
       '<div class="form-group"><label>文件链接</label><input type="text" id="edFileUrl" value="' + (item.fileUrl||'') + '" placeholder="assets/files/xxx.pdf 或外部链接"></div>' +
-      '<div class="form-group"><label>本地上传（图片/PDF，100K以内）</label>' +
+      '<div class="form-group"><label>本地上传（图片/PDF，自动压缩）</label>' +
       createFileUploaderHTML({id:'docFile', accept:'image/*,.pdf', hint:'支持拖拽或点击上传，上传后自动填充上方链接'}) + '</div>' +
       '<div class="form-group"><label>描述</label><textarea id="edDesc">' + (item.description||'') + '</textarea></div>';
   } else if (module === 'activities') {
@@ -636,12 +636,12 @@ function openEditModal(module, id) {
       '<div class="form-group"><label>地点</label><input type="text" id="edLocation" value="' + (item.location||'') + '"></div></div>' +
       '<div class="form-group"><label>状态</label><select id="edStatus"><option value="预告" ' + (item.status==='预告'?'selected':'') + '>预告</option><option value="进行中" ' + (item.status==='进行中'?'selected':'') + '>进行中</option><option value="已结束" ' + (item.status==='已结束'?'selected':'') + '>已结束</option></select></div>' +
       '<div class="form-group"><label>封面图片链接</label><input type="text" id="edCoverImage" value="' + (item.coverImage||'') + '" placeholder="https://example.com/cover.jpg"></div>' +
-      createFileUploaderHTML({id:'actCover', accept:'image/*', hint:'支持拖拽或点击上传封面图（100K以内），上传后自动填充上方链接'}) +
+      createFileUploaderHTML({id:'actCover', accept:'image/*', hint:'支持拖拽或点击上传封面图（自动压缩），上传后自动填充上方链接'}) +
       '<div class="form-group"><label>活动图集链接（每行一个，最多15张）</label><textarea id="edImages" rows="3" placeholder="https://example.com/img1.jpg\nhttps://example.com/img2.jpg">' + (item.images||[]).join('\n') + '</textarea></div>' +
-      '<div class="form-group"><label>上传活动图片（支持多选拖拽，最多15张，100K以内/张）</label>' +
-      createMultiImageUploaderHTML('actImages', '支持拖拽或点击上传多张图片（100K以内/张）') + '</div>' +
+      '<div class="form-group"><label>上传活动图片（支持多选拖拽，最多15张，自动压缩）</label>' +
+      createMultiImageUploaderHTML('actImages', '支持拖拽或点击上传多张图片（自动压缩）') + '</div>' +
       '<div class="form-group"><label>视频链接</label><input type="text" id="edVideo" value="' + (item.videoUrl||'') + '" placeholder="https://example.com/video.mp4"></div>' +
-      createFileUploaderHTML({id:'actVideo', accept:'video/*', hint:'支持拖拽或点击上传视频（30M以内），上传后自动填充上方链接'}) +
+      
       '<div class="form-group"><label>外部链接</label><input type="text" id="edExternal" value="' + (item.externalLink||'') + '"></div>' +
       '<div class="form-group"><label>内容</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>';
   } else if (module === 'polls') {
@@ -1099,7 +1099,7 @@ async function compressImageToBlob(file, maxSizeMB = 1) {
 /* ========== 文件上传相关 ========== */
 
 async function uploadFileToRepo(file, folder) {
-  const maxSizeMB = folder === 'videos' ? 800 : (folder === 'images' ? 1 : (folder === 'files' ? 0.1 : 5));
+  const maxSizeMB = folder === 'videos' ? 800 : (folder === 'images' ? 100 : (folder === 'files' ? 100 : 100));
   if (file.size > maxSizeMB * 1024 * 1024) {
     throw new Error(`文件大小超过限制（${maxSizeMB}MB）`);
   }
@@ -1179,12 +1179,12 @@ async function processFileUpload(file, id) {
   const wrapEl = document.getElementById('wrap-' + id);
 
   let folder = 'uploads';
-  let maxSize = 5 * 1024 * 1024;
+  let maxSize = 100 * 1024 * 1024;
   let isImage = false;
   if (id.includes('video')) { folder = 'videos'; maxSize = 800 * 1024 * 1024; }
   else if (id.includes('image') || id.includes('cover') || id.includes('logo') || id.includes('favicon')) { folder = 'images'; isImage = true; }
-  else if (id.includes('pdf') || id.includes('file')) { folder = 'files'; maxSize = 100 * 1024; }
-  else if (id.includes('batch')) { folder = 'imports'; maxSize = 5 * 1024 * 1024; }
+  else if (id.includes('pdf') || id.includes('file')) { folder = 'files'; maxSize = 100 * 1024 * 1024; }
+  else if (id.includes('batch')) { folder = 'imports'; maxSize = 100 * 1024 * 1024; }
 
   let uploadFile = file;
   if (isImage && file.type.startsWith('image/')) {
@@ -1268,7 +1268,7 @@ function createMultiImageUploaderHTML(id, hint) {
   return `<div class="file-upload-wrap" id="wrap-${id}">
     <div class="file-dropzone" id="drop-${id}" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleMultiFileDrop(event,'${id}')" onclick="document.getElementById('inp-${id}').click()">
       <div>📎 点击或拖拽文件到此处上传</div>
-      <div class="hint">${hint || '支持拖拽或点击上传多张图片（100K以内/张）'}</div>
+      <div class="hint">${hint || '支持拖拽或点击上传多张图片（自动压缩）'}</div>
       <div class="hint" style="color:var(--primary);font-weight:500;">已上传 <span id="count-${id}">0</span> / 15 张</div>
     </div>
     <input type="file" id="inp-${id}" style="display:none" accept="image/*" multiple onchange="handleMultiFileSelect(event,'${id}')">
