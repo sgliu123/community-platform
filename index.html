@@ -527,6 +527,83 @@ a { text-decoration:none; color:var(--primary); }
   .video-section, .gallery-section, .external-links-section { padding: 14px; margin: 20px 0; }
 }
 
+/* External Link Modal */
+.external-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 3000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.external-modal.active {
+  display: flex;
+}
+.external-modal-box {
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 900px;
+  height: 85vh;
+  max-height: 700px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  animation: modalIn 0.3s ease;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.92) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.external-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: #fafbfc;
+  flex-shrink: 0;
+}
+.external-modal-header span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.external-modal-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #e0e0e0;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.external-modal-close:hover {
+  background: #ccc;
+  transform: scale(1.1);
+}
+.external-modal iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  min-height: 0;
+}
+@media (max-width: 600px) {
+  .external-modal-box {
+    height: 92vh;
+    max-height: none;
+    border-radius: 8px;
+  }
+}
+
 </style>
   <link rel="icon" id="faviconLink" type="image/png" href="">
 </head>
@@ -997,18 +1074,9 @@ function renderActivityDetail(id) {
 
   let h = '<div class="card activity-detail-card" style="padding:0;overflow:hidden;">';
 
-  if (a.coverImage) {
-    h += '<div class="activity-hero">';
-    h += '<img src="' + a.coverImage + '" alt="' + a.title + '" onerror="this.style.display=\'none\'">';
-    h += '<div class="activity-hero-overlay">';
-    h += '<span class="status-tag ' + sc + '">' + a.status + '</span>';
-    h += '<h2>' + a.title + '</h2>';
-    h += '</div></div>';
-  } else {
-    h += '<div style="padding:24px 24px 0;">';
-    h += '<div class="detail-header" style="margin-bottom:0;"><h1>' + a.title + '</h1></div>';
-    h += '</div>';
-  }
+  h += '<div style="padding:24px 24px 0;">';
+  h += '<div class="detail-header" style="margin-bottom:0;"><h1>' + a.title + '</h1></div>';
+  h += '</div>'
 
   h += '<div class="activity-meta-bar">';
   h += '<div class="meta-item">📅 ' + (a.date||"--") + '</div>';
@@ -1083,14 +1151,23 @@ function renderActivityDetail(id) {
     h += '<div class="external-links-section">';
     h += '<div class="section-title"><span class="section-icon">🔗</span>相关链接</div>';
     h += '<div class="external-links-grid">';
-    allExternals.forEach((link, idx) => {
+    allExternals.forEach((link, idx2) => {
       const domain = extractDomain(link);
-      h += '<a href="' + link + '" target="_blank" class="external-link-card">';
+      const modalId = 'extmodal-' + id.replace(/[^a-zA-Z0-9]/g, '') + '-' + idx2;
+      h += '<div class="external-link-card" onclick="openExternalModal(\'' + modalId + '\')">';
       h += '<div class="ext-icon">🌐</div>';
       h += '<div class="ext-info">';
-      h += '<div class="ext-title">链接 ' + (idx+1) + '</div>';
+      h += '<div class="ext-title">链接 ' + (idx2+1) + '</div>';
       h += '<div class="ext-domain">' + domain + '</div>';
-      h += '</div><div class="ext-arrow">›</div></a>';
+      h += '</div><div class="ext-arrow">›</div></div>';
+      h += '<div class="external-modal" id="' + modalId + '" onclick="if(event.target===this)closeExternalModal(\'' + modalId + '\')">';
+      h += '<div class="external-modal-box">';
+      h += '<div class="external-modal-header">';
+      h += '<span>🌐 ' + domain + '</span>';
+      h += '<button class="external-modal-close" onclick="closeExternalModal(\'' + modalId + '\')">✕</button>';
+      h += '</div>';
+      h += '<iframe src="' + link + '" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" loading="lazy"></iframe>';
+      h += '</div></div>';
     });
     h += '</div></div>';
   }
@@ -1176,6 +1253,28 @@ function switchVideoTab(tabId, idx) {
   if (!tab) return;
   tab.querySelectorAll('.video-tab-header').forEach((h, i) => h.classList.toggle('active', i === idx));
   tab.querySelectorAll('.video-tab-content').forEach((c, i) => c.classList.toggle('active', i === idx));
+}
+
+function openExternalModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeExternalModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+    const iframe = modal.querySelector('iframe');
+    if (iframe) {
+      const src = iframe.src;
+      iframe.src = '';
+      setTimeout(() => { iframe.src = src; }, 100);
+    }
+  }
 }
 
 function renderPollDetail(id) {
