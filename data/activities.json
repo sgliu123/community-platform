@@ -71,11 +71,13 @@
       "assets/images/1785234509040_go3wgw______20240418141919.jpg",
       "assets/images/1785234539873_dtmp1p______20240418142216.jpg"
     ],
-    "videos": [],
+    "videos": [
+      "assets/videos/1785241454156_gsv0yg_____2026-07-28_080900_948.mp4"
+    ],
     "videoLinks": [
       "【本地离线智能阅读工具】 https://www.bilibili.com/video/BV1P8Tx6PEhc/?share_source=copy_web&vd_source=688cab1518250ec220c84c8df568e3e2"
     ],
-    "videoUrl": "",
+    "videoUrl": "assets/videos/1785241454156_gsv0yg_____2026-07-28_080900_948.mp4",
     "externalLinks": [],
     "externalLink": "",
     "content": "湖边下雨中的景色"
