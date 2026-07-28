@@ -970,10 +970,9 @@ function getEmbedUrl(url) {
   if (ytMatch) {
     return 'https://www.youtube.com/embed/' + ytMatch[1] + '?rel=0&modestbranding=1';
   }
-  const dyMatch = url.match(/douyin\.com\/video\/(\d+)/i);
-  if (dyMatch) {
-    return '__DOUYIN_REDIRECT__' + url;
-  }
+  if (/douyin\.com|iesdouyin\.com/i.test(url)) return null;
+  if (/mp\.weixin\.qq\.com/i.test(url)) return null;
+  if (/weibo\.com|weibo\.cn/i.test(url)) return null;
   const xgMatch = url.match(/ixigua\.com\/(\d+)/i);
   if (xgMatch) {
     return 'https://www.ixigua.com/embed?autoplay=0&id=' + xgMatch[1];
@@ -1017,6 +1016,62 @@ function hideVideoPlayer(wrapperId) {
     if (video) { video.pause(); video.currentTime = 0; }
   }
 }
+function hideVideoLoading(elId) {
+  const el = document.getElementById(elId);
+  if (el) el.classList.add('hidden');
+}
+
+function showVideoError(vidId) {
+  const loading = document.getElementById(vidId + '-loading');
+  if (loading) loading.classList.add('hidden');
+  const error = document.getElementById(vidId + '-error');
+  if (error) error.classList.add('active');
+}
+
+function showVideoBuffering(vidId) {
+  const loading = document.getElementById(vidId + '-loading');
+  if (loading) {
+    const txt = loading.querySelector('.load-text');
+    if (txt) txt.textContent = '缓冲中，请稍候...';
+    loading.classList.remove('hidden');
+  }
+}
+
+function retryVideo(vidId) {
+  const wrapper = document.getElementById(vidId);
+  if (!wrapper) return;
+  const error = document.getElementById(vidId + '-error');
+  if (error) error.classList.remove('active');
+  const loading = document.getElementById(vidId + '-loading');
+  if (loading) {
+    const txt = loading.querySelector('.load-text');
+    if (txt) txt.textContent = '视频加载中...';
+    loading.classList.remove('hidden');
+  }
+  const video = wrapper.querySelector('video');
+  if (video) {
+    video.load();
+    video.play().catch(function(){});
+  }
+}
+
+function renderPlatformRedirectCard(url, platform, coverImage) {
+  let h = '<div class="video-wrapper" style="padding-bottom:56.25%;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);position:relative;">';
+  h += '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;color:#fff;padding:24px;z-index:2;">';
+  if (coverImage) {
+    h += '<img src="' + coverImage + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.35;z-index:0;transition:opacity 0.3s;" onmouseover="this.style.opacity=0.5" onmouseout="this.style.opacity=0.35">';
+  }
+  h += '<div style="position:relative;z-index:1;text-align:center;">';
+  h += '<div style="font-size:52px;margin-bottom:14px;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.3));">' + platform.icon + '</div>';
+  h += '<div style="font-size:17px;font-weight:600;margin-bottom:6px;">' + platform.name + '</div>';
+  h += '<div style="font-size:12px;opacity:0.65;margin-bottom:20px;max-width:260px;line-height:1.5;">该平台的视频受播放策略限制<br>暂不支持站内直接播放</div>';
+  h += '<div style="display:inline-flex;align-items:center;gap:6px;padding:11px 26px;background:var(--primary);color:#fff;border-radius:24px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.25);transition:all 0.2s;">';
+  h += '前往 ' + platform.name + ' 观看 <span style="font-size:16px;">→</span></div>';
+  h += '</div></a></div>';
+  return h;
+}
+
+
 
 function initGallery(gid) {
   const gallery = document.getElementById(gid);
@@ -1198,36 +1253,65 @@ function renderSingleVideoPlayer(video, vidId, coverImage) {
   let h = '';
   if (video.type === 'local') {
     h += '<div class="video-player-native" id="' + vidId + '">';
-    h += '<video controls preload="metadata" poster="' + (coverImage || '') + '" style="width:100%;display:block;border-radius:8px;">';
+    h += '<div class="video-loading-state" id="' + vidId + '-loading">';
+    h += '<div class="spinner"></div><div class="load-text">视频加载中...</div></div>';
+    h += '<div class="video-error-state" id="' + vidId + '-error">';
+    h += '<div class="error-icon">⚠️</div><div class="error-text">视频加载失败</div>';
+    h += '<div class="error-hint">请检查网络连接，或尝试刷新页面</div>';
+    h += '<button class="poll-btn" style="margin-top:12px;background:var(--primary);" onclick="retryVideo(' + "'" + vidId + "'" + ')">重新加载</button></div>';
+    h += '<video controls preload="metadata" playsinline webkit-playsinline x5-video-player-type="h5"';
+    h += ' poster="' + (coverImage || '') + '"';
+    h += ' onloadeddata="hideVideoLoading(' + "'" + vidId + "'" + '-loading)"';
+    h += ' onerror="showVideoError(' + "'" + vidId + "'" + ')"';
+    h += ' onwaiting="showVideoBuffering(' + "'" + vidId + "'" + ')"';
+    h += ' onplaying="hideVideoLoading(' + "'" + vidId + "'" + '-loading)"';
+    h += ' onstalled="showVideoBuffering(' + "'" + vidId + "'" + ')"';
+    h += ' style="width:100%;display:block;border-radius:8px;background:#0a0a0a;">';
     h += '<source src="' + video.url + '" type="video/mp4">';
-    h += '<source src="' + video.url + '" type="video/webm">';
     h += '您的浏览器不支持视频播放';
     h += '</video></div>';
   } else {
     const embedUrl = getEmbedUrl(video.url);
     const platform = detectVideoPlatform(video.url);
-    h += '<div class="video-wrapper" id="' + vidId + '">';
-    h += '<div class="video-placeholder" onclick="showVideoPlayer(\'' + vidId + '\')">';
-    if (coverImage) {
-      h += '<img src="' + coverImage + '" alt="cover">';
+    if (embedUrl === null) {
+      h += renderPlatformRedirectCard(video.url, platform, coverImage);
     } else {
-      h += '<div style="position:absolute;inset:0;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;">';
-      h += '<div style="text-align:center;color:#fff;"><div style="font-size:48px;margin-bottom:8px;">' + platform.icon + '</div><div style="font-size:14px;opacity:0.9;">' + platform.name + '</div></div>';
+      h += '<div class="video-wrapper" id="' + vidId + '">';
+      h += '<div class="video-placeholder" onclick="showVideoPlayer(' + "'" + vidId + "'" + ')">';
+      if (coverImage) {
+        h += '<img src="' + coverImage + '" alt="cover">';
+      } else {
+        h += '<div style="position:absolute;inset:0;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;">';
+        h += '<div style="text-align:center;color:#fff;"><div style="font-size:48px;margin-bottom:8px;">' + platform.icon + '</div><div style="font-size:14px;opacity:0.9;">' + platform.name + '</div></div>';
+        h += '</div>';
+      }
+      h += '<div class="play-btn"></div>';
+      h += '<div class="video-platform-badge">' + platform.icon + ' ' + platform.name + '</div>';
       h += '</div>';
+      h += '<div class="video-player" id="' + vidId + '-player">';
+      h += '<button class="video-close" onclick="hideVideoPlayer(' + "'" + vidId + "'" + ')">✕</button>';
+      if (embedUrl !== video.url) {
+        h += '<div class="video-loading-state" id="' + vidId + '-iframeload" style="z-index:2;">';
+        h += '<div class="spinner"></div><div class="load-text">播放器加载中...</div></div>';
+        h += '<iframe src="' + embedUrl + '" allowfullscreen allow="autoplay; fullscreen" sandbox="allow-same-origin allow-scripts allow-popups allow-presentation" onload="hideVideoLoading(' + "'" + vidId + "'" + '-iframeload)"></iframe>';
+      } else {
+        h += '<div class="video-loading-state" id="' + vidId + '-vidload">';
+        h += '<div class="spinner"></div><div class="load-text">视频加载中...</div></div>';
+        h += '<div class="video-error-state" id="' + vidId + '-viderror">';
+        h += '<div class="error-icon">⚠️</div><div class="error-text">视频加载失败</div>';
+        h += '<div class="error-hint">请检查网络连接</div>';
+        h += '<button class="poll-btn" style="margin-top:12px;background:var(--primary);" onclick="retryVideo(' + "'" + vidId + "'" + ')">重新加载</button></div>';
+        h += '<video controls autoplay playsinline webkit-playsinline';
+        h += ' onloadeddata="hideVideoLoading(' + "'" + vidId + "'" + '-vidload)"';
+        h += ' onerror="showVideoError(' + "'" + vidId + "'" + '-viderror)"';
+        h += ' onwaiting="showVideoBuffering(' + "'" + vidId + "'" + '-vidload)"';
+        h += ' onplaying="hideVideoLoading(' + "'" + vidId + "'" + '-vidload)"';
+        h += ' style="width:100%;height:100%;display:block;background:#0a0a0a;">';
+        h += '<source src="' + video.url + '" type="video/mp4">';
+        h += '</video>';
+      }
+      h += '</div></div>';
     }
-    h += '<div class="play-btn"></div>';
-    h += '<div class="video-platform-badge">' + platform.icon + ' ' + platform.name + '</div>';
-    h += '</div>';
-    h += '<div class="video-player" id="' + vidId + '-player">';
-    h += '<button class="video-close" onclick="hideVideoPlayer(\'' + vidId + '\')">✕</button>';
-    if (embedUrl !== video.url) {
-      h += '<iframe src="' + embedUrl + '" allowfullscreen allow="autoplay; fullscreen" sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"></iframe>';
-    } else {
-      h += '<video controls autoplay style="width:100%;height:100%;display:block;">';
-      h += '<source src="' + video.url + '" type="video/mp4">';
-      h += '</video>';
-    }
-    h += '</div></div>';
   }
   return h;
 }
