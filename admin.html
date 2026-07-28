@@ -640,9 +640,11 @@ function openEditModal(module, id) {
       '<div class="form-group"><label>活动图集链接（每行一个，最多15张）</label><textarea id="edImages" rows="3" placeholder="https://example.com/img1.jpg\nhttps://example.com/img2.jpg">' + (item.images||[]).join('\n') + '</textarea></div>' +
       '<div class="form-group"><label>上传活动图片（支持多选拖拽，最多15张，自动压缩）</label>' +
       createMultiImageUploaderHTML('actImages', '支持拖拽或点击上传多张图片（自动压缩）') + '</div>' +
-      '<div class="form-group"><label>视频链接</label><input type="text" id="edVideo" value="' + (item.videoUrl||'') + '" placeholder="https://example.com/video.mp4"></div>' +
+      '<div class="form-group"><label>上传本地视频（支持多选拖拽，最多5个，单个800M以内，上传后自动压缩至100M以内）</label>' +
+      createMultiVideoUploaderHTML('actVideos', '支持拖拽或点击上传视频（mp4/mov/webm/avi等，单个800M以内，上传后自动压缩至100M以内）') + '</div>' +
+      '<div class="form-group"><label>视频链接（每行一个，支持哔哩哔哩/YouTube/抖音/西瓜/腾讯等，不限制数量）</label><textarea id="edVideoLinks" rows="3" placeholder="https://www.bilibili.com/video/BVxxxxx\nhttps://www.youtube.com/watch?v=xxxxx">' + (item.videoLinks||[]).join('\n') + '</textarea></div>' +
       
-      '<div class="form-group"><label>外部链接</label><input type="text" id="edExternal" value="' + (item.externalLink||'') + '"></div>' +
+      '<div class="form-group"><label>外部链接（每行一个，不限制数量）</label><textarea id="edExternalLinks" rows="2" placeholder="https://www.example.com/article">' + (item.externalLinks||[]).join('\n') + '</textarea></div>' +
       '<div class="form-group"><label>内容</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>';
   } else if (module === 'polls') {
     const nextCaseNo = generateCaseNo();
@@ -673,7 +675,7 @@ function openEditModal(module, id) {
     if (module === 'activities') {
       if (item.coverImage) setUploadedPath('actCover', item.coverImage, 'cover');
       if (item.images && item.images.length) setMultiUploadedPaths('actImages', item.images);
-      let videos = item.videos || [];
+      let videos = (item.videos || []).map(v => typeof v === 'string' ? { path: v, name: 'video', size: 0 } : v);
       if (!videos.length && item.videoUrl) videos = [{ path: item.videoUrl, name: 'video', size: 0 }];
       if (videos.length) setMultiUploadedVideos('actVideos', videos);
     } else if (module === 'documents') {
@@ -1520,7 +1522,11 @@ function getMultiUploadedVideos(id) {
 function setMultiUploadedVideos(id, videos) {
   const wrapEl = document.getElementById('wrap-' + id);
   if (!wrapEl) return;
-  const validVideos = (videos || []).filter(v => v && typeof v === 'object' && v.path);
+  const validVideos = (videos || []).map(v => {
+    if (typeof v === 'string') return { path: v, name: 'video', size: 0 };
+    if (v && typeof v === 'object' && v.path) return v;
+    return null;
+  }).filter(Boolean);
   wrapEl.dataset.uploadedVideos = JSON.stringify(validVideos);
   renderMultiVideoPreview(id, validVideos);
   const countEl = document.getElementById('count-' + id);
