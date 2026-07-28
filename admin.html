@@ -641,7 +641,7 @@ function openEditModal(module, id) {
       '<div class="form-group"><label>上传活动图片（支持多选拖拽，最多15张，自动压缩）</label>' +
       createMultiImageUploaderHTML('actImages', '支持拖拽或点击上传多张图片（自动压缩）') + '</div>' +
       '<div class="form-group"><label>上传本地视频（支持多选拖拽，最多5个，单个800M以内，上传后自动压缩至100M以内）</label>' +
-      createMultiVideoUploaderHTML('actVideos', '支持拖拽或点击上传视频（mp4/mov/webm/avi等，单个800M以内，上传后自动压缩至100M以内）') + '</div>' +
+      createMultiVideoUploaderHTML('actVideos', '支持拖拽或点击上传视频（mp4/mov/webm/avi等，单个100M以内，GitHub API限制）') + '</div>' +
       '<div class="form-group"><label>视频链接（每行一个，支持哔哩哔哩/YouTube/抖音/西瓜/腾讯等，不限制数量）</label><textarea id="edVideoLinks" rows="3" placeholder="https://www.bilibili.com/video/BVxxxxx\nhttps://www.youtube.com/watch?v=xxxxx">' + (item.videoLinks||[]).join('\n') + '</textarea></div>' +
       
       '<div class="form-group"><label>外部链接（每行一个，不限制数量）</label><textarea id="edExternalLinks" rows="2" placeholder="https://www.example.com/article">' + (item.externalLinks||[]).join('\n') + '</textarea></div>' +
@@ -676,7 +676,10 @@ function openEditModal(module, id) {
       if (item.coverImage) setUploadedPath('actCover', item.coverImage, 'cover');
       if (item.images && item.images.length) setMultiUploadedPaths('actImages', item.images);
       let videos = (item.videos || []).map(v => typeof v === 'string' ? { path: v, name: 'video', size: 0 } : v);
-      if (!videos.length && item.videoUrl) videos = [{ path: item.videoUrl, name: 'video', size: 0 }];
+      // 兼容旧数据：只有当 videoUrl 存在且是本地路径（非外部链接）时才显示
+      if (!videos.length && item.videoUrl && !item.videoUrl.match(/^https?:\/\//)) {
+        videos = [{ path: item.videoUrl, name: 'video', size: 0 }];
+      }
       if (videos.length) setMultiUploadedVideos('actVideos', videos);
     } else if (module === 'documents') {
       if (item.fileUrl) setUploadedPath('docFile', item.fileUrl, 'file');
@@ -774,10 +777,10 @@ async function saveItem(module, id) {
     item.videos = uploadedVideos.map(v => v.path);
     const vlinkText = document.getElementById('edVideoLinks').value.trim();
     item.videoLinks = vlinkText ? vlinkText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
-    item.videoUrl = item.videos[0] || item.videoLinks[0] || '';
+    item.videoUrl = item.videos[0] || '';  // 本地视频URL，不再混用外部链接
     const extText = document.getElementById('edExternalLinks').value.trim();
     item.externalLinks = extText ? extText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
-    item.externalLink = item.externalLinks[0] || '';
+    item.externalLink = item.externalLinks[0] || '';  // 兼容旧字段
     item.content = document.getElementById('edContent').value;
   } else if (module === 'polls') {
     item.caseNo = document.getElementById('edCaseNo').value;
@@ -1101,7 +1104,7 @@ async function compressImageToBlob(file, maxSizeMB = 1) {
 /* ========== 文件上传相关 ========== */
 
 async function uploadFileToRepo(file, folder) {
-  const maxSizeMB = folder === 'videos' ? 800 : (folder === 'images' ? 100 : (folder === 'files' ? 100 : 100));
+  const maxSizeMB = folder === 'videos' ? 100 : (folder === 'images' ? 100 : (folder === 'files' ? 100 : 100));  // GitHub API 限制单个文件100MB
   if (file.size > maxSizeMB * 1024 * 1024) {
     throw new Error(`文件大小超过限制（${maxSizeMB}MB）`);
   }
@@ -1377,7 +1380,7 @@ function createMultiVideoUploaderHTML(id, hint) {
   return `<div class="file-upload-wrap" id="wrap-${id}">
     <div class="file-dropzone" id="drop-${id}" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleMultiVideoDrop(event,'${id}')" onclick="document.getElementById('inp-${id}').click()">
       <div>🎬 点击或拖拽视频到此处上传</div>
-      <div class="hint">${hint || '支持拖拽或点击上传视频（mp4/mov/webm/avi等，单个800M以内）'}</div>
+      <div class="hint">${hint || '支持拖拽或点击上传视频（mp4/mov/webm/avi等，单个100M以内）'}</div>
       <div class="hint" style="color:var(--primary);font-weight:500;">已上传 <span id="count-${id}">0</span> / 5 个</div>
     </div>
     <input type="file" id="inp-${id}" style="display:none" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska" multiple onchange="handleMultiVideoSelect(event,'${id}')">
@@ -1408,27 +1411,17 @@ async function processMultiVideoUpload(files, id) {
   }
   if (files.length === 0) return;
   for (const file of files) {
-    if (file.size > 800 * 1024 * 1024) {
-      showToast('"' + file.name + '" 超过800M限制', 'error');
+    if (file.size > 100 * 1024 * 1024) {
+      showToast('"' + file.name + '" 超过100MB，浏览器端压缩不可靠。请先用工具压缩至100MB以内，或上传到视频网站后粘贴链接', 'error');
       continue;
     }
-    progressEl.textContent = '⏳ 处理 "' + file.name + '" ...';
-    let uploadFile = file;
-    if (file.size > 100 * 1024 * 1024) {
-      progressEl.textContent = '⏳ 压缩 "' + file.name + '" ...';
-      try {
-        uploadFile = await compressVideo(file, 100);
-        progressEl.textContent = '✅ 压缩完成：' + file.name + ' (' + (uploadFile.size/1024/1024).toFixed(1) + 'MB) → 上传中...';
-      } catch(e) {
-        showToast('"' + file.name + '" 压缩失败：' + e.message, 'error');
-        continue;
-      }
-    }
+    progressEl.textContent = '⏳ 上传 "' + file.name + '" (' + (file.size/1024/1024).toFixed(1) + 'MB)...';
     try {
-      const path = await uploadFileToRepo(uploadFile, 'videos');
-      currentVideos.push({ path: path, name: file.name, size: uploadFile.size });
+      const path = await uploadFileToRepo(file, 'videos');
+      currentVideos.push({ path: path, name: file.name, size: file.size });
       renderMultiVideoPreview(id, currentVideos);
       document.getElementById('count-' + id).textContent = currentVideos.length;
+      progressEl.textContent = '✅ "' + file.name + '" 上传成功';
     } catch(e) {
       showToast('"' + file.name + '" 上传失败：' + e.message, 'error');
     }
@@ -1438,49 +1431,119 @@ async function processMultiVideoUpload(files, id) {
 }
 
 async function compressVideo(file, targetMB) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const targetSize = targetMB * 1024 * 1024;
     if (file.size <= targetSize) { resolve(file); return; }
+
     const video = document.createElement('video');
     video.muted = true;
     video.playsInline = true;
+    video.preload = 'auto';
     const url = URL.createObjectURL(file);
-    video.onloadedmetadata = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const scale = Math.min(1, Math.sqrt(targetSize / file.size) * 0.85);
-      canvas.width = Math.floor(video.videoWidth * scale);
-      canvas.height = Math.floor(video.videoHeight * scale);
-      const stream = canvas.captureStream();
-      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' :
-                       MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: mimeType,
-        videoBitsPerSecond: Math.min(8000000, Math.floor((targetSize * 8) / (video.duration || 60)))
-      });
-      const chunks = [];
-      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-      mediaRecorder.onstop = () => {
-        URL.revokeObjectURL(url);
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.webm'), { type: 'video/webm' });
-        if (compressed.size > targetSize * 1.2) {
-          reject(new Error('压缩后仍超过目标大小，请手动压缩后上传'));
-        } else {
-          resolve(compressed);
-        }
-      };
-      mediaRecorder.onerror = (e) => { URL.revokeObjectURL(url); reject(new Error('录制失败')); };
-      mediaRecorder.start(100);
-      video.play();
-      const drawFrame = () => {
-        if (video.ended || video.paused) { mediaRecorder.stop(); return; }
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        requestAnimationFrame(drawFrame);
-      };
-      requestAnimationFrame(drawFrame);
+    let mediaRecorder = null;
+    let recorderStarted = false;
+    let cleanupDone = false;
+    const chunks = [];
+
+    const cleanup = (err) => {
+      if (cleanupDone) return;
+      cleanupDone = true;
+      URL.revokeObjectURL(url);
+      try { video.pause(); video.removeAttribute('src'); video.load(); } catch(e) {}
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        try { mediaRecorder.stop(); } catch(e) {}
+      }
+      if (err) reject(err);
     };
-    video.onerror = () => { URL.revokeObjectURL(url); reject(new Error('视频加载失败')); };
+
+    // 5分钟超时保护
+    const timeout = setTimeout(() => {
+      cleanup(new Error('视频压缩超时，请先用本地工具压缩后再上传'));
+    }, 300000);
+
+    video.onloadedmetadata = async () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // 计算合适的缩放比例，同时限制最大分辨率避免内存爆炸
+        let scale = Math.min(1, Math.sqrt(targetSize / file.size) * 0.85);
+        const maxDim = 1280;
+        if (video.videoWidth * scale > maxDim) scale = maxDim / video.videoWidth;
+        if (video.videoHeight * scale > maxDim) scale = maxDim / video.videoHeight;
+        scale = Math.max(0.1, scale);
+
+        canvas.width = Math.max(1, Math.floor(video.videoWidth * scale));
+        canvas.height = Math.max(1, Math.floor(video.videoHeight * scale));
+
+        // 先画一帧确保 canvas 有内容
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const stream = canvas.captureStream(30); // 30fps
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' :
+                         MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
+
+        const duration = video.duration || 60;
+        const bitRate = Math.min(4000000, Math.max(500000, Math.floor((targetSize * 8) / duration)));
+        mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitRate });
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) chunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          clearTimeout(timeout);
+          URL.revokeObjectURL(url);
+          try { video.pause(); } catch(e) {}
+          const blob = new Blob(chunks, { type: 'video/webm' });
+          if (blob.size === 0) {
+            reject(new Error('压缩失败：输出为空，请手动压缩后上传'));
+            return;
+          }
+          const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.webm'), { type: 'video/webm' });
+          if (compressed.size > targetSize * 1.5) {
+            reject(new Error('压缩后仍超过目标大小，请手动压缩后上传'));
+          } else {
+            resolve(compressed);
+          }
+        };
+
+        mediaRecorder.onerror = () => {
+          clearTimeout(timeout);
+          cleanup(new Error('视频录制失败，请手动压缩后上传'));
+        };
+
+        mediaRecorder.start(1000);
+        recorderStarted = true;
+
+        // 等待视频开始播放后再绘制
+        await video.play();
+
+        const drawFrame = () => {
+          if (video.ended) {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+            return;
+          }
+          if (video.paused) {
+            // 如果意外暂停，尝试恢复
+            video.play().catch(() => {});
+          }
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          requestAnimationFrame(drawFrame);
+        };
+        requestAnimationFrame(drawFrame);
+
+      } catch(e) {
+        clearTimeout(timeout);
+        cleanup(new Error('压缩初始化失败：' + (e.message || '未知错误')));
+      }
+    };
+
+    video.onerror = () => {
+      clearTimeout(timeout);
+      cleanup(new Error('视频加载失败，格式可能不受支持'));
+    };
+
     video.src = url;
   });
 }
