@@ -284,5 +284,16 @@
     "targetId": "",
     "details": "更新动态《小区美景》",
     "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+  },
+  {
+    "id": "log-1785246276995",
+    "timestamp": "2026-07-28T13:44:36.995Z",
+    "adminName": "管理员A",
+    "adminId": "admin-1",
+    "action": "update",
+    "target": "config",
+    "targetId": "",
+    "details": "更新社区配置",
+    "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
   }
 ]
