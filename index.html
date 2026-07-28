@@ -607,6 +607,28 @@ a { text-decoration:none; color:var(--primary); }
   }
 }
 
+
+/* ===== Video Loading & Error States ===== */
+.video-loading-state { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0f0f0f; color:#fff; z-index:3; transition:opacity .3s; }
+.video-loading-state.hidden { opacity:0; pointer-events:none; }
+.video-loading-state .spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,.2); border-top-color:var(--primary-light); border-radius:50%; animation:spin .8s linear infinite; margin-bottom:12px; }
+.video-loading-state .load-text { font-size:13px; opacity:.7; }
+.video-error-state { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; background:#1a1a1a; color:#fff; z-index:4; text-align:center; padding:20px; }
+.video-error-state.active { display:flex; }
+.video-error-state .error-icon { font-size:40px; margin-bottom:10px; opacity:.6; }
+.video-error-state .error-text { font-size:14px; margin-bottom:8px; opacity:.9; }
+.video-error-state .error-hint { font-size:12px; opacity:.5; }
+.douyin-redirect { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(135deg,#1a1a2e,#16213e); color:#fff; z-index:3; text-align:center; padding:24px; }
+.douyin-redirect .douyin-icon { font-size:56px; margin-bottom:12px; }
+.douyin-redirect .douyin-title { font-size:16px; font-weight:600; margin-bottom:6px; }
+.douyin-redirect .douyin-desc { font-size:13px; opacity:.7; margin-bottom:20px; }
+.douyin-redirect .douyin-btn { display:inline-flex; align-items:center; gap:8px; padding:12px 28px; background:#fe2c55; color:#fff; border-radius:24px; font-size:14px; font-weight:600; text-decoration:none; transition:all .2s; border:none; cursor:pointer; }
+.douyin-redirect .douyin-btn:hover { transform:scale(1.05); box-shadow:0 4px 16px rgba(254,44,85,.4); }
+.video-player-native { position:relative; background:#0a0a0a; border-radius:8px; overflow:hidden; }
+.video-player-native video { width:100%; display:block; max-height:520px; background:#0a0a0a; }
+.video-player-native .video-overlay-msg { position:absolute; bottom:60px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.7); color:#fff; padding:6px 16px; border-radius:20px; font-size:12px; opacity:0; transition:opacity .3s; pointer-events:none; white-space:nowrap; }
+.video-player-native .video-overlay-msg.show { opacity:1; }
+
 </style>
   <link rel="icon" id="faviconLink" type="image/png" href="">
 </head>
@@ -950,7 +972,7 @@ function getEmbedUrl(url) {
   }
   const dyMatch = url.match(/douyin\.com\/video\/(\d+)/i);
   if (dyMatch) {
-    return 'https://www.douyin.com/video/' + dyMatch[1];
+    return '__DOUYIN_REDIRECT__' + url;
   }
   const xgMatch = url.match(/ixigua\.com\/(\d+)/i);
   if (xgMatch) {
@@ -1088,7 +1110,11 @@ function renderActivityDetail(id) {
   h += '</div>';
 
   h += '<div style="padding:0 24px 24px;">';
-  h += '<div class="activity-content-box"><div class="detail-content">' + (a.content||"") + '</div></div>';
+  var contentHtml = (a.content || "").trim();
+  if (!contentHtml || contentHtml === '<p></p>' || contentHtml === '<div></div>') {
+    contentHtml = '<p style="color:var(--text-secondary);text-align:center;padding:20px 0;">📝 该动态暂无文字描述</p>';
+  }
+  h += '<div class="activity-content-box"><div class="detail-content">' + contentHtml + '</div></div>';
   var hasLocalVideo = allVideos.some(function(v){return v.type==='local';});
   if(hasLocalVideo){
     h += '<div style="margin:0 0 16px;padding:10px 14px;background:#fff8e1;border-left:3px solid #f9a825;border-radius:0 8px 8px 0;font-size:12px;color:#666;">💡 提示：本地视频播放卡顿？建议将视频压缩至 720p / 2Mbps 以下，或上传至哔哩哔哩、抖音等平台后使用"在线视频链接"功能嵌入播放。</div>';
