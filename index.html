@@ -1270,10 +1270,11 @@ function closeExternalModal(modalId) {
     document.body.style.overflow = '';
     const iframe = modal.querySelector('iframe');
     if (iframe) {
-      const src = iframe.src;
-      iframe.src = '';
-      setTimeout(() => { iframe.src = src; }, 100);
+      iframe.src = 'about:blank';
     }
+    const fallback = modal.querySelector('[id^="fallback-"]');
+    if (fallback) fallback.style.display = 'none';
+    if (iframe) iframe.style.display = 'block';
   }
 }
 
