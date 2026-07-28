@@ -49,12 +49,18 @@
   },
   {
     "id": "act-005",
-    "title": "",
-    "date": "",
-    "location": "",
-    "status": "预告",
+    "title": "小区美景",
+    "date": "2026-07-29",
+    "location": "景观大道",
+    "status": "进行中",
     "coverImage": "assets/uploads/1785157511629_t0v037______20260727062006_9490_667.png",
-    "images": [],
+    "images": [
+      "assets/images/1785197650016_3jnkza______20260726114007_9474_667.jpg",
+      "assets/images/1785197653395_lnle2b______20260726114009_9475_667.jpg",
+      "assets/images/1785197656267_glt6sn______20260726114010_9476_667.jpg",
+      "assets/images/1785197664617_5ku6ub______20260727061924_9489_667.jpg",
+      "assets/images/1785197674070_9xjmvx______20260727061914_9488_667.jpg"
+    ],
     "videoUrl": "assets/uploads/1785157532367_3z703q_____2026-07-27_185552_013.mp4",
     "externalLink": "",
     "content": ""
