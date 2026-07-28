@@ -1117,7 +1117,7 @@ function renderActivityDetail(id) {
   h += '<div class="activity-content-box"><div class="detail-content">' + contentHtml + '</div></div>';
   var hasLocalVideo = allVideos.some(function(v){return v.type==='local';});
   if(hasLocalVideo){
-    h += '<div style="margin:0 0 16px;padding:10px 14px;background:#fff8e1;border-left:3px solid #f9a825;border-radius:0 8px 8px 0;font-size:12px;color:#666;">💡 提示：本地视频播放卡顿？建议将视频压缩至 720p / 2Mbps 以下，或上传至哔哩哔哩、抖音等平台后使用"在线视频链接"功能嵌入播放。</div>';
+    h += '<div style="margin:0 0 16px;padding:10px 14px;background:#fff8e1;border-left:3px solid #f9a825;border-radius:0 8px 8px 0;font-size:12px;color:#666;">💡 可以欣赏了。</div>';
   }
 
   if (allVideos.length > 0) {
