@@ -610,7 +610,7 @@ a { text-decoration:none; color:var(--primary); }
 
 /* ===== Video Loading & Error States ===== */
 .video-loading-state { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0f0f0f; color:#fff; z-index:3; transition:opacity .3s; }
-.video-loading-state.hidden { opacity:0; pointer-events:none; }
+.video-loading-state.hidden { opacity:0; pointer-events:none; visibility:hidden; }
 .video-loading-state .spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,.2); border-top-color:var(--primary-light); border-radius:50%; animation:spin .8s linear infinite; margin-bottom:12px; }
 .video-loading-state .load-text { font-size:13px; opacity:.7; }
 .video-error-state { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; background:#1a1a1a; color:#fff; z-index:4; text-align:center; padding:20px; }
@@ -971,7 +971,7 @@ function getEmbedUrl(url) {
     return 'https://www.youtube.com/embed/' + ytMatch[1] + '?rel=0&modestbranding=1';
   }
   if (/douyin\.com|iesdouyin\.com/i.test(url)) return null;
-  if (/mp\.weixin\.qq\.com/i.test(url)) return null;
+  if (/channels\.weixin\.qq\.com|weixin\.qq\.com\/sph|finder\.video\.qq\.com|mp\.weixin\.qq\.com/i.test(url)) return null;
   if (/weibo\.com|weibo\.cn/i.test(url)) return null;
   const xgMatch = url.match(/ixigua\.com\/(\d+)/i);
   if (xgMatch) {
@@ -993,6 +993,9 @@ function showVideoPlayer(wrapperId) {
     placeholder.style.display = 'none';
     player.style.display = 'block';
     player.classList.add('active');
+    // 8秒后自动隐藏 iframe loading，防止某些平台 onload 不触发
+    const loadingId = wrapperId + '-iframeload';
+    setTimeout(function() { hideVideoLoading(loadingId); }, 8000);
   }
 }
 
@@ -1056,16 +1059,16 @@ function retryVideo(vidId) {
 }
 
 function renderPlatformRedirectCard(url, platform, coverImage) {
-  let h = '<div class="video-wrapper" style="padding-bottom:56.25%;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);position:relative;">';
-  h += '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;color:#fff;padding:24px;z-index:2;">';
+  let h = '<div class="video-wrapper" style="padding-bottom:56.25%;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);position:relative;cursor:pointer;">';
+  h += '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;color:#fff;padding:24px;z-index:10;">';
   if (coverImage) {
-    h += '<img src="' + coverImage + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.35;z-index:0;transition:opacity 0.3s;" onmouseover="this.style.opacity=0.5" onmouseout="this.style.opacity=0.35">';
+    h += '<img src="' + coverImage + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.35;z-index:0;transition:opacity 0.3s;pointer-events:none;" onmouseover="this.style.opacity=0.5" onmouseout="this.style.opacity=0.35">';
   }
-  h += '<div style="position:relative;z-index:1;text-align:center;">';
+  h += '<div style="position:relative;z-index:1;text-align:center;pointer-events:none;">';
   h += '<div style="font-size:52px;margin-bottom:14px;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.3));">' + platform.icon + '</div>';
   h += '<div style="font-size:17px;font-weight:600;margin-bottom:6px;">' + platform.name + '</div>';
   h += '<div style="font-size:12px;opacity:0.65;margin-bottom:20px;max-width:260px;line-height:1.5;">该平台的视频受播放策略限制<br>暂不支持站内直接播放</div>';
-  h += '<div style="display:inline-flex;align-items:center;gap:6px;padding:11px 26px;background:var(--primary);color:#fff;border-radius:24px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.25);transition:all 0.2s;">';
+  h += '<div style="display:inline-flex;align-items:center;gap:6px;padding:11px 26px;background:var(--primary);color:#fff;border-radius:24px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.25);transition:all 0.2s;pointer-events:none;">';
   h += '前往 ' + platform.name + ' 观看 <span style="font-size:16px;">→</span></div>';
   h += '</div></a></div>';
   return h;
@@ -1293,7 +1296,7 @@ function renderSingleVideoPlayer(video, vidId, coverImage) {
       if (embedUrl !== video.url) {
         h += '<div class="video-loading-state" id="' + vidId + '-iframeload" style="z-index:2;">';
         h += '<div class="spinner"></div><div class="load-text">播放器加载中...</div></div>';
-        h += '<iframe src="' + embedUrl + '" allowfullscreen allow="autoplay; fullscreen" sandbox="allow-same-origin allow-scripts allow-popups allow-presentation" onload="hideVideoLoading(' + "'" + vidId + "'" + '-iframeload)"></iframe>';
+        h += '<iframe src="' + embedUrl + '" allowfullscreen allow="autoplay; fullscreen" style="z-index:1;position:relative;" onload="hideVideoLoading(' + "'" + vidId + "'" + '-iframeload)"></iframe>';
       } else {
         h += '<div class="video-loading-state" id="' + vidId + '-vidload">';
         h += '<div class="spinner"></div><div class="load-text">视频加载中...</div></div>';
@@ -1326,7 +1329,7 @@ function detectVideoPlatform(url) {
   if (/qq\.com\/x\/cover|v\.qq\.com/i.test(url)) return { name: '腾讯视频', icon: '📺' };
   if (/youku\.com/i.test(url)) return { name: '优酷', icon: '👁️' };
   if (/iqiyi\.com/i.test(url)) return { name: '爱奇艺', icon: '▶️' };
-  if (/mp\.weixin\.qq\.com/i.test(url)) return { name: '微信视频', icon: '💬' };
+  if (/channels\.weixin\.qq\.com|weixin\.qq\.com\/sph|finder\.video\.qq\.com|mp\.weixin\.qq\.com/i.test(url)) return { name: '微信视频', icon: '💬' };
   return { name: '外部视频', icon: '📹' };
 }
 
