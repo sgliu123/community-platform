@@ -990,18 +990,16 @@ function showVideoPlayer(wrapperId) {
   if (!wrapper) return;
   const player = wrapper.querySelector('.video-player');
   const placeholder = wrapper.querySelector('.video-placeholder');
-  const iframe = player ? player.querySelector('iframe[data-src]') : null;
-  // Lazy load: only set iframe src when user clicks play
+  const iframe = player ? player.querySelector('iframe') : null;
+  // Recover src if it was reset to about:blank after hide/switch
   if (iframe && iframe.src === 'about:blank') {
-    iframe.src = iframe.getAttribute('data-src');
+    const ds = iframe.getAttribute('data-src');
+    if (ds) iframe.src = ds;
   }
   if (player && placeholder) {
     placeholder.style.display = 'none';
     player.style.display = 'block';
     player.classList.add('active');
-    // Auto-hide loading after 8s as fallback
-    const loadingId = wrapperId + '-iframeload';
-    setTimeout(function() { hideVideoLoading(loadingId); }, 8000);
   }
 }
 
@@ -1070,10 +1068,9 @@ function initVideoPlayers() {
       } catch(e) {}
     };
 
-    // If already ready, hide immediately
-    if (video.readyState >= 3) {
+    // If already have current data, hide loading immediately for faster perceived speed
+    if (video.readyState >= 2) {
       hideLoading();
-      return;
     }
 
     // Bind events
@@ -1105,23 +1102,15 @@ function initVideoPlayers() {
     video.addEventListener('abort', function() { showErr('视频加载被中断'); });
     video.addEventListener('stalled', function() { updateBuffer(); });
 
-    // Poll readyState every 500ms
+    // Poll readyState every 500ms as fallback
     var checkCount = 0;
-    var maxChecks = 30; // 15 seconds total
+    var maxChecks = 20; // 10 seconds total
     var timer = setInterval(function() {
       checkCount++;
       updateBuffer();
 
-      if (video.readyState >= 3) {
+      if (video.readyState >= 2) {
         hideLoading();
-        clearInterval(timer);
-        return;
-      }
-
-      // readyState 2 = have current data, can show frame but may need more buffer
-      if (video.readyState >= 2 && video.paused === false) {
-        hideLoading();
-        // Don't clear timer, keep monitoring
       }
 
       if (video.error) {
@@ -1155,13 +1144,8 @@ function initVideoPlayers() {
     }, 500);
   });
 
-  // Reset all embed iframes to about:blank
-  document.querySelectorAll('.video-player iframe').forEach(function(f) {
-    var ds = f.getAttribute('data-src');
-    if (ds && f.src !== 'about:blank') {
-      f.src = 'about:blank';
-    }
-  });
+  // Embed iframes now load directly (src set immediately), no init reset needed.
+  // They are stopped via hideVideoPlayer/switchVideoTab when necessary.
 }
 
 
@@ -1399,8 +1383,10 @@ function renderSingleVideoPlayer(video, vidId, coverImage) {
     h += '<div class="error-icon">⚠️</div><div class="error-text">视频加载失败</div>';
     h += '<div class="error-hint">请检查网络连接，或尝试刷新页面</div>';
     h += '<button class="poll-btn" style="margin-top:12px;background:var(--primary);" onclick="retryVideo(' + "'" + vidId + "'" + ')">重新加载</button></div>';
-    h += '<video controls preload="auto" playsinline webkit-playsinline x5-video-player-type="h5"';
-    h += ' poster="' + (coverImage || '') + '"';
+    h += '<video controls preload="auto" playsinline webkit-playsinline x5-video-player-type="h5" fetchpriority="high"';
+    if (coverImage) {
+      h += ' poster="' + coverImage + '"';
+    }
     h += ' style="width:100%;display:block;border-radius:8px;background:#0a0a0a;min-height:200px;">';
     // Events are bound by initVideoPlayers() for reliability
     h += '<source src="' + video.url + '" type="video/mp4">';
@@ -1427,9 +1413,8 @@ function renderSingleVideoPlayer(video, vidId, coverImage) {
       h += '<div class="video-player" id="' + vidId + '-player">';
       h += '<button class="video-close" onclick="hideVideoPlayer(' + "'" + vidId + "'" + ')">✕</button>';
       if (embedUrl !== video.url) {
-        h += '<div class="video-loading-state" id="' + vidId + '-iframeload" style="z-index:2;">';
-        h += '<div class="spinner"></div><div class="load-text">播放器加载中...</div></div>';
-        h += '<iframe data-src="' + embedUrl + '" src="about:blank" allowfullscreen allow="autoplay; fullscreen" style="z-index:1;position:relative;" onload="hideVideoLoading(' + "'" + vidId + "'" + '-iframeload)"></iframe>';
+        // Direct load for instant playback; data-src kept for recovery after hide/switch
+        h += '<iframe data-src="' + embedUrl + '" src="' + embedUrl + '" allowfullscreen allow="autoplay; fullscreen" style="z-index:1;position:relative;"></iframe>';
       } else {
         h += '<div class="video-loading-state" id="' + vidId + '-vidload">';
         h += '<div class="spinner"></div><div class="load-text">视频加载中...</div></div>';
