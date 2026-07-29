@@ -71,13 +71,15 @@
       "assets/images/1785234509040_go3wgw______20240418141919.jpg",
       "assets/images/1785234539873_dtmp1p______20240418142216.jpg"
     ],
-    "videos": [],
+    "videos": [
+      "assets/videos/1785284300801_04aeqo_____2026-07-29_081646_365.mp4",
+      "assets/videos/1785284304816_rhyy64_____2026-07-29_081739_314.mp4"
+    ],
     "videoLinks": [
       "【本地离线智能阅读工具】 https://www.bilibili.com/video/BV1P8Tx6PEhc/?share_source=copy_web&vd_source=688cab1518250ec220c84c8df568e3e2",
-      "https://weixin.qq.com/sph/AhwMug2xnP",
-      "7.46 U@l.Pk bnd:/ 12/19 :5pm 大刀向伸出脏脑袋砍去 # 高市早苗的脑袋被鹿踢了 大刀向伸出脏脑袋砍去 # 高市早苗的脑袋被鹿踢了  https://v.douyin.com/u6UXZSfaf3k/ 复制此链接，打开Dou音搜索，直接观看视频！"
+      "https://weixin.qq.com/sph/AhwMug2xnP"
     ],
-    "videoUrl": "",
+    "videoUrl": "assets/videos/1785284300801_04aeqo_____2026-07-29_081646_365.mp4",
     "externalLinks": [],
     "externalLink": "",
     "content": "湖边下雨中的景色"
