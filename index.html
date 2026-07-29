@@ -1039,8 +1039,6 @@ function initVideoPlayers() {
     var loading = wrapper.querySelector('.video-loading-state');
     var error = wrapper.querySelector('.video-error-state');
     if (!video || !loading) return;
-
-    // Skip if already initialized
     if (wrapper.dataset.videoInit === '1') return;
     wrapper.dataset.videoInit = '1';
 
@@ -1058,37 +1056,32 @@ function initVideoPlayers() {
       }
     };
 
-    // If already have current data, hide immediately
+    // If already have enough data, hide immediately
     if (video.readyState >= 2) {
       hideLoading();
       return;
     }
 
-    // Update buffer progress text
-    var updateBuffer = function() {
-      if (!loading || loading.classList.contains('hidden')) return;
-      var txt = loading.querySelector('.load-text');
-      if (!txt) return;
-      try {
-        if (video.buffered.length > 0 && video.duration) {
-          var pct = Math.round(video.buffered.end(0) / video.duration * 100);
-          if (!isNaN(pct) && isFinite(pct)) {
-            txt.textContent = '缓冲中 ' + pct + '%';
-          }
-        }
-      } catch(e) {}
-    };
+    // Event-driven: hide as soon as any playable data arrives
+    var onReady = function() { hideLoading(); };
+    video.addEventListener('loadeddata', onReady);
+    video.addEventListener('canplay', onReady);
+    video.addEventListener('canplaythrough', onReady);
+    video.addEventListener('playing', onReady);
 
-    // Event-driven hide
-    video.addEventListener('loadeddata', hideLoading);
-    video.addEventListener('canplay', hideLoading);
-    video.addEventListener('canplaythrough', hideLoading);
-    video.addEventListener('playing', hideLoading);
-    video.addEventListener('loadedmetadata', updateBuffer);
-    video.addEventListener('progress', updateBuffer);
+    // Metadata loaded is also good enough to show the player
+    video.addEventListener('loadedmetadata', function() {
+      if (video.readyState >= 1) hideLoading();
+    });
 
+    // Progress check
+    video.addEventListener('progress', function() {
+      if (video.readyState >= 2) hideLoading();
+    });
+
+    // Only re-show loading if video is actually playing and stalls
     video.addEventListener('waiting', function() {
-      if (loading && !hasError) {
+      if (loading && !hasError && !video.paused && !video.ended) {
         loading.classList.remove('hidden');
         var txt = loading.querySelector('.load-text');
         if (txt) txt.textContent = '缓冲中...';
@@ -1109,13 +1102,33 @@ function initVideoPlayers() {
     });
     video.addEventListener('abort', function() { showErr('视频加载被中断'); });
 
-    // Fallback: hide loading after 8s if no error occurred.
-    // This avoids falsely showing "timeout error" for large/slow videos.
-    setTimeout(function() {
-      if (loading && !loading.classList.contains('hidden') && !hasError) {
+    // Polling fallback: ensures loading always disappears within 15s
+    var checkCount = 0;
+    var timer = setInterval(function() {
+      checkCount++;
+      if (video.readyState >= 2) {
         hideLoading();
+        clearInterval(timer);
+        return;
       }
-    }, 8000);
+      if (video.error) {
+        var msg = '视频加载失败';
+        switch(video.error.code) {
+          case 1: msg = '视频加载被中断'; break;
+          case 2: msg = '网络错误，请检查网络'; break;
+          case 3: msg = '视频解码失败（格式可能不支持）'; break;
+          case 4: msg = '视频格式不支持或文件损坏'; break;
+        }
+        showErr(msg);
+        clearInterval(timer);
+        return;
+      }
+      if (checkCount >= 30) {
+        // Graceful hide: don't show timeout error, just let the native player handle it
+        hideLoading();
+        clearInterval(timer);
+      }
+    }, 500);
   });
 }
 
@@ -1356,7 +1369,7 @@ function renderSingleVideoPlayer(video, vidId, coverImage) {
     h += '<div class="error-icon">⚠️</div><div class="error-text">视频加载失败</div>';
     h += '<div class="error-hint">请检查网络连接，或尝试刷新页面</div>';
     h += '<button class="poll-btn" style="margin-top:12px;background:var(--primary);" onclick="retryVideo(' + "'" + vidId + "'" + ')">重新加载</button></div>';
-    h += '<video controls preload="auto" playsinline webkit-playsinline x5-video-player-type="h5" fetchpriority="high"';
+    h += '<video controls preload="metadata" playsinline webkit-playsinline x5-video-player-type="h5" fetchpriority="high"';
     if (coverImage) {
       h += ' poster="' + coverImage + '"';
     }
@@ -1395,7 +1408,7 @@ function renderSingleVideoPlayer(video, vidId, coverImage) {
         h += '<div class="error-icon">⚠️</div><div class="error-text">视频加载失败</div>';
         h += '<div class="error-hint">请检查网络连接或视频格式</div>';
         h += '<button class="poll-btn" style="margin-top:12px;background:var(--primary);" onclick="retryVideo(' + "'" + vidId + "'" + ')">重新加载</button></div>';
-        h += '<video controls preload="auto" playsinline webkit-playsinline x5-video-player-type="h5"';
+        h += '<video controls preload="metadata" playsinline webkit-playsinline x5-video-player-type="h5"';
         h += ' style="width:100%;height:100%;display:block;background:#0a0a0a;min-height:200px;position:relative;z-index:1;">';
         h += '<source src="' + video.url + '" type="video/mp4">';
         h += '</video>';
