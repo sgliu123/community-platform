@@ -1038,13 +1038,18 @@ function initVideoPlayers() {
     var video = wrapper.querySelector('video');
     var loading = wrapper.querySelector('.video-loading-state');
     var error = wrapper.querySelector('.video-error-state');
-    if (!video) return;
+    if (!video || !loading) return;
 
-    var vidId = wrapper.id;
+    // Skip if already initialized
+    if (wrapper.dataset.videoInit === '1') return;
+    wrapper.dataset.videoInit = '1';
+
+    var hasError = false;
     var hideLoading = function() {
       if (loading) loading.classList.add('hidden');
     };
     var showErr = function(msg) {
+      hasError = true;
       if (loading) loading.classList.add('hidden');
       if (error) {
         var txt = error.querySelector('.error-text');
@@ -1053,13 +1058,19 @@ function initVideoPlayers() {
       }
     };
 
-    // Update loading text with buffer progress
+    // If already have current data, hide immediately
+    if (video.readyState >= 2) {
+      hideLoading();
+      return;
+    }
+
+    // Update buffer progress text
     var updateBuffer = function() {
-      if (!loading || video.readyState >= 3) return;
+      if (!loading || loading.classList.contains('hidden')) return;
       var txt = loading.querySelector('.load-text');
       if (!txt) return;
       try {
-        if (video.buffered.length > 0) {
+        if (video.buffered.length > 0 && video.duration) {
           var pct = Math.round(video.buffered.end(0) / video.duration * 100);
           if (!isNaN(pct) && isFinite(pct)) {
             txt.textContent = '缓冲中 ' + pct + '%';
@@ -1068,25 +1079,22 @@ function initVideoPlayers() {
       } catch(e) {}
     };
 
-    // If already have current data, hide loading immediately for faster perceived speed
-    if (video.readyState >= 2) {
-      hideLoading();
-    }
-
-    // Bind events
+    // Event-driven hide
     video.addEventListener('loadeddata', hideLoading);
     video.addEventListener('canplay', hideLoading);
     video.addEventListener('canplaythrough', hideLoading);
-    video.addEventListener('loadedmetadata', function() { updateBuffer(); });
     video.addEventListener('playing', hideLoading);
+    video.addEventListener('loadedmetadata', updateBuffer);
     video.addEventListener('progress', updateBuffer);
+
     video.addEventListener('waiting', function() {
-      if (loading) {
+      if (loading && !hasError) {
         loading.classList.remove('hidden');
         var txt = loading.querySelector('.load-text');
         if (txt) txt.textContent = '缓冲中...';
       }
     });
+
     video.addEventListener('error', function() {
       var msg = '视频加载失败';
       if (video.error) {
@@ -1100,52 +1108,15 @@ function initVideoPlayers() {
       showErr(msg);
     });
     video.addEventListener('abort', function() { showErr('视频加载被中断'); });
-    video.addEventListener('stalled', function() { updateBuffer(); });
 
-    // Poll readyState every 500ms as fallback
-    var checkCount = 0;
-    var maxChecks = 20; // 10 seconds total
-    var timer = setInterval(function() {
-      checkCount++;
-      updateBuffer();
-
-      if (video.readyState >= 2) {
+    // Fallback: hide loading after 8s if no error occurred.
+    // This avoids falsely showing "timeout error" for large/slow videos.
+    setTimeout(function() {
+      if (loading && !loading.classList.contains('hidden') && !hasError) {
         hideLoading();
       }
-
-      if (video.error) {
-        var msg = '视频加载失败';
-        switch(video.error.code) {
-          case 1: msg = '视频加载被中断'; break;
-          case 2: msg = '网络错误，请检查网络'; break;
-          case 3: msg = '视频解码失败（格式可能不支持）'; break;
-          case 4: msg = '视频格式不支持或文件损坏'; break;
-        }
-        showErr(msg);
-        clearInterval(timer);
-        return;
-      }
-
-      if (video.networkState === 3) {
-        showErr('网络错误，无法加载视频');
-        clearInterval(timer);
-        return;
-      }
-
-      if (checkCount >= maxChecks) {
-        // Timeout: try to show what we have
-        if (video.readyState >= 1) {
-          hideLoading();
-        } else {
-          showErr('视频加载超时，请检查网络或刷新重试');
-        }
-        clearInterval(timer);
-      }
-    }, 500);
+    }, 8000);
   });
-
-  // Embed iframes now load directly (src set immediately), no init reset needed.
-  // They are stopped via hideVideoPlayer/switchVideoTab when necessary.
 }
 
 
@@ -1171,6 +1142,8 @@ function retryVideo(vidId) {
   }
   const video = wrapper.querySelector('video');
   if (video) {
+    // Clear init flag so initVideoPlayers will re-bind events after reload
+    wrapper.dataset.videoInit = '';
     video.load();
     video.play().catch(function(){});
   }
