@@ -924,9 +924,9 @@ function renderAnnouncementDetail(id) {
       const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(att.url);
       const isPdf = /\.pdf$/i.test(att.url);
       if (isImg) {
-        h += '<div style="margin-bottom:12px;"><img src="' + att.url + '" style="max-width:100%;border-radius:8px;border:1px solid var(--border);" onerror="this.style.display=\'none\'"></div>';
+        h += '<div style="margin-bottom:12px;"><img src="' + att.url + '" style="max-width:100%;border-radius:8px;border:1px solid var(--border);" loading="lazy" onerror="this.style.display=\'none\'"></div>';
       } else if (isPdf) {
-        h += '<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><iframe src="' + att.url + '" style="width:100%;height:500px;border:none;" title="PDF预览"></iframe></div>';
+        h += '<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><iframe src="' + att.url + '" style="width:100%;height:500px;border:none;" title="PDF预览" loading="lazy"></iframe></div>';
       }
       h += '<a href="' + att.url + '" target="_blank" style="display:block;padding:8px;background:#f5f5f5;border-radius:6px;margin-bottom:4px;font-size:13px;">📎 ' + att.name + '</a>';
     });
@@ -947,9 +947,9 @@ function renderDocumentDetail(id) {
     const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(d.fileUrl);
     const isPdf = /\.pdf$/i.test(d.fileUrl);
     if (isImg) {
-      h += '<div style="margin-top:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><img src="' + d.fileUrl + '" style="width:100%;display:block;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div style="display:none;padding:20px;text-align:center;color:var(--text-secondary);">图片加载失败</div></div>';
+      h += '<div style="margin-top:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><img src="' + d.fileUrl + '" style="width:100%;display:block;" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div style="display:none;padding:20px;text-align:center;color:var(--text-secondary);">图片加载失败</div></div>';
     } else if (isPdf) {
-      h += '<div style="margin-top:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><iframe src="' + d.fileUrl + '" style="width:100%;height:600px;border:none;" title="PDF预览"></iframe></div>';
+      h += '<div style="margin-top:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><iframe src="' + d.fileUrl + '" style="width:100%;height:600px;border:none;" title="PDF预览" loading="lazy"></iframe></div>';
     }
     h += '<div style="margin-top:12px;"><a href="' + d.fileUrl + '" target="_blank" class="poll-btn">📎 查看/下载文件</a></div>';
   }
@@ -1056,35 +1056,27 @@ function initVideoPlayers() {
       }
     };
 
-    // If already have enough data, hide immediately
-    if (video.readyState >= 2) {
+    // If metadata is already loaded (readyState >= 1), hide loading immediately.
+    // This allows the poster image to show right away.
+    if (video.readyState >= 1) {
       hideLoading();
-      return;
+      if (video.readyState >= 2) return;
     }
 
-    // Event-driven: hide as soon as any playable data arrives
+    // Hide loading as soon as any playable data or metadata arrives.
     var onReady = function() { hideLoading(); };
+    video.addEventListener('loadedmetadata', onReady);
     video.addEventListener('loadeddata', onReady);
     video.addEventListener('canplay', onReady);
     video.addEventListener('canplaythrough', onReady);
     video.addEventListener('playing', onReady);
 
-    // Metadata loaded is also good enough to show the player
-    video.addEventListener('loadedmetadata', function() {
-      if (video.readyState >= 1) hideLoading();
-    });
-
-    // Progress check
-    video.addEventListener('progress', function() {
-      if (video.readyState >= 2) hideLoading();
-    });
-
-    // Only re-show loading if video is actually playing and stalls
+    // Only re-show loading when video is actually playing and stalls.
     video.addEventListener('waiting', function() {
       if (loading && !hasError && !video.paused && !video.ended) {
-        loading.classList.remove('hidden');
         var txt = loading.querySelector('.load-text');
         if (txt) txt.textContent = '缓冲中...';
+        loading.classList.remove('hidden');
       }
     });
 
@@ -1102,33 +1094,13 @@ function initVideoPlayers() {
     });
     video.addEventListener('abort', function() { showErr('视频加载被中断'); });
 
-    // Polling fallback: ensures loading always disappears within 15s
-    var checkCount = 0;
-    var timer = setInterval(function() {
-      checkCount++;
-      if (video.readyState >= 2) {
+    // Fast fallback: hide loading after 2s so users can see the native controls
+    // and click play even if the video is still fetching metadata.
+    setTimeout(function() {
+      if (loading && !loading.classList.contains('hidden') && !hasError) {
         hideLoading();
-        clearInterval(timer);
-        return;
       }
-      if (video.error) {
-        var msg = '视频加载失败';
-        switch(video.error.code) {
-          case 1: msg = '视频加载被中断'; break;
-          case 2: msg = '网络错误，请检查网络'; break;
-          case 3: msg = '视频解码失败（格式可能不支持）'; break;
-          case 4: msg = '视频格式不支持或文件损坏'; break;
-        }
-        showErr(msg);
-        clearInterval(timer);
-        return;
-      }
-      if (checkCount >= 30) {
-        // Graceful hide: don't show timeout error, just let the native player handle it
-        hideLoading();
-        clearInterval(timer);
-      }
-    }, 500);
+    }, 2000);
   });
 }
 
@@ -1317,7 +1289,7 @@ function renderActivityDetail(id) {
     h += '<div class="section-title"><span class="section-icon">📷</span>活动图集 <span class="section-count">' + a.images.length + ' 张</span></div>';
     if (a.images.length === 1) {
       h += '<div class="single-image-box" onclick="window.open(\'' + a.images[0] + '\')">';
-      h += '<img src="' + a.images[0] + '" alt="活动图片">';
+      h += '<img src="' + a.images[0] + '" alt="活动图片" loading="lazy">';
       h += '</div>';
     } else {
       const gid = 'gal-' + id.replace(/[^a-zA-Z0-9]/g, '');
@@ -1326,7 +1298,7 @@ function renderActivityDetail(id) {
       h += '<div class="gallery-container">';
       a.images.forEach(function(img, idx) {
         h += '<div class="gallery-slide" onclick="window.open(\'' + img + '\')">';
-        h += '<img src="' + img + '" alt="图' + (idx+1) + '">';
+        h += '<img src="' + img + '" alt="图' + (idx+1) + '" loading="lazy">';
         h += '</div>';
       });
       h += '</div>';
@@ -1527,11 +1499,11 @@ function renderInlineMedia(htmlStr) {
   if (!htmlStr) return htmlStr;
   htmlStr = htmlStr.replace(/(https?:\/\/[^\s"<>]+\.(jpg|jpeg|png|gif|webp|bmp))/gi, function(url) {
     if (htmlStr.includes('src="' + url + '"') || htmlStr.includes("src='" + url + "'")) return url;
-    return '<img src="' + url + '" style="max-width:100%;border-radius:8px;margin:8px 0;display:block;border:1px solid var(--border);" onerror="this.style.display=\'none\'">';
+    return '<img src="' + url + '" style="max-width:100%;border-radius:8px;margin:8px 0;display:block;border:1px solid var(--border);" loading="lazy" onerror="this.style.display=\'none\'">';
   });
   htmlStr = htmlStr.replace(/(https?:\/\/[^\s"<>]+\.pdf)/gi, function(url) {
     if (htmlStr.includes('src="' + url + '"') || htmlStr.includes("src='" + url + "'")) return url;
-    return '<iframe src="' + url + '" style="width:100%;height:500px;border:none;border-radius:8px;margin:8px 0;border:1px solid var(--border);" title="PDF预览"></iframe>';
+    return '<iframe src="' + url + '" style="width:100%;height:500px;border:none;border-radius:8px;margin:8px 0;border:1px solid var(--border);" title="PDF预览" loading="lazy"></iframe>';
   });
   return htmlStr;
 }
