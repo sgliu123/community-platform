@@ -1035,6 +1035,71 @@ function showVideoError(vidId) {
   if (error) error.classList.add('active');
 }
 
+function initVideoPlayers() {
+  document.querySelectorAll('.video-player-native').forEach(function(wrapper) {
+    var video = wrapper.querySelector('video');
+    var loading = wrapper.querySelector('.video-loading-state');
+    var error = wrapper.querySelector('.video-error-state');
+    if (!video) return;
+
+    var vidId = wrapper.id;
+    var hideLoading = function() {
+      if (loading) loading.classList.add('hidden');
+    };
+    var showErr = function() {
+      if (loading) loading.classList.add('hidden');
+      if (error) error.classList.add('active');
+    };
+
+    // If already ready, hide immediately
+    if (video.readyState >= 2) {
+      hideLoading();
+      return;
+    }
+
+    // Bind events directly (more reliable than inline HTML attributes)
+    video.addEventListener('loadeddata', hideLoading);
+    video.addEventListener('canplay', hideLoading);
+    video.addEventListener('canplaythrough', hideLoading);
+    video.addEventListener('loadedmetadata', hideLoading);
+    video.addEventListener('playing', hideLoading);
+    video.addEventListener('error', showErr);
+    video.addEventListener('abort', showErr);
+    video.addEventListener('emptied', showErr);
+
+    // Poll readyState every 300ms
+    var checkCount = 0;
+    var maxChecks = 20; // 6 seconds total
+    var timer = setInterval(function() {
+      checkCount++;
+      if (video.readyState >= 2) {
+        hideLoading();
+        clearInterval(timer);
+      } else if (video.error || video.networkState === 3) {
+        showErr();
+        clearInterval(timer);
+      } else if (checkCount >= maxChecks) {
+        // Timeout: if we have metadata, allow playback; otherwise show error
+        if (video.readyState >= 1) {
+          hideLoading();
+        } else {
+          showErr();
+        }
+        clearInterval(timer);
+      }
+    }, 300);
+  });
+
+  // Reset all embed iframes to about:blank to prevent autoplay on page load
+  document.querySelectorAll('.video-player iframe').forEach(function(f) {
+    var ds = f.getAttribute('data-src');
+    if (ds && f.src !== 'about:blank') {
+      f.src = 'about:blank';
+    }
+  });
+}
+
+
 function showVideoBuffering(vidId) {
   const loading = document.getElementById(vidId + '-loading');
   if (loading) {
@@ -1251,10 +1316,7 @@ function renderActivityDetail(id) {
     document.querySelectorAll('.image-gallery').forEach(function(g) {
       initGallery(g.id);
     });
-    // Auto-hide all video loading states after 8s fallback (in case events don't fire)
-    document.querySelectorAll('.video-loading-state').forEach(function(el) {
-      setTimeout(function() { if(el) el.classList.add('hidden'); }, 8000);
-    });
+    initVideoPlayers();
   }, 100);
 
   return h;
@@ -1270,7 +1332,7 @@ function renderSingleVideoPlayer(video, vidId, coverImage) {
     h += '<div class="error-icon">⚠️</div><div class="error-text">视频加载失败</div>';
     h += '<div class="error-hint">请检查网络连接，或尝试刷新页面</div>';
     h += '<button class="poll-btn" style="margin-top:12px;background:var(--primary);" onclick="retryVideo(' + "'" + vidId + "'" + ')">重新加载</button></div>';
-    h += '<video controls preload="metadata" playsinline webkit-playsinline x5-video-player-type="h5"';
+    h += '<video controls preload="auto" playsinline webkit-playsinline x5-video-player-type="h5"';
     h += ' poster="' + (coverImage || '') + '"';
     h += ' onloadeddata="hideVideoLoading(' + "'" + vidId + "'" + '-loading)"';
     h += ' oncanplay="hideVideoLoading(' + "'" + vidId + "'" + '-loading)"';
