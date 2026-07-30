@@ -711,13 +711,26 @@ async function workerWrite(filePath,data,message){
   });
   if(!res.ok){const e=await res.json();throw new Error(e.error||'保存失败');}
 }
-async function workerUpload(file){
+async function workerUpload(file, retries=2){
   const base=getWorkerBase();
-  if(!base) throw new Error('Worker地址未配置');
-  const fd=new FormData();fd.append('file',file);
-  const res=await fetch(base+'/api/upload',{method:'POST',body:fd});
-  if(!res.ok) throw new Error('上传失败');
-  return await res.json();
+  if(!base) throw new Error('Worker地址未配置，请联系管理员');
+  const fd=new FormData(); fd.append('file',file);
+  let lastErr;
+  for(let i=0;i<=retries;i++){
+    try{
+      const res=await fetch(base+'/api/upload',{method:'POST',body:fd});
+      if(!res.ok){
+        let detail='';
+        try{ detail=await res.text(); }catch(e){}
+        throw new Error('服务器返回 '+res.status+' '+res.statusText+(detail?': '+detail.substring(0,200):''));
+      }
+      return await res.json();
+    }catch(e){
+      lastErr=e;
+      if(i<retries) await new Promise(r=>setTimeout(r,800*(i+1)));
+    }
+  }
+  throw lastErr;
 }
 function genWOId(){
   const d=new Date();
@@ -1760,7 +1773,20 @@ async function doSubmitWorkorder(){
   showPageLoading(true);
   try{
     let images=[];
-    for(const f of _woImages){ const r=await workerUpload(f); images.push(r.url); }
+    let uploadErrors=[];
+    for(const f of _woImages){
+      try{
+        const r=await workerUpload(f);
+        if(r && r.url) images.push(r.url);
+        else uploadErrors.push(f.name || '图片' + (uploadErrors.length+1) + ': 返回数据异常');
+      }catch(e){
+        uploadErrors.push((f.name || '图片' + (uploadErrors.length+1)) + ': ' + e.message);
+      }
+    }
+    if(uploadErrors.length > 0){
+      const msg = '以下图片上传失败（服务器暂时不可用）：\n' + uploadErrors.join('\n') + '\n\n是否继续提交报修？\n- 点「确定」：提交报修（不含失败的图片）\n- 点「取消」：返回修改';
+      if(!confirm(msg)){ showPageLoading(false); return; }
+    }
     const list=await workerRead(getCurrentMonthPath('workorders'));
     const item={
       id:genWOId(), type, title, description:desc, images,
