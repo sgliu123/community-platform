@@ -7,12 +7,12 @@
     "isAnonymous": false,
     "residentRoom": "1-1-101",
     "residentName": "测试业主01",
-    "status": "已回复",
+    "status": "已办结",
     "createdAt": "2026-07-30T04:54:46.484Z",
-    "updatedAt": "2026-07-30T06:01:25.331Z",
+    "updatedAt": "2026-07-30T14:25:31.446Z",
     "reply": "已经整改",
     "replyAt": "2026-07-30T06:01:25.331Z",
-    "satisfaction": null,
+    "satisfaction": true,
     "handler": "管理员A"
   },
   {
