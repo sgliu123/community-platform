@@ -990,7 +990,36 @@ function renderProfile() {
   h += '<div style="font-size:14px;color:var(--text-secondary);margin-top:4px;">房号：' + residentAuth.roomNo + '</div>';
   h += '<div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">登录时间：' + formatDate(residentAuth.loginTime) + '</div></div>';
   h += '<div style="border-top:1px solid var(--border);padding-top:16px;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;"><button class="poll-btn" onclick="navigate(&#39;workorders&#39;)" style="background:var(--primary);font-size:13px;">🔧 我的报修</button><button class="poll-btn" onclick="navigate(&#39;complaints&#39;)" style="background:var(--primary);font-size:13px;">📝 我的反馈</button></div><button class="poll-btn" onclick="doLogout()" style="background:#c62828;">退出登录</button></div></div>';
+  h += '<div id="profileWOArea" style="margin-top:16px;"></div>';
+  h += '<div id="profileCPArea" style="margin-top:16px;"></div>';
+  setTimeout(function(){
+    loadMyWorkorders().then(function(list){
+      var el=document.getElementById('profileWOArea');
+      if(el) el.innerHTML=renderProfileMiniList(list.slice().reverse().slice(0,3),'workorders','🔧 最近报修','暂无报修记录','navigate(\'workorders\')');
+    });
+    loadMyComplaints().then(function(list){
+      var el=document.getElementById('profileCPArea');
+      if(el) el.innerHTML=renderProfileMiniList(list.slice().reverse().slice(0,3),'complaints','📝 最近反馈','暂无反馈记录','navigate(\'complaints\')');
+    });
+  },50);
   return h;
+}
+function renderProfileMiniList(list,module,title,emptyTip,navAction){
+  var h='<div class="card"><div class="card-title"><span class="icon">'+title.split(' ')[0]+'</span>'+title+'<a href="javascript:void(0)" onclick="'+navAction+'" style="margin-left:auto;font-size:13px;">查看全部 →</a></div>';
+  if(!list||!list.length){h+='<div class="empty">'+emptyTip+'</div>';}
+  else{
+    list.forEach(function(item){
+      var badgeCls=module==='workorders'?woStatusBadge(item.status):cpStatusBadge(item.status);
+      var badgeText=item.status;
+      var sub=module==='workorders'?(item.type+' · '+formatDate(item.createdAt)):(item.type+' · '+formatDate(item.createdAt));
+      var itemTitle=module==='workorders'?escapeHtml(item.title):(item.isAnonymous?'匿名'+item.type:escapeHtml(item.title));
+      var detailPage=module==='workorders'?'workorder-detail':'complaint-detail';
+      h+='<div class="list-item" onclick="navigate(\''+detailPage+'\',\''+item.id+'\')"><span class="list-badge '+badgeCls+'">'+badgeText+'</span>';
+      h+='<div class="list-content"><div class="list-title">'+itemTitle+'</div><div class="list-meta">'+sub+'</div></div>';
+      h+='<div class="list-arrow">›</div></div>';
+    });
+  }
+  h+='</div>';return h;
 }
 
 function renderAnnouncementDetail(id) {
@@ -1857,10 +1886,23 @@ function renderWorkorderDetail(id){
     h+='</div></div>';
   }
   h+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><div style="font-weight:600;margin-bottom:12px;">📋 处理进度</div>';
-  (item.timeline||[]).forEach(t=>{
-    h+='<div style="display:flex;gap:12px;margin-bottom:12px;"><div style="width:8px;height:8px;background:var(--primary);border-radius:50%;margin-top:6px;flex-shrink:0;"></div>';
-    h+='<div><div style="font-size:13px;font-weight:500;">'+escapeHtml(t.action)+'</div><div style="font-size:12px;color:var(--text-secondary);">'+escapeHtml(t.operator)+' · '+formatDate(t.time)+'</div></div></div>';
-  });
+  var timeline=item.timeline||[];
+  if(!timeline.length){h+='<div style="font-size:13px;color:var(--text-secondary);padding:8px 0;">暂无处理记录</div>';}
+  else{
+    timeline.forEach(function(t,idx){
+      var level=Math.min(idx,4);
+      var indent=level*20;
+      var isLast=idx===timeline.length-1;
+      h+='<div style="position:relative;padding-left:'+(24+indent)+'px;margin-bottom:16px;">';
+      if(!isLast) h+='<div style="position:absolute;left:'+(8+indent)+'px;top:10px;bottom:-20px;width:2px;background:#e0e0e0;"></div>';
+      h+='<div style="position:absolute;left:'+(2+indent)+'px;top:6px;width:12px;height:12px;background:var(--primary);border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px var(--primary);z-index:1;"></div>';
+      h+='<div style="background:#f8f9fa;border-radius:8px;padding:12px 14px;border:1px solid #eef0f2;">';
+      h+='<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">'+escapeHtml(t.action)+'</div>';
+      h+='<div style="font-size:12px;color:var(--text-secondary);display:flex;gap:8px;flex-wrap:wrap;">';
+      h+='<span>👤 '+escapeHtml(t.operator)+'</span><span>🕐 '+formatDateTime(t.time)+'</span>';
+      h+='</div></div></div>';
+    });
+  }
   h+='</div>';
   if(item.status==='待评价'){
     h+='<div style="margin-top:20px;padding:16px;background:#f8f9fa;border-radius:8px;">';
@@ -1903,10 +1945,35 @@ function renderComplaintDetail(id){
   h+='<div class="detail-meta"><span class="list-badge '+cpStatusBadge(item.status)+'">'+item.status+'</span>';
   h+='<span>类型：'+item.type+'</span><span>编号：'+item.id+'</span><span>提交：'+formatDate(item.createdAt)+'</span></div></div>';
   h+='<div class="detail-content"><p>'+escapeHtml(item.content)+'</p></div>';
+  h+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><div style="font-weight:600;margin-bottom:12px;">📋 处理记录</div>';
+  var records=[];
+  if(item.reply){
+    records.push({action:'📢 物业回复：'+escapeHtml(item.reply),operator:item.handler||'物业',time:item.replyAt||item.updatedAt,level:0});
+  }
+  if(item.satisfaction!==null){
+    records.push({action:'💬 业主反馈：'+(item.satisfaction?'👍 满意':'👎 不满意'),operator:item.residentName||'业主',time:item.updatedAt,level:1});
+  }
+  if(!records.length){h+='<div style="font-size:13px;color:var(--text-secondary);padding:8px 0;">暂无处理记录</div>';}
+  else{
+    records.forEach(function(t,idx){
+      var level=Math.min(t.level||idx,4);
+      var indent=level*20;
+      var isLast=idx===records.length-1;
+      h+='<div style="position:relative;padding-left:'+(24+indent)+'px;margin-bottom:16px;">';
+      if(!isLast) h+='<div style="position:absolute;left:'+(8+indent)+'px;top:10px;bottom:-20px;width:2px;background:#e0e0e0;"></div>';
+      h+='<div style="position:absolute;left:'+(2+indent)+'px;top:6px;width:12px;height:12px;background:var(--primary);border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px var(--primary);z-index:1;"></div>';
+      h+='<div style="background:#f8f9fa;border-radius:8px;padding:12px 14px;border:1px solid #eef0f2;">';
+      h+='<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">'+t.action+'</div>';
+      h+='<div style="font-size:12px;color:var(--text-secondary);display:flex;gap:8px;flex-wrap:wrap;">';
+      h+='<span>👤 '+escapeHtml(t.operator)+'</span><span>🕐 '+formatDateTime(t.time)+'</span>';
+      h+='</div></div></div>';
+    });
+  }
+  h+='</div>';
   if(item.reply){
     h+='<div style="margin-top:16px;padding:16px;background:#e3f2fd;border-radius:8px;border-left:4px solid var(--primary);">';
     h+='<div style="font-weight:600;margin-bottom:6px;">📢 物业回复</div><div>'+escapeHtml(item.reply)+'</div>';
-    h+='<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">'+formatDate(item.replyAt)+'</div></div>';
+    h+='<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">'+formatDateTime(item.replyAt)+'</div></div>';
     if(item.status==='已回复'){
       h+='<div style="margin-top:12px;"><div style="font-weight:600;margin-bottom:8px;">您对处理结果是否满意？</div>';
       h+='<button class="action-btn primary" onclick="doCPSatisfaction(\''+item.id+'\',true)">👍 满意</button>';
