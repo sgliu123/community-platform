@@ -188,9 +188,9 @@
     ],
     "residentRoom": "1-1-101",
     "residentName": "测试业主01",
-    "status": "待评价",
+    "status": "已完成",
     "createdAt": "2026-07-30T13:56:02.932Z",
-    "updatedAt": "2026-07-30T14:04:20.937Z",
+    "updatedAt": "2026-07-30T14:05:54.431Z",
     "timeline": [
       {
         "time": "2026-07-30T13:56:02.932Z",
@@ -201,10 +201,15 @@
         "time": "2026-07-30T14:04:20.937Z",
         "action": "已经完成",
         "operator": "管理员A"
+      },
+      {
+        "time": "2026-07-30T14:05:54.431Z",
+        "action": "业主评价",
+        "operator": "测试业主01"
       }
     ],
-    "rating": null,
-    "comment": "",
+    "rating": 5,
+    "comment": "态度好",
     "assignedTo": "tt",
     "workerPhone": "13000009"
   }
