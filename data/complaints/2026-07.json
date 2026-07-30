@@ -23,12 +23,12 @@
     "isAnonymous": false,
     "residentRoom": "1-1-101",
     "residentName": "测试业主01",
-    "status": "已回复",
+    "status": "已办结",
     "createdAt": "2026-07-30T08:09:22.935Z",
-    "updatedAt": "2026-07-30T08:12:01.756Z",
+    "updatedAt": "2026-07-30T14:24:57.449Z",
     "reply": "谢谢",
     "replyAt": "2026-07-30T08:12:01.756Z",
-    "satisfaction": null,
+    "satisfaction": true,
     "handler": "管理员A"
   },
   {
