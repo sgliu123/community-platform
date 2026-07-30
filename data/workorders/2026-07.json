@@ -184,23 +184,28 @@
     "description": "看",
     "images": [
       "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785419763556_fjn954______20240227172636.jpg",
-      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785420011022_amm3sd______20240226183607.jpg"
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785420267380_g0qe2j______20240226183607.jpg"
     ],
     "residentRoom": "1-1-101",
     "residentName": "测试业主01",
     "status": "待评价",
     "createdAt": "2026-07-30T13:56:02.932Z",
-    "updatedAt": "2026-07-30T14:00:06.588Z",
+    "updatedAt": "2026-07-30T14:04:20.937Z",
     "timeline": [
       {
         "time": "2026-07-30T13:56:02.932Z",
         "action": "提交工单",
         "operator": "测试业主01"
+      },
+      {
+        "time": "2026-07-30T14:04:20.937Z",
+        "action": "已经完成",
+        "operator": "管理员A"
       }
     ],
     "rating": null,
     "comment": "",
-    "assignedTo": "",
-    "workerPhone": ""
+    "assignedTo": "tt",
+    "workerPhone": "13000009"
   }
 ]
