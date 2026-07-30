@@ -648,8 +648,8 @@ a { text-decoration:none; color:var(--primary); }
     <a href="javascript:void(0)" onclick="navigate('documents');return false;" data-page="documents">文件</a>
     <a href="javascript:void(0)" onclick="navigate('activities');return false;" data-page="activities">动态</a>
     <a href="javascript:void(0)" onclick="navigate('polls');return false;" data-page="polls">投票</a>
-    <a href="javascript:void(0)" onclick="navigate('submit-workorder');return false;" data-page="submit-workorder">报修</a>
-    <a href="javascript:void(0)" onclick="navigate('submit-complaint');return false;" data-page="submit-complaint">反馈</a>
+    <a href="javascript:void(0)" onclick="navigate('workorders');return false;" data-page="workorders">报修</a>
+    <a href="javascript:void(0)" onclick="navigate('complaints');return false;" data-page="complaints">反馈</a>
   </nav>
   <div class="header-user">
     <span id="userName" style="font-size:13px;"></span>
@@ -885,6 +885,10 @@ function renderHome() {
   h += `<div class="quick-link" onclick="navigate('polls')"><div class="icon">🗳️</div><div class="label">投票征集</div></div>`;
   h += `<div class="quick-link" onclick="navigate('submit-workorder')"><div class="icon">🔧</div><div class="label">我要报修</div></div>`;
   h += `<div class="quick-link" onclick="navigate('submit-complaint')"><div class="icon">📝</div><div class="label">投诉建议</div></div>`;
+  if (residentAuth) {
+    h += `<div class="quick-link" onclick="navigate('workorders')"><div class="icon">📋</div><div class="label">我的报修</div></div>`;
+    h += `<div class="quick-link" onclick="navigate('complaints')"><div class="icon">📋</div><div class="label">我的反馈</div></div>`;
+  }
   h += '</div>';
   h += '<div class="card"><div class="card-title"><span class="icon">🏘️</span>社区概况</div>';
   h += '<div class="info-grid">';
@@ -996,10 +1000,16 @@ function renderProfile() {
     loadMyWorkorders().then(function(list){
       var el=document.getElementById('profileWOArea');
       if(el) el.innerHTML=renderProfileMiniList(list.slice().reverse().slice(0,3),'workorders','🔧 最近报修','暂无报修记录','navigate(\'workorders\')');
+    }).catch(function(e){
+      var el=document.getElementById('profileWOArea');
+      if(el) el.innerHTML=renderProfileMiniList([],'workorders','🔧 最近报修','暂无报修记录','navigate(\'workorders\')');
     });
     loadMyComplaints().then(function(list){
       var el=document.getElementById('profileCPArea');
       if(el) el.innerHTML=renderProfileMiniList(list.slice().reverse().slice(0,3),'complaints','📝 最近反馈','暂无反馈记录','navigate(\'complaints\')');
+    }).catch(function(e){
+      var el=document.getElementById('profileCPArea');
+      if(el) el.innerHTML=renderProfileMiniList([],'complaints','📝 最近反馈','暂无反馈记录','navigate(\'complaints\')');
     });
   },50);
   return h;
@@ -1694,6 +1704,11 @@ function formatDate(iso) {
   const d = new Date(iso);
   return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
 }
+function formatDateTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0") + " " + String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+}
 
 window.addEventListener("hashchange", render);
 document.addEventListener("DOMContentLoaded", async () => {
@@ -1723,6 +1738,12 @@ function renderWorkorders(){
     if(getRoute().page==='workorders'){
       document.getElementById('main').innerHTML='<div class="page-content">'+renderWorkordersHTML(list)+'</div>';
     }
+  }).catch(e=>{
+    console.error(e);
+    appData._workorders=[];
+    if(getRoute().page==='workorders'){
+      document.getElementById('main').innerHTML='<div class="page-content">'+renderWorkordersHTML([])+'</div>';
+    }
   });
   return '<div class="loading">加载中...</div>';
 }
@@ -1748,6 +1769,12 @@ function renderComplaints(){
     appData._complaints=list;
     if(getRoute().page==='complaints'){
       document.getElementById('main').innerHTML='<div class="page-content">'+renderComplaintsHTML(list)+'</div>';
+    }
+  }).catch(e=>{
+    console.error(e);
+    appData._complaints=[];
+    if(getRoute().page==='complaints'){
+      document.getElementById('main').innerHTML='<div class="page-content">'+renderComplaintsHTML([])+'</div>';
     }
   });
   return '<div class="loading">加载中...</div>';
@@ -1910,8 +1937,16 @@ function renderWorkorderDetail(id){
     h+='<div style="display:flex;gap:4px;margin-bottom:12px;" id="woRating"><span style="font-size:28px;cursor:pointer;" onclick="setWORating(1)">☆</span><span style="font-size:28px;cursor:pointer;" onclick="setWORating(2)">☆</span><span style="font-size:28px;cursor:pointer;" onclick="setWORating(3)">☆</span><span style="font-size:28px;cursor:pointer;" onclick="setWORating(4)">☆</span><span style="font-size:28px;cursor:pointer;" onclick="setWORating(5)">☆</span></div>';
     h+='<textarea id="woRatingComment" rows="2" placeholder="评价留言（可选）" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:14px;"></textarea>';
     h+='<button class="poll-btn" style="margin-top:12px;" onclick="doWORating(\''+item.id+'\')">提交评价</button></div>';
-  }else if(item.rating){
-    h+='<div style="margin-top:16px;padding:12px;background:#e8f5e9;border-radius:8px;"><div>业主评价：'+'⭐'.repeat(item.rating)+'</div><div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">'+escapeHtml(item.comment||'')+'</div></div>';
+  }else if(item.rating != null && item.rating > 0){
+    h+='<div style="margin-top:20px;padding:16px;background:#e8f5e9;border-radius:8px;">';
+    h+='<div style="font-weight:600;margin-bottom:8px;">⭐ 业主评价</div>';
+    h+='<div style="font-size:20px;letter-spacing:2px;margin-bottom:8px;">'+'⭐'.repeat(item.rating)+'</div>';
+    if(item.comment){
+      h+='<div style="padding:12px;background:#fff;border-radius:6px;font-size:14px;color:var(--text);border-left:3px solid var(--primary);line-height:1.6;">'+escapeHtml(item.comment)+'</div>';
+    }else{
+      h+='<div style="font-size:13px;color:var(--text-secondary);">未填写文字评价</div>';
+    }
+    h+='</div>';
   }
   h+='<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
   return h;
@@ -1981,7 +2016,9 @@ function renderComplaintDetail(id){
     }
   }
   if(item.satisfaction!==null){
-    h+='<div style="margin-top:12px;padding:10px;background:#f0f2f5;border-radius:6px;font-size:13px;">您的反馈：'+(item.satisfaction?'👍 满意':'👎 不满意')+'</div>';
+    h+='<div style="margin-top:16px;padding:14px;background:#e8f5e9;border-radius:8px;font-size:14px;font-weight:500;">';
+    h+='💬 您的满意度反馈：'+(item.satisfaction?'👍 满意':'👎 不满意');
+    h+='</div>';
   }
   h+='<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
   return h;
