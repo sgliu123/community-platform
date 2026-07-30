@@ -46,5 +46,21 @@
     "replyAt": "",
     "satisfaction": null,
     "handler": ""
+  },
+  {
+    "id": "CP-20260730-JO4A",
+    "type": "投诉",
+    "title": "测试",
+    "content": "是",
+    "isAnonymous": false,
+    "residentRoom": "1-1-101",
+    "residentName": "测试业主01",
+    "status": "待处理",
+    "createdAt": "2026-07-30T13:48:41.542Z",
+    "updatedAt": "2026-07-30T13:48:41.542Z",
+    "reply": "",
+    "replyAt": "",
+    "satisfaction": null,
+    "handler": ""
   }
 ]
