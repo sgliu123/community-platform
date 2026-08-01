@@ -1811,6 +1811,7 @@ function formatDateTime(iso) {
 /* ========== 工单 & 投诉 管理端渲染函数（新增，不影响原有功能） ========== */
 
 function renderWorkordersAdmin(){
+  setTimeout(() => refreshWorkorders(), 50);
   return '<div id="woCard"><div class="empty-state"><div class="icon">🔧</div><div>正在加载工单数据...</div></div></div>';
 }
 
@@ -1863,6 +1864,7 @@ async function refreshWorkorders(){
 }
 
 function renderComplaintsAdmin(){
+  setTimeout(() => refreshComplaints(), 50);
   return '<div id="cpCard"><div class="empty-state"><div class="icon">📝</div><div>正在加载投诉建议数据...</div></div></div>';
 }
 
