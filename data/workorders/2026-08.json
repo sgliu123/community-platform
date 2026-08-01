@@ -29,5 +29,30 @@
     "comment": "",
     "assignedTo": "",
     "workerPhone": ""
+  },
+  {
+    "id": "WO-20260801-84OH",
+    "type": "电梯",
+    "title": "不动了",
+    "description": "一个问题",
+    "images": [
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785557572637_gdh2bp______20240227172636.jpg"
+    ],
+    "residentRoom": "1-1-101",
+    "residentName": "测试业主01",
+    "status": "待受理",
+    "createdAt": "2026-08-01T04:12:50.555Z",
+    "updatedAt": "2026-08-01T04:12:50.555Z",
+    "timeline": [
+      {
+        "time": "2026-08-01T04:12:50.555Z",
+        "action": "提交工单",
+        "operator": "测试业主01"
+      }
+    ],
+    "rating": null,
+    "comment": "",
+    "assignedTo": "",
+    "workerPhone": ""
   }
 ]
