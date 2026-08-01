@@ -1956,6 +1956,15 @@ function openWorkorderModal(id){
     body += '</div></div>';
   }
 
+  if(item.adminImages && item.adminImages.length){
+    body += '<div style="margin-bottom:12px;"><div style="font-weight:600;margin-bottom:8px;">📷 已上传处理图片</div>';
+    body += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    item.adminImages.forEach(url=>{
+      body += '<img src="'+url+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="window.open(\''+url+'\')">';
+    });
+    body += '</div></div>';
+  }
+
   body += '<div class="form-group"><label>当前状态</label><select id="woNewStatus">';
   ['待受理','已派单','处理中','待评价','已完成'].forEach(s=>{
     body += '<option value="'+s+'" '+(item.status===s?'selected':'')+'>'+s+'</option>';
