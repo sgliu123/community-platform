@@ -151,5 +151,32 @@
       "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785581773803_4mzw8r______20240322095528.jpg",
       "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785581775493_bg2v8c______20240322095537.jpg"
     ]
+  },
+  {
+    "id": "WO-20260801-7CSC",
+    "type": "水电",
+    "title": "测试",
+    "description": "给我們更多警示教育",
+    "images": [
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785585141301_a3xhd4______20240418142257.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785585143469_1e4xw1______20240423100244.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785585145316_rnxm1b______20240423100358.jpg"
+    ],
+    "residentRoom": "1-1-101",
+    "residentName": "测试业主01",
+    "status": "待受理",
+    "createdAt": "2026-08-01T11:52:23.061Z",
+    "updatedAt": "2026-08-01T11:52:23.061Z",
+    "timeline": [
+      {
+        "time": "2026-08-01T11:52:23.061Z",
+        "action": "提交工单",
+        "operator": "测试业主01"
+      }
+    ],
+    "rating": null,
+    "comment": "",
+    "assignedTo": "",
+    "workerPhone": ""
   }
 ]
