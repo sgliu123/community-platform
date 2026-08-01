@@ -448,5 +448,14 @@
     "status": "active",
     "isTest": true,
     "registeredAt": "2026-07-01"
+  },
+  {
+    "id": "r-051",
+    "roomNo": "10-1-302",
+    "name": "第五一",
+    "phoneSuffix": "0051",
+    "status": "active",
+    "isTest": false,
+    "registeredAt": "2026-08-01"
   }
 ]
