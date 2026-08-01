@@ -7,12 +7,19 @@
     "isAnonymous": false,
     "residentRoom": "1-1-101",
     "residentName": "测试业主01",
-    "status": "已办结",
+    "status": "已回复",
     "createdAt": "2026-08-01T04:05:41.682Z",
-    "updatedAt": "2026-08-01T04:13:21.085Z",
-    "reply": "收到，谢谢你的意见。然后会整改",
-    "replyAt": "2026-08-01T04:09:26.228Z",
+    "updatedAt": "2026-08-01T11:29:30.704Z",
+    "reply": "收到，谢谢你的意见。然后会整改。good",
+    "replyAt": "2026-08-01T11:29:30.704Z",
     "satisfaction": true,
-    "handler": "管理员A"
+    "handler": "管理员A",
+    "timeline": [
+      {
+        "time": "2026-08-01T11:29:30.704Z",
+        "action": "回复：收到，谢谢你的意见。然后会整改。good",
+        "operator": "管理员A"
+      }
+    ]
   }
 ]
