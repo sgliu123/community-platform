@@ -193,7 +193,7 @@
     "residentName": "测试业主01",
     "status": "待受理",
     "createdAt": "2026-08-01T13:43:21.680Z",
-    "updatedAt": "2026-08-01T13:43:21.680Z",
+    "updatedAt": "2026-08-01T13:48:00.246Z",
     "timeline": [
       {
         "time": "2026-08-01T13:43:21.680Z",
@@ -204,6 +204,11 @@
     "rating": null,
     "comment": "",
     "assignedTo": "",
-    "workerPhone": ""
+    "workerPhone": "",
+    "adminImages": [
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785592087259_woxkrr______20240418142238.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785592088763_ubnru0______20240418142244.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785592091252_66859k______20240418142249.jpg"
+    ]
   }
 ]
