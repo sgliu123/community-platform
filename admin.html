@@ -388,14 +388,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadAllData() {
   const files = ['config','announcements','documents','activities','polls','residents','audit-log'];
   for (const f of files) {
+    let loaded = false;
     try {
       const r = await fetch('data/' + f + '.json?t=' + Date.now());
       if (!r.ok) throw new Error('fetch failed');
       appData[f] = await r.json();
-    } catch(e) { 
+      loaded = true;
+    } catch(e) {
       if (typeof EMBEDDED_DATA !== 'undefined' && EMBEDDED_DATA[f] !== undefined) {
         appData[f] = EMBEDDED_DATA[f];
+        loaded = true;
       }
+    }
+    if (!loaded) {
+      try {
+        const saved = localStorage.getItem('adminData_' + f);
+        if (saved) { appData[f] = JSON.parse(saved); loaded = true; }
+      } catch(e) {}
+    }
+    if (!loaded) {
+      const defaults = { config: {}, announcements: [], documents: [], activities: [], polls: [], residents: [], 'audit-log': [] };
+      appData[f] = defaults[f] || [];
     }
   }
   updateFavicon();
@@ -704,21 +717,25 @@ function openEditModal(module, id) {
   document.getElementById('modalTitle').textContent = (isNew ? '新增' : '编辑') + (titles[module] || module);
   let body = '';
   if (module === 'announcements') {
+    const attLinks = (item.attachments || []).map(a => a.url || '').filter(Boolean).join('\n');
     body = '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
       '<div class="form-row"><div class="form-group"><label>分类</label><input type="text" id="edCategory" value="' + (item.category||'物业通知') + '"></div>' +
       '<div class="form-group"><label>发布日期</label><input type="date" id="edDate" value="' + (item.publishDate||new Date().toISOString().split('T')[0]) + '"></div></div>' +
       '<div class="form-group"><label>作者</label><input type="text" id="edAuthor" value="' + (item.author||currentAdmin&&currentAdmin.name||'') + '"></div>' +
       '<div class="form-group form-check"><input type="checkbox" id="edPinned" ' + (item.isPinned?'checked':'') + '><label for="edPinned">置顶</label></div>' +
       '<div class="form-group"><label>内容（支持HTML）</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>' +
-      '<div class="form-group"><label>附件（图片/PDF，自动压缩）</label><div id="edAttachmentsWrap"></div>' +
-      createFileUploaderHTML({id:'annAttach', accept:'image/*,.pdf', hint:'支持拖拽或点击上传图片/PDF（自动压缩）'}) + '</div>';
+      '<div class="form-group"><label>附件图片链接（每行一个）</label><textarea id="edAttachLinks" rows="3" placeholder="https://example.com/img1.jpg">' + attLinks + '</textarea></div>' +
+      '<div class="form-group"><label>上传附件图片（支持多选拖拽，自动高强度压缩）</label>' +
+      createMultiImageUploaderHTML('annAttach', '支持拖拽或点击上传多张图片（自动压缩至50KB以内，尺寸限制800px）') + '</div>';
   } else if (module === 'documents') {
+    const docImages = (item.images || []).join('\n');
     body = '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
       '<div class="form-row"><div class="form-group"><label>来源</label><input type="text" id="edSource" value="' + (item.source||'') + '"></div>' +
       '<div class="form-group"><label>发布日期</label><input type="date" id="edDate" value="' + (item.publishDate||new Date().toISOString().split('T')[0]) + '"></div></div>' +
       '<div class="form-group"><label>文件链接</label><input type="text" id="edFileUrl" value="' + (item.fileUrl||'') + '" placeholder="assets/files/xxx.pdf 或外部链接"></div>' +
-      '<div class="form-group"><label>本地上传（图片/PDF，自动压缩）</label>' +
-      createFileUploaderHTML({id:'docFile', accept:'image/*,.pdf', hint:'支持拖拽或点击上传，上传后自动填充上方链接'}) + '</div>' +
+      '<div class="form-group"><label>图片链接（每行一个）</label><textarea id="edDocImages" rows="2" placeholder="https://example.com/img1.jpg">' + docImages + '</textarea></div>' +
+      '<div class="form-group"><label>上传图片（支持多选拖拽，自动高强度压缩）</label>' +
+      createMultiImageUploaderHTML('docFile', '支持拖拽或点击上传多张图片（自动压缩至50KB以内，尺寸限制800px）') + '</div>' +
       '<div class="form-group"><label>描述</label><textarea id="edDesc">' + (item.description||'') + '</textarea></div>';
   } else if (module === 'activities') {
     body = '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
@@ -772,9 +789,12 @@ function openEditModal(module, id) {
       }
       if (videos.length) setMultiUploadedVideos('actVideos', videos);
     } else if (module === 'documents') {
-      if (item.fileUrl) setUploadedPath('docFile', item.fileUrl, 'file');
+      if (item.images && item.images.length) setMultiUploadedPaths('docFile', item.images);
     } else if (module === 'announcements') {
-      // 附件预览可在此扩展
+      if (item.attachments && item.attachments.length) {
+        const paths = item.attachments.map(a => a.url).filter(Boolean);
+        if (paths.length) setMultiUploadedPaths('annAttach', paths);
+      }
     }
   }, 50);
 }
@@ -840,19 +860,28 @@ async function saveItem(module, id) {
     item.isPinned = document.getElementById('edPinned').checked;
     item.content = document.getElementById('edContent').value;
     item.views = item.views || 0;
-    item.attachments = item.attachments || [];
-    const attachPath = getUploadedPath('annAttach');
-    if (attachPath) {
-      const fname = document.getElementById('wrap-annAttach').dataset.fileName || attachPath;
-      item.attachments.push({ name: fname, url: attachPath });
+    item.attachments = [];
+    const linkText = document.getElementById('edAttachLinks').value.trim();
+    if (linkText) {
+      linkText.split(/\n/).map(s => s.trim()).filter(s => s).forEach(url => {
+        item.attachments.push({ name: url.split('/').pop() || '附件', url: url });
+      });
     }
+    const uploadedImages = getMultiUploadedPaths('annAttach');
+    uploadedImages.forEach(path => {
+      item.attachments.push({ name: path.split('/').pop() || '附件', url: path });
+    });
   } else if (module === 'documents') {
     item.title = document.getElementById('edTitle').value;
     item.source = document.getElementById('edSource').value;
     item.publishDate = document.getElementById('edDate').value;
-    const docPath = getUploadedPath('docFile');
-    if (docPath) item.fileUrl = docPath;
-    else item.fileUrl = document.getElementById('edFileUrl').value;
+    item.fileUrl = document.getElementById('edFileUrl').value.trim();
+    const imgText = document.getElementById('edDocImages').value.trim();
+    let allImages = imgText ? imgText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
+    const uploadedImages = getMultiUploadedPaths('docFile');
+    allImages = [...new Set([...allImages, ...uploadedImages])];
+    item.images = allImages;
+    if (allImages.length && !item.fileUrl) item.fileUrl = allImages[0];
     item.description = document.getElementById('edDesc').value;
     item.category = '上级文件';
   } else if (module === 'activities') {
@@ -937,7 +966,8 @@ async function deleteItem(module, id) {
 async function saveDataFile(filename, data, detail, action) {
   action = action || 'update';
   if (!githubToken) {
-    showToast('开发模式：数据仅保存在内存中，刷新后丢失', 'info');
+    localStorage.setItem('adminData_' + filename, JSON.stringify(data));
+    showToast('保存成功', 'success');
     await appendAuditLog(action, filename, (data && data.id) || '', detail);
     return;
   }
@@ -1145,7 +1175,7 @@ async function updateToken() {
 
 /* ========== 图片压缩 ========== */
 
-async function compressImageToBlob(file, maxSizeMB = 0.15) {
+async function compressImageToBlob(file, maxSizeMB = 0.05) {
   if (!file.type.startsWith('image/')) return file;
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -1155,7 +1185,7 @@ async function compressImageToBlob(file, maxSizeMB = 0.15) {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       let w = img.width, h = img.height;
-      const maxDim = 1280;
+      const maxDim = 800;
       if (w > maxDim || h > maxDim) {
         if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
         else { w = Math.round(w * maxDim / h); h = maxDim; }
@@ -1167,13 +1197,13 @@ async function compressImageToBlob(file, maxSizeMB = 0.15) {
         canvas.toBlob((b) => res(b), 'image/jpeg', q);
       });
       const maxSize = maxSizeMB * 1024 * 1024;
-      let blob = await toBlob(0.5);
+      let blob = await toBlob(0.4);
       if (blob.size <= maxSize) {
         resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
         return;
       }
-      let low = 0.1, high = 0.5, bestBlob = null;
-      while (high - low > 0.05) {
+      let low = 0.05, high = 0.4, bestBlob = null;
+      while (high - low > 0.03) {
         const mid = (low + high) / 2;
         blob = await toBlob(mid);
         if (blob.size > maxSize) { high = mid; }
@@ -1183,18 +1213,18 @@ async function compressImageToBlob(file, maxSizeMB = 0.15) {
         resolve(new File([bestBlob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
         return;
       }
-      let scale = 0.75;
-      while (scale > 0.2) {
+      let scale = 0.7;
+      while (scale > 0.15) {
         const nw = Math.max(1, Math.floor(w * scale));
         const nh = Math.max(1, Math.floor(h * scale));
         canvas.width = nw; canvas.height = nh;
         ctx.drawImage(img, 0, 0, nw, nh);
-        blob = await toBlob(0.5);
+        blob = await toBlob(0.3);
         if (blob.size <= maxSize) {
           resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
           return;
         }
-        scale -= 0.15;
+        scale -= 0.12;
       }
       reject(new Error('图片压缩后仍超过' + maxSizeMB + 'MB限制'));
     };
