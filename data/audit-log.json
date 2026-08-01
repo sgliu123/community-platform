@@ -383,5 +383,16 @@
     "targetId": "",
     "details": "新增动态《测试一下》",
     "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+  },
+  {
+    "id": "log-1785582261605",
+    "timestamp": "2026-08-01T11:04:21.605Z",
+    "adminName": "管理员A",
+    "adminId": "admin-1",
+    "action": "create",
+    "target": "announcements",
+    "targetId": "",
+    "details": "新增公告《测试一下》",
+    "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
   }
 ]
