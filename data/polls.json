@@ -44,5 +44,28 @@
     },
     "createdBy": "管理员D",
     "createdAt": "2026-06-01T09:00:00Z"
+  },
+  {
+    "id": "poll-003",
+    "caseNo": "2026-YJ-003",
+    "title": "测试一下",
+    "startDate": "2026-08-01",
+    "endDate": "2026-08-02",
+    "status": "进行中",
+    "tencentUrl": "",
+    "progress": {
+      "target": 300,
+      "current": 0,
+      "unit": "户"
+    },
+    "results": {
+      "isPublished": false,
+      "summary": "",
+      "detailUrl": ""
+    },
+    "description": "",
+    "type": "opinion",
+    "createdBy": "管理员A",
+    "createdAt": "2026-08-01T11:18:11.009Z"
   }
 ]
