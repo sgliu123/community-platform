@@ -89,19 +89,27 @@
     ],
     "residentRoom": "1-1-101",
     "residentName": "测试业主01",
-    "status": "待受理",
+    "status": "处理中",
     "createdAt": "2026-08-01T06:40:25.943Z",
-    "updatedAt": "2026-08-01T06:40:25.943Z",
+    "updatedAt": "2026-08-01T06:42:49.484Z",
     "timeline": [
       {
         "time": "2026-08-01T06:40:25.943Z",
         "action": "提交工单",
         "operator": "测试业主01"
+      },
+      {
+        "time": "2026-08-01T06:42:49.484Z",
+        "action": "清洁工具带上",
+        "operator": "管理员A"
       }
     ],
     "rating": null,
     "comment": "",
-    "assignedTo": "",
-    "workerPhone": ""
+    "assignedTo": "王小二",
+    "workerPhone": "13000009",
+    "adminImages": [
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785566575214_tjl23h______20240227172700.jpg"
+    ]
   }
 ]
