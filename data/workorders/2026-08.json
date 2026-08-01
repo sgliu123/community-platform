@@ -114,5 +114,32 @@
       "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785570125909_o3d8j5______20240226183607.jpg",
       "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785579750964_faiy6r______20240226183647.jpg"
     ]
+  },
+  {
+    "id": "WO-20260801-KD6E",
+    "type": "门窗",
+    "title": "测试",
+    "description": "还有一个空格",
+    "images": [
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785581507702_uw995x______20240322095609.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785581509709_3agucj______20240322100109.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785581511520_fm6opq______20240325183646.jpg"
+    ],
+    "residentRoom": "1-1-101",
+    "residentName": "测试业主01",
+    "status": "待受理",
+    "createdAt": "2026-08-01T10:51:48.880Z",
+    "updatedAt": "2026-08-01T10:51:48.880Z",
+    "timeline": [
+      {
+        "time": "2026-08-01T10:51:48.880Z",
+        "action": "提交工单",
+        "operator": "测试业主01"
+      }
+    ],
+    "rating": null,
+    "comment": "",
+    "assignedTo": "",
+    "workerPhone": ""
   }
 ]
