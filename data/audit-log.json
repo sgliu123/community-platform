@@ -385,36 +385,36 @@
     "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
   },
   {
-    "id": "log-1785582479205",
-    "timestamp": "2026-08-01T11:07:59.205Z",
+    "id": "log-1785582674482",
+    "timestamp": "2026-08-01T11:11:14.482Z",
     "adminName": "管理员A",
     "adminId": "admin-1",
     "action": "create",
-    "target": "announcements",
+    "target": "documents",
     "targetId": "",
-    "details": "新增公告《测试一下》",
+    "details": "新增文件《湖边看看》",
     "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
   },
   {
-    "id": "log-1785583007172",
-    "timestamp": "2026-08-01T11:16:47.172Z",
+    "id": "log-1785583095755",
+    "timestamp": "2026-08-01T11:18:15.755Z",
     "adminName": "管理员A",
     "adminId": "admin-1",
     "action": "create",
-    "target": "activities",
+    "target": "polls",
     "targetId": "",
-    "details": "新增动态《湖边看看》",
+    "details": "新增投票《测试一下》",
     "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
   },
   {
-    "id": "log-1785583208820",
-    "timestamp": "2026-08-01T11:20:08.820Z",
+    "id": "log-1785583376942",
+    "timestamp": "2026-08-01T11:22:56.942Z",
     "adminName": "管理员A",
     "adminId": "admin-1",
-    "action": "create",
-    "target": "residents",
+    "action": "update",
+    "target": "config",
     "targetId": "",
-    "details": "新增业主《第五一》",
+    "details": "更新社区配置",
     "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
   }
 ]
