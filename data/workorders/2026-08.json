@@ -78,5 +78,30 @@
       "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785565906197_f5xui3______20240322095609.jpg",
       "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785566077101_m7t7bi______20240322095556.jpg"
     ]
+  },
+  {
+    "id": "WO-20260801-ZI8Z",
+    "type": "保洁",
+    "title": "垃圾太多",
+    "description": "在小区广场上",
+    "images": [
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785566428020_yutmkw______20240322100131.jpg"
+    ],
+    "residentRoom": "1-1-101",
+    "residentName": "测试业主01",
+    "status": "待受理",
+    "createdAt": "2026-08-01T06:40:25.943Z",
+    "updatedAt": "2026-08-01T06:40:25.943Z",
+    "timeline": [
+      {
+        "time": "2026-08-01T06:40:25.943Z",
+        "action": "提交工单",
+        "operator": "测试业主01"
+      }
+    ],
+    "rating": null,
+    "comment": "",
+    "assignedTo": "",
+    "workerPhone": ""
   }
 ]
