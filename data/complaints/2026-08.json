@@ -1,0 +1,18 @@
+[
+  {
+    "id": "CP-20260801-Q6DM",
+    "type": "投诉",
+    "title": "测试",
+    "content": "吃什么问题",
+    "isAnonymous": false,
+    "residentRoom": "1-1-101",
+    "residentName": "测试业主01",
+    "status": "待处理",
+    "createdAt": "2026-08-01T04:05:41.682Z",
+    "updatedAt": "2026-08-01T04:05:41.682Z",
+    "reply": "",
+    "replyAt": "",
+    "satisfaction": null,
+    "handler": ""
+  }
+]
