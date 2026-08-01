@@ -5,18 +5,24 @@
     "title": "测试",
     "description": "春秋短款",
     "images": [
-      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785557076343_159cnj______20240227172636.jpg"
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785557076343_159cnj______20240227172636.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785557452035_eecc6u______20240226183407.jpg"
     ],
     "residentRoom": "1-1-101",
     "residentName": "测试业主01",
-    "status": "待受理",
+    "status": "待评价",
     "createdAt": "2026-08-01T04:04:34.623Z",
-    "updatedAt": "2026-08-01T04:04:34.624Z",
+    "updatedAt": "2026-08-01T04:10:46.207Z",
     "timeline": [
       {
         "time": "2026-08-01T04:04:34.624Z",
         "action": "提交工单",
         "operator": "测试业主01"
+      },
+      {
+        "time": "2026-08-01T04:10:46.207Z",
+        "action": "已经修复",
+        "operator": "管理员A"
       }
     ],
     "rating": null,
