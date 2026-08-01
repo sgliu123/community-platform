@@ -1078,12 +1078,15 @@ function renderDocumentDetail(id) {
   h += '<span>来源：' + d.source + '</span><span>发布日期：' + d.publishDate + '</span><span>' + d.category + '</span></div></div>';
   h += '<div class="detail-content">' + d.description + '</div>';
   h = renderInlineMedia(h);
+  // 多图显示（后台 images 数组）
+  const allImages = d.images || [];
+  if (allImages.length > 0) {
+    h += renderPhotoGallery(allImages, '文件图片', 'var(--primary)');
+  }
+  // fileUrl 保留 PDF/文件下载
   if (d.fileUrl) {
-    const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(d.fileUrl);
     const isPdf = /\.pdf$/i.test(d.fileUrl);
-    if (isImg) {
-      h += '<div style="margin-top:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><img src="' + d.fileUrl + '" style="width:100%;display:block;" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div style="display:none;padding:20px;text-align:center;color:var(--text-secondary);">图片加载失败</div></div>';
-    } else if (isPdf) {
+    if (isPdf) {
       h += '<div style="margin-top:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><iframe src="' + d.fileUrl + '" style="width:100%;height:600px;border:none;" title="PDF预览" loading="lazy"></iframe></div>';
     }
     h += '<div style="margin-top:12px;"><a href="' + d.fileUrl + '" target="_blank" class="poll-btn">📎 查看/下载文件</a></div>';
@@ -1091,7 +1094,6 @@ function renderDocumentDetail(id) {
   h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
   return h;
 }
-
 function getEmbedUrl(url) {
   if (!url) return url;
   const bvMatch = url.match(/bilibili\.com\/video\/(BV[\w]+)/i);
@@ -1870,10 +1872,10 @@ function formatFileSize(bytes) {
 
 function compressImage(file, options) {
   options = options || {};
-  var maxWidth = options.maxWidth || 1920;
-  var maxHeight = options.maxHeight || 1920;
-  var quality = options.quality || 0.85;
-  var maxSize = options.maxSize || 1024 * 1024;
+  var maxWidth = options.maxWidth || 800;
+  var maxHeight = options.maxHeight || 800;
+  var quality = options.quality || 0.4;
+  var maxSize = options.maxSize || 50 * 1024;
   return new Promise(function(resolve, reject) {
     if (!file || !file.type.match(/image.*/)) { resolve(file); return; }
     var img = new Image();
@@ -1925,7 +1927,7 @@ async function handleWOImages(input) {
   for (var i = 0; i < files.length; i++) {
     try {
       var f = files[i];
-      var compressed = await compressImage(f, { maxWidth: 1600, maxHeight: 1600, quality: 0.82, maxSize: 600 * 1024 });
+      var compressed = await compressImage(f, { maxWidth: 800, maxHeight: 800, quality: 0.4, maxSize: 50 * 1024 });
       _woImages.push(compressed);
       var url = URL.createObjectURL(compressed);
       var sizeHtml = '<div style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.6);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px;backdrop-filter:blur(2px);">' + formatFileSize(compressed.size) + '</div>';
