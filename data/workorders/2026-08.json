@@ -47,7 +47,7 @@
     "residentName": "测试业主01",
     "status": "处理中",
     "createdAt": "2026-08-01T04:12:50.555Z",
-    "updatedAt": "2026-08-01T06:27:45.376Z",
+    "updatedAt": "2026-08-01T06:31:40.874Z",
     "timeline": [
       {
         "time": "2026-08-01T04:12:50.555Z",
@@ -55,17 +55,17 @@
         "operator": "测试业主01"
       },
       {
-        "time": "2026-08-01T06:27:45.376Z",
-        "action": "现场查看处理",
+        "time": "2026-08-01T06:31:40.874Z",
+        "action": "今天已经在处理，预计三小时完全修复",
         "operator": "管理员A"
       }
     ],
     "rating": null,
     "comment": "",
-    "assignedTo": "tt",
+    "assignedTo": "王小二",
     "workerPhone": "13000009",
     "adminImages": [
-      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785565670753_6shwn5______20240322095556.jpg"
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785565906197_f5xui3______20240322095609.jpg"
     ]
   }
 ]
