@@ -418,14 +418,14 @@
     "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
   },
   {
-    "id": "log-1785586145333",
-    "timestamp": "2026-08-01T12:09:05.333Z",
+    "id": "log-1785586326830",
+    "timestamp": "2026-08-01T12:12:06.830Z",
     "adminName": "管理员A",
     "adminId": "admin-1",
     "action": "update",
-    "target": "config",
+    "target": "announcements",
     "targetId": "",
-    "details": "更新社区配置",
+    "details": "更新公告《测试一下》",
     "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
   }
 ]
