@@ -1,7 +1,7 @@
 {
   "community": {
-    "name": "春天花园",
-    "address": "阳光大道 100 号",
+    "name": "春天花园小区",
+    "address": "阳光大道 87 号",
     "totalUnits": 909,
     "builtYear": "2005",
     "area": "5.2万平方米",
@@ -11,7 +11,7 @@
     "logo": "assets/uploads/1785196357004_rx65ji_jimeng-2026-04-24-9978-_________1______________________________....png",
     "slogan": "共建和谐社区，共享美好生活",
     "favicon": "assets/uploads/1785196338814_q7g2co_jimeng-2026-04-24-9978-_________1______________________________....png",
-    "siteTitle": "春天社区花园"
+    "siteTitle": "春天社区小区花园"
   },
   "settings": {
     "maxAnnouncements": 200,
