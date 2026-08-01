@@ -45,9 +45,9 @@
     ],
     "residentRoom": "1-1-101",
     "residentName": "测试业主01",
-    "status": "处理中",
+    "status": "待评价",
     "createdAt": "2026-08-01T04:12:50.555Z",
-    "updatedAt": "2026-08-01T06:31:40.874Z",
+    "updatedAt": "2026-08-01T06:34:31.613Z",
     "timeline": [
       {
         "time": "2026-08-01T04:12:50.555Z",
@@ -58,6 +58,11 @@
         "time": "2026-08-01T06:31:40.874Z",
         "action": "今天已经在处理，预计三小时完全修复",
         "operator": "管理员A"
+      },
+      {
+        "time": "2026-08-01T06:34:31.613Z",
+        "action": "已经恢复正常",
+        "operator": "管理员A"
       }
     ],
     "rating": null,
@@ -65,7 +70,8 @@
     "assignedTo": "王小二",
     "workerPhone": "13000009",
     "adminImages": [
-      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785565906197_f5xui3______20240322095609.jpg"
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785565906197_f5xui3______20240322095609.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785566077101_m7t7bi______20240322095556.jpg"
     ]
   }
 ]
