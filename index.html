@@ -1941,7 +1941,27 @@ async function doSubmitComplaint(){
 function renderWorkorderDetail(id){
   const list=appData._workorders||[];
   const item=list.find(x=>x.id===id);
-  if(!item) return '<div class="empty">工单不存在</div>';
+  if(!item){
+    if(residentAuth && !appData._woLoading){
+      appData._woLoading=true;
+      loadMyWorkorders().then(function(loaded){
+        appData._workorders=loaded;
+        appData._woLoading=false;
+        var r=getRoute();
+        if(r.page==='workorder-detail' && r.params===id){
+          document.getElementById('main').innerHTML='<div class="page-content">'+renderWorkorderDetail(id)+'</div>';
+        }
+      }).catch(function(e){
+        appData._woLoading=false;
+        var r=getRoute();
+        if(r.page==='workorder-detail' && r.params===id){
+          document.getElementById('main').innerHTML='<div class="page-content"><div class="empty">加载失败，请刷新重试</div></div>';
+        }
+      });
+      return '<div class="loading">正在加载工单数据...</div>';
+    }
+    return '<div class="empty">工单不存在</div>';
+  }
   let h='<div class="card"><div class="detail-header"><h1>'+escapeHtml(item.title)+'</h1>';
   h+='<div class="detail-meta"><span class="list-badge '+woStatusBadge(item.status)+'">'+item.status+'</span>';
   h+='<span>类型：'+item.type+'</span><span>工单号：'+item.id+'</span><span>提交：'+formatDate(item.createdAt)+'</span></div></div>';
@@ -2011,7 +2031,27 @@ async function doWORating(id){
 function renderComplaintDetail(id){
   const list=appData._complaints||[];
   const item=list.find(x=>x.id===id);
-  if(!item) return '<div class="empty">记录不存在</div>';
+  if(!item){
+    if(residentAuth && !appData._cpLoading){
+      appData._cpLoading=true;
+      loadMyComplaints().then(function(loaded){
+        appData._complaints=loaded;
+        appData._cpLoading=false;
+        var r=getRoute();
+        if(r.page==='complaint-detail' && r.params===id){
+          document.getElementById('main').innerHTML='<div class="page-content">'+renderComplaintDetail(id)+'</div>';
+        }
+      }).catch(function(e){
+        appData._cpLoading=false;
+        var r=getRoute();
+        if(r.page==='complaint-detail' && r.params===id){
+          document.getElementById('main').innerHTML='<div class="page-content"><div class="empty">加载失败，请刷新重试</div></div>';
+        }
+      });
+      return '<div class="loading">正在加载反馈数据...</div>';
+    }
+    return '<div class="empty">记录不存在</div>';
+  }
   let h='<div class="card"><div class="detail-header"><h1>'+(item.isAnonymous?'匿名'+item.type:escapeHtml(item.title))+'</h1>';
   h+='<div class="detail-meta"><span class="list-badge '+cpStatusBadge(item.status)+'">'+item.status+'</span>';
   h+='<span>类型：'+item.type+'</span><span>编号：'+item.id+'</span><span>提交：'+formatDate(item.createdAt)+'</span></div></div>';
