@@ -245,7 +245,7 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
 </head>
 <body>
 
-<div class="login-page" id="loginPage">
+<div class="login-page" id="loginPage" style="display:none;">
   <div class="login-box">
     <h2>🔐 管理员登录</h2>
     <p class="subtitle">春天阳光小区 · 管理后台</p>
@@ -381,7 +381,7 @@ let currentAdmin = null;
 const SALT = "SunlightCommunity2026";
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await loadAllData();
+  try { await loadAllData(); } catch(e) { console.error(e); }
   autoSkipLogin();
 });
 
@@ -1811,20 +1811,7 @@ function formatDateTime(iso) {
 /* ========== 工单 & 投诉 管理端渲染函数（新增，不影响原有功能） ========== */
 
 function renderWorkordersAdmin(){
-  const list = appData.workorders || [];
-  const counts = { '待受理':0, '已派单':0, '处理中':0, '待评价':0, '已完成':0 };
-  list.forEach(x => { if(x && x.status && counts[x.status]!==undefined) counts[x.status]++; });
-  let h = '<div class="card"><div class="card-header"><h3>🔧 工单管理</h3>';
-  h += '<div class="actions"><button class="btn" onclick="refreshWorkorders()">🔄 刷新</button></div></div>';
-  h += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">';
-  Object.entries(counts).forEach(([k,v])=>{
-    h += '<button class="btn btn-sm" onclick="filterWOStatus(\''+k+'\')" style="'+(v>0?'font-weight:600;':'')+'">'+k+' ('+v+')</button>';
-  });
-  h += '<button class="btn btn-sm" onclick="filterWOStatus(\'\')">全部 ('+list.length+')</button></div>';
-  h += '<div id="woList">' + renderWOList(list) + '</div></div>';
-  // 异步加载
-  refreshWorkorders();
-  return h;
+  return '<div id="woCard"><div class="empty-state"><div class="icon">🔧</div><div>正在加载工单数据...</div></div></div>';
 }
 
 function renderWOList(list){
@@ -1842,37 +1829,41 @@ function renderWOList(list){
 }
 
 let _woFilterStatus = '';
+
+function renderWorkordersContent(){
+  const list = appData.workorders || [];
+  const counts = { '待受理':0, '已派单':0, '处理中':0, '待评价':0, '已完成':0 };
+  list.forEach(x => { if(x && x.status && counts[x.status]!==undefined) counts[x.status]++; });
+  let h = '<div class="card"><div class="card-header"><h3>🔧 工单管理</h3>';
+  h += '<div class="actions"><button class="btn" onclick="refreshWorkorders()">🔄 刷新</button></div></div>';
+  h += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">';
+  Object.entries(counts).forEach(([k,v])=>{
+    const active = _woFilterStatus===k ? 'background:var(--primary);color:#fff;border-color:var(--primary);' : '';
+    h += '<button class="btn btn-sm" onclick="filterWOStatus(\''+k+'\')" style="'+active+(v>0?'font-weight:600;':'')+'">'+k+' ('+v+')</button>';
+  });
+  const allActive = _woFilterStatus==='' ? 'background:var(--primary);color:#fff;border-color:var(--primary);' : '';
+  h += '<button class="btn btn-sm" onclick="filterWOStatus(\'\')" style="'+allActive+'">全部 ('+list.length+')</button></div>';
+  h += '<div id="woList">' + renderWOList(_woFilterStatus ? list.filter(x=>x.status===_woFilterStatus) : list) + '</div></div>';
+  const el = document.getElementById('woCard');
+  if(el) el.innerHTML = h;
+}
+
 function filterWOStatus(status){
   _woFilterStatus = status;
-  const list = (appData.workorders||[]).filter(x => !status || x.status === status);
-  document.getElementById('woList').innerHTML = renderWOList(list);
+  renderWorkordersContent();
 }
 
 async function refreshWorkorders(){
   showLoading(true);
   try{
     appData.workorders = await loadAllWorkorders();
-    const list = _woFilterStatus ? appData.workorders.filter(x=>x.status===_woFilterStatus) : appData.workorders;
-    const el = document.getElementById('woList');
-    if(el) el.innerHTML = renderWOList(list);
+    renderWorkordersContent();
   }catch(e){ showToast('加载失败：'+e.message, 'error'); }
   finally{ showLoading(false); }
 }
 
 function renderComplaintsAdmin(){
-  const list = appData.complaints || [];
-  const counts = { '待处理':0, '处理中':0, '已回复':0, '已办结':0 };
-  list.forEach(x => { if(x && x.status && counts[x.status]!==undefined) counts[x.status]++; });
-  let h = '<div class="card"><div class="card-header"><h3>📝 投诉建议</h3>';
-  h += '<div class="actions"><button class="btn" onclick="refreshComplaints()">🔄 刷新</button></div></div>';
-  h += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">';
-  Object.entries(counts).forEach(([k,v])=>{
-    h += '<button class="btn btn-sm" onclick="filterCPStatus(\''+k+'\')" style="'+(v>0?'font-weight:600;':'')+'">'+k+' ('+v+')</button>';
-  });
-  h += '<button class="btn btn-sm" onclick="filterCPStatus(\'\')">全部 ('+list.length+')</button></div>';
-  h += '<div id="cpList">' + renderCPList(list) + '</div></div>';
-  refreshComplaints();
-  return h;
+  return '<div id="cpCard"><div class="empty-state"><div class="icon">📝</div><div>正在加载投诉建议数据...</div></div></div>';
 }
 
 function renderCPList(list){
@@ -1880,7 +1871,8 @@ function renderCPList(list){
   let h = '<table class="data-table"><thead><tr><th>编号</th><th>类型</th><th>标题</th><th>房号</th><th>状态</th><th>提交时间</th><th>操作</th></tr></thead><tbody>';
   list.slice().reverse().forEach(item=>{
     if(!item) return;
-    h += '<tr><td>'+(item.id||'')+'</td><td>'+(item.type||'')+'</td><td>'+(item.isAnonymous?'匿名'+(item.type||''):escapeHtml(item.title||''))+'</td><td>'+(item.residentRoom||'')+'</td>';
+    h += '<tr><td>'+(item.id||'')+'</td><td>'+(item.type||'')+'</td>';
+    h += '<td>'+(item.isAnonymous?'匿名'+item.type:escapeHtml(item.title||''))+'</td><td>'+(item.residentRoom||'')+'</td>';
     h += '<td><span class="tag '+cpStatusClass(item.status)+'">'+item.status+'</span></td>';
     h += '<td>'+formatDateTime(item.createdAt)+'</td>';
     h += '<td class="actions"><button onclick="openComplaintModal(\''+item.id+'\')">处理</button></td></tr>';
@@ -1890,19 +1882,35 @@ function renderCPList(list){
 }
 
 let _cpFilterStatus = '';
+
+function renderComplaintsContent(){
+  const list = appData.complaints || [];
+  const counts = { '待处理':0, '处理中':0, '已回复':0, '已办结':0 };
+  list.forEach(x => { if(x && x.status && counts[x.status]!==undefined) counts[x.status]++; });
+  let h = '<div class="card"><div class="card-header"><h3>📝 投诉建议</h3>';
+  h += '<div class="actions"><button class="btn" onclick="refreshComplaints()">🔄 刷新</button></div></div>';
+  h += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">';
+  Object.entries(counts).forEach(([k,v])=>{
+    const active = _cpFilterStatus===k ? 'background:var(--primary);color:#fff;border-color:var(--primary);' : '';
+    h += '<button class="btn btn-sm" onclick="filterCPStatus(\''+k+'\')" style="'+active+(v>0?'font-weight:600;':'')+'">'+k+' ('+v+')</button>';
+  });
+  const allActive = _cpFilterStatus==='' ? 'background:var(--primary);color:#fff;border-color:var(--primary);' : '';
+  h += '<button class="btn btn-sm" onclick="filterCPStatus(\'\')" style="'+allActive+'">全部 ('+list.length+')</button></div>';
+  h += '<div id="cpList">' + renderCPList(_cpFilterStatus ? list.filter(x=>x.status===_cpFilterStatus) : list) + '</div></div>';
+  const el = document.getElementById('cpCard');
+  if(el) el.innerHTML = h;
+}
+
 function filterCPStatus(status){
   _cpFilterStatus = status;
-  const list = (appData.complaints||[]).filter(x => !status || x.status === status);
-  document.getElementById('cpList').innerHTML = renderCPList(list);
+  renderComplaintsContent();
 }
 
 async function refreshComplaints(){
   showLoading(true);
   try{
     appData.complaints = await loadAllComplaints();
-    const list = _cpFilterStatus ? appData.complaints.filter(x=>x.status===_cpFilterStatus) : appData.complaints;
-    const el = document.getElementById('cpList');
-    if(el) el.innerHTML = renderCPList(list);
+    renderComplaintsContent();
   }catch(e){ showToast('加载失败：'+e.message, 'error'); }
   finally{ showLoading(false); }
 }
@@ -1924,6 +1932,28 @@ function openWorkorderModal(id){
     body += '</div>';
   }
   body += '</div>';
+
+  if(item.rating !== undefined && item.rating !== null){
+    body += '<div style="margin-bottom:12px;padding:12px;background:#e8f5e9;border-radius:8px;border-left:4px solid var(--success);">';
+    body += '<div style="font-weight:600;color:var(--success);margin-bottom:4px;">⭐ 业主评价</div>';
+    body += '<div style="font-size:20px;color:#f9a825;margin-bottom:4px;">' + '★'.repeat(item.rating) + '☆'.repeat(5-item.rating) + ' <span style="font-size:14px;color:var(--text-secondary);">'+item.rating+'/5</span></div>';
+    if(item.ratingComment) body += '<div style="font-size:13px;">'+escapeHtml(item.ratingComment)+'</div>';
+    body += '</div>';
+  }
+
+  if(item.timeline && item.timeline.length){
+    body += '<div style="margin-bottom:12px;"><div style="font-weight:600;margin-bottom:8px;">📋 处理节点记录</div>';
+    body += '<div style="border-left:2px solid var(--border);padding-left:12px;">';
+    item.timeline.forEach((t, i) => {
+      body += '<div style="position:relative;margin-bottom:12px;padding-bottom:12px;'+(i<item.timeline.length-1?'border-bottom:1px dashed var(--border);':'')+'">';
+      body += '<div style="position:absolute;left:-17px;top:2px;width:10px;height:10px;background:var(--primary);border-radius:50%;"></div>';
+      body += '<div style="font-size:12px;color:var(--text-secondary);">'+formatDateTime(t.time)+' · '+(t.operator||'系统')+'</div>';
+      body += '<div style="font-size:13px;margin-top:4px;">'+escapeHtml(t.action)+'</div>';
+      body += '</div>';
+    });
+    body += '</div></div>';
+  }
+
   body += '<div class="form-group"><label>当前状态</label><select id="woNewStatus">';
   ['待受理','已派单','处理中','待评价','已完成'].forEach(s=>{
     body += '<option value="'+s+'" '+(item.status===s?'selected':'')+'>'+s+'</option>';
@@ -1935,6 +1965,7 @@ function openWorkorderModal(id){
   body += '<div class="form-group"><label>处理图片（可选）</label><div id="woAdminImagesPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>';
   body += '<input type="file" id="woAdminImages" accept="image/*" multiple style="display:none" onchange="handleWOAdminImages(this)">';
   body += '<button type="button" class="btn" onclick="document.getElementById(\'woAdminImages\').click()">📎 上传图片</button></div>';
+  body += '<div style="text-align:right;margin-top:8px;"><button class="btn" onclick="downloadWorkorderSummary(\''+id+'\')">📥 下载处理总结</button></div>';
   document.getElementById('modalBody').innerHTML = body;
   document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveWorkorderAction(\''+id+'\')">保存</button>';
   document.getElementById('modalOverlay').classList.add('active');
@@ -1975,7 +2006,6 @@ async function saveWorkorderAction(id){
     if(reply && (status==='已派单'||status==='处理中')) item.status='处理中';
     if(status==='已完成' && (item.rating===undefined || item.rating===null)) item.status='待评价';
     item.updatedAt = new Date().toISOString();
-    // 上传处理图片
     for(const f of _woAdminImages){
       const r = await workerUpload(f);
       item.adminImages = item.adminImages || [];
@@ -2000,9 +2030,39 @@ function openComplaintModal(id){
   body += '<div style="font-weight:600;margin-bottom:4px;">'+(item.isAnonymous?'匿名'+item.type:escapeHtml(item.title))+'</div>';
   body += '<div style="font-size:13px;color:var(--text-secondary);">'+(item.type||'')+' · '+(item.residentRoom||'')+' · '+(item.isAnonymous?'匿名':(item.residentName||''))+'</div>';
   body += '<div style="font-size:13px;margin-top:8px;">'+escapeHtml(item.content||'')+'</div>';
+  if(item.images && item.images.length){
+    body += '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">';
+    item.images.forEach(url=>{
+      body += '<img src="'+url+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="window.open(\''+url+'\')">';
+    });
+    body += '</div>';
+  }
   body += '</div>';
-  body += '<div class="form-group"><label>回复内容</label><textarea id="cpReply" rows="4" placeholder="填写回复内容..."></textarea></div>';
+
+  if(item.reply){
+    body += '<div style="margin-bottom:12px;padding:12px;background:#e3f2fd;border-radius:8px;border-left:4px solid #1976D2;">';
+    body += '<div style="font-weight:600;color:#1976D2;margin-bottom:4px;">💬 已回复</div>';
+    body += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">'+formatDateTime(item.replyAt)+' · '+(item.handler||'管理员')+'</div>';
+    body += '<div style="font-size:13px;">'+escapeHtml(item.reply)+'</div>';
+    body += '</div>';
+  }
+
+  if(item.timeline && item.timeline.length){
+    body += '<div style="margin-bottom:12px;"><div style="font-weight:600;margin-bottom:8px;">📋 处理节点记录</div>';
+    body += '<div style="border-left:2px solid var(--border);padding-left:12px;">';
+    item.timeline.forEach((t, i) => {
+      body += '<div style="position:relative;margin-bottom:12px;padding-bottom:12px;'+(i<item.timeline.length-1?'border-bottom:1px dashed var(--border);':'')+'">';
+      body += '<div style="position:absolute;left:-17px;top:2px;width:10px;height:10px;background:var(--primary);border-radius:50%;"></div>';
+      body += '<div style="font-size:12px;color:var(--text-secondary);">'+formatDateTime(t.time)+' · '+(t.operator||'系统')+'</div>';
+      body += '<div style="font-size:13px;margin-top:4px;">'+escapeHtml(t.action)+'</div>';
+      body += '</div>';
+    });
+    body += '</div></div>';
+  }
+
+  body += '<div class="form-group"><label>回复内容</label><textarea id="cpReply" rows="4" placeholder="填写回复内容...">'+(item.reply||'')+'</textarea></div>';
   body += '<div class="form-group"><label>操作</label><select id="cpAction"><option value="reply">回复业主</option><option value="close">直接办结</option></select></div>';
+  body += '<div style="text-align:right;margin-top:8px;"><button class="btn" onclick="downloadComplaintSummary(\''+id+'\')">📥 下载处理总结</button></div>';
   document.getElementById('modalBody').innerHTML = body;
   document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveComplaintAction(\''+id+'\')">保存</button>';
   document.getElementById('modalOverlay').classList.add('active');
@@ -2022,6 +2082,8 @@ async function saveComplaintAction(id){
     item.status = action==='close' ? '已办结' : '已回复';
     item.handler = currentAdmin && currentAdmin.name || '管理员';
     item.updatedAt = new Date().toISOString();
+    item.timeline = item.timeline || [];
+    item.timeline.push({time:new Date().toISOString(), action: action==='close'?'直接办结':('回复：'+reply), operator: item.handler});
     await workerWrite(path, list, '管理员处理反馈 '+id);
     appData.complaints = list;
     closeModal();
@@ -2029,6 +2091,78 @@ async function saveComplaintAction(id){
     navigateTo('complaints');
   }catch(e){ showToast('处理失败：'+e.message, 'error'); }
   finally{ showLoading(false); }
+}
+
+function downloadWorkorderSummary(id){
+  const item = (appData.workorders||[]).find(x=>x.id===id);
+  if(!item) return;
+  let text = '工单处理总结\n';
+  text += '============================\n';
+  text += '工单号：'+item.id+'\n';
+  text += '标题：'+(item.title||'')+'\n';
+  text += '类型：'+(item.type||'')+'\n';
+  text += '房号：'+(item.residentRoom||'')+'\n';
+  text += '业主：'+(item.residentName||'')+'\n';
+  text += '当前状态：'+item.status+'\n';
+  text += '提交时间：'+formatDateTime(item.createdAt)+'\n';
+  text += '问题描述：'+(item.description||'')+'\n\n';
+  if(item.assignedTo){
+    text += '指派维修工：'+item.assignedTo+'\n';
+    text += '维修工电话：'+(item.workerPhone||'')+'\n\n';
+  }
+  if(item.timeline && item.timeline.length){
+    text += '【处理节点记录】\n';
+    item.timeline.forEach(t => {
+      text += formatDateTime(t.time) + ' | ' + (t.operator||'系统') + ' | ' + t.action + '\n';
+    });
+    text += '\n';
+  }
+  if(item.rating !== undefined && item.rating !== null){
+    text += '【业主评价】\n';
+    text += '评分：' + item.rating + '/5\n';
+    text += '评价内容：' + (item.ratingComment||'') + '\n';
+  }
+  const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '工单总结_'+item.id+'.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadComplaintSummary(id){
+  const item = (appData.complaints||[]).find(x=>x.id===id);
+  if(!item) return;
+  let text = '投诉建议处理总结\n';
+  text += '================================\n';
+  text += '编号：'+item.id+'\n';
+  text += '类型：'+(item.type||'')+'\n';
+  text += '标题：'+(item.isAnonymous?'匿名'+item.type:(item.title||''))+'\n';
+  text += '房号：'+(item.residentRoom||'')+'\n';
+  text += '业主：'+(item.isAnonymous?'匿名':(item.residentName||''))+'\n';
+  text += '当前状态：'+item.status+'\n';
+  text += '提交时间：'+formatDateTime(item.createdAt)+'\n';
+  text += '内容：'+(item.content||'')+'\n\n';
+  if(item.reply){
+    text += '【回复记录】\n';
+    text += '回复时间：'+formatDateTime(item.replyAt)+'\n';
+    text += '处理人：'+(item.handler||'')+'\n';
+    text += '回复内容：'+item.reply+'\n\n';
+  }
+  if(item.timeline && item.timeline.length){
+    text += '【处理节点记录】\n';
+    item.timeline.forEach(t => {
+      text += formatDateTime(t.time) + ' | ' + (t.operator||'系统') + ' | ' + t.action + '\n';
+    });
+  }
+  const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '投诉建议总结_'+item.id+'.txt';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function escapeHtml(text){
