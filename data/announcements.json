@@ -139,5 +139,21 @@
         "url": "assets/uploads/1785149382547_kqbw55_jimeng-2026-04-24-9978-_________1______________________________....png"
       }
     ]
+  },
+  {
+    "id": "ann-012",
+    "title": "测试一下",
+    "category": "物业通知",
+    "publishDate": "2026-08-01",
+    "author": "管理员A",
+    "isPinned": false,
+    "content": "",
+    "views": 0,
+    "attachments": [
+      {
+        "name": "微信图片_20240416115746.jpg",
+        "url": "assets/uploads/1785582253127_xmofc6______20240416115746.jpg"
+      }
+    ]
   }
 ]
