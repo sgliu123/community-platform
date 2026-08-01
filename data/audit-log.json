@@ -449,5 +449,16 @@
     "targetId": "",
     "details": "更新文件《湖边看看》",
     "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+  },
+  {
+    "id": "log-1785586952972",
+    "timestamp": "2026-08-01T12:22:32.972Z",
+    "adminName": "管理员A",
+    "adminId": "admin-1",
+    "action": "update",
+    "target": "activities",
+    "targetId": "",
+    "details": "更新动态《湖边看看》",
+    "clientInfo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
   }
 ]
