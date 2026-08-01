@@ -1437,6 +1437,36 @@ function renderActivityDetail(id) {
 
   
 
+
+  if (a.adminImages && a.adminImages.length > 0) {
+    h += '<div class="gallery-section">';
+    h += '<div class="section-title"><span class="section-icon">📷</span>补充图集 <span class="section-count">' + a.adminImages.length + ' 张</span></div>';
+    if (a.adminImages.length === 1) {
+      h += '<div class="single-image-box" onclick="window.open(\'' + a.adminImages[0] + '\')">';
+      h += '<img src="' + a.adminImages[0] + '" alt="补充图片" loading="lazy">';
+      h += '</div>';
+    } else {
+      const gid = 'gal-admin-' + id.replace(/[^a-zA-Z0-9]/g, '');
+      h += '<div class="image-gallery" id="' + gid + '" data-index="0" data-total="' + a.adminImages.length + '" data-auto="true">';
+      h += '<div class="gallery-counter">1 / ' + a.adminImages.length + '</div>';
+      h += '<div class="gallery-container">';
+      a.adminImages.forEach(function(img, idx) {
+        h += '<div class="gallery-slide" onclick="window.open(\'' + img + '\')">';
+        h += '<img src="' + img + '" alt="图' + (idx+1) + '" loading="lazy">';
+        h += '</div>';
+      });
+      h += '</div>';
+      h += '<button class="gallery-nav prev" onclick="prevSlide(\'' + gid + '\', event)">‹</button>';
+      h += '<button class="gallery-nav next" onclick="nextSlide(\'' + gid + '\', event)">›</button>';
+      h += '<div class="gallery-dots">';
+      a.adminImages.forEach(function(_, idx) {
+        h += '<span class="' + (idx===0 ? 'active' : '') + '" onclick="goToSlide(\'' + gid + '\', ' + idx + ', event)"></span>';
+      });
+      h += '</div></div>';
+    }
+    h += '</div>';
+  }
+
   h += '<div class="action-buttons">';
   h += '<button class="action-btn primary" onclick="history.back()">← 返回列表</button>';
   h += '</div>';
