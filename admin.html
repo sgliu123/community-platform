@@ -998,16 +998,17 @@ async function deleteItem(module, id) {
 async function saveDataFile(filename, data, detail, action) {
   action = action || 'update';
 
-  // 优先使用 Worker 持久化
+  // 优先使用 Worker 持久化（确保前端实时同步）
   const workerBase = getWorkerBase();
   if (workerBase) {
     try {
       await workerWrite('data/' + filename + '.json', data, detail);
-      showToast('保存成功', 'success');
+      showToast('✅ 已同步到云端，前端将自动更新', 'success');
       await appendAuditLog(action, filename, (data && data.id) || '', detail);
       return;
     } catch(e) {
       console.error('Worker 保存失败，回退到本地:', e);
+      showToast('⚠️ Worker 同步失败：' + e.message + '，已保存到本地', 'error');
       // 回退到 localStorage
     }
   }
@@ -1297,8 +1298,32 @@ async function uploadFileToRepo(file, folder) {
   if (file.size > maxSizeMB * 1024 * 1024) {
     throw new Error('文件大小超过限制（' + maxSizeMB + 'MB）');
   }
+
+  // ===== 优先使用 Worker 上传（确保前端可实时访问）=====
+  const workerBase = getWorkerBase();
+  if (workerBase) {
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(workerBase + '/api/upload', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error('Worker 上传返回 ' + res.status);
+      const result = await res.json();
+      if (result && result.url) {
+        console.log('[Worker Upload] 成功:', result.url);
+        return result.url;
+      }
+    } catch (e) {
+      console.error('Worker 上传失败，尝试 GitHub:', e);
+      // 继续回退到 GitHub
+    }
+  }
+
+  // ===== 回退到 GitHub API =====
   if (!githubToken) {
-    return URL.createObjectURL(file);
+    // 如果连 GitHub 也没有，返回临时 blob（仅当前页可用，会提示用户）
+    const blobUrl = URL.createObjectURL(file);
+    showToast('警告：未配置 Worker 或 GitHub，文件仅临时可用', 'error');
+    return blobUrl;
   }
   const ownerRepo = await getRepoInfo();
   if (!ownerRepo) throw new Error('无法获取仓库信息，请检查Token');

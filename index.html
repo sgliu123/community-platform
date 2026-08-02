@@ -706,23 +706,47 @@ a { text-decoration:none; color:var(--primary); }
 let appData = {};
 
 // ===== 实时数据加载：优先从 Worker 读取，回退静态 JSON =====
-async function loadModuleFromWorker(paths) {
+async function loadModuleFromWorker(paths, moduleName) {
   const workerBase = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
-  if (!workerBase) return null;
+  if (!workerBase) {
+    console.log('[Worker] 未配置 Worker 地址，跳过实时读取');
+    return null;
+  }
   const base = workerBase.replace(/\/$/, '');
   if (!Array.isArray(paths)) paths = [paths];
   for (const path of paths) {
     try {
-      const res = await fetch(base + '/api/read/' + encodeURIComponent(path) + '?t=' + Date.now(), {
+      const url = base + '/api/read/' + encodeURIComponent(path) + '?t=' + Date.now();
+      console.log('[Worker] 尝试读取:', moduleName || path, '->', url);
+      const res = await fetch(url, {
         cache: 'no-store',
         headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
       });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        console.log('[Worker] 读取失败:', path, '状态码:', res.status);
+        continue;
+      }
       const text = await res.text();
-      if (!text || text.trim() === '') continue;
-      return JSON.parse(text);
-    } catch (e) { continue; }
+      if (!text || text.trim() === '') {
+        console.log('[Worker] 返回空内容:', path);
+        continue;
+      }
+      const data = JSON.parse(text);
+      // 检查是否为空数据（空对象或空数组），如果是则视为无效，继续尝试下一个路径
+      const isEmpty = (Array.isArray(data) && data.length === 0) ||
+                      (typeof data === 'object' && data !== null && Object.keys(data).length === 0);
+      if (isEmpty) {
+        console.log('[Worker] 返回空数据:', path, '继续尝试其他路径');
+        continue;
+      }
+      console.log('[Worker] ✅ 成功读取:', moduleName || path, '数据量:', Array.isArray(data) ? data.length : Object.keys(data).length);
+      return data;
+    } catch (e) {
+      console.log('[Worker] 读取异常:', path, e.message);
+      continue;
+    }
   }
+  console.log('[Worker] ⚠️ 所有路径均无效:', moduleName, 'paths:', paths);
   return null;
 }
 
@@ -858,7 +882,7 @@ async function loadData() {
   const results = await Promise.all(files.map(async (f) => {
     // 1) 优先从 Worker 实时读取
     if (workerPaths[f]) {
-      const wd = await loadModuleFromWorker(workerPaths[f]);
+      const wd = await loadModuleFromWorker(workerPaths[f], f);
       if (wd !== null) {
         console.log('[Worker] 已加载模块:', f);
         return { key: f, data: wd, ok: true, source: 'worker' };
