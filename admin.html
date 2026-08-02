@@ -900,7 +900,7 @@ async function saveItem(module, id) {
       });
     }
     const uploadedImages = getMultiUploadedPaths('annAttach');
-    uploadedImages.forEach(path => {
+    uploadedImages.filter(path => !path.startsWith('blob:')).forEach(path => {
       item.attachments.push({ name: path.split('/').pop() || '附件', url: path });
     });
   } else if (module === 'documents') {
@@ -911,7 +911,7 @@ async function saveItem(module, id) {
     const imgText = document.getElementById('edDocImages').value.trim();
     let allImages = imgText ? imgText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
     const uploadedImages = getMultiUploadedPaths('docFile');
-    allImages = [...new Set([...allImages, ...uploadedImages])];
+    allImages = [...new Set([...allImages, ...uploadedImages])].filter(url => !url.startsWith('blob:'));
     item.images = allImages;
     if (allImages.length && !item.fileUrl) item.fileUrl = allImages[0];
     item.description = document.getElementById('edDesc').value;
@@ -929,8 +929,10 @@ async function saveItem(module, id) {
     const uploadedImages = getMultiUploadedPaths('actImages');
     allImages = [...new Set([...allImages, ...uploadedImages])].slice(0, 15);
     item.images = allImages;
+    // 检测并过滤掉失效的 blob 链接
+    item.images = item.images.filter(url => !url.startsWith('blob:'));
     const uploadedVideos = getMultiUploadedVideos('actVideos');
-    item.videos = uploadedVideos.map(v => v.path);
+    item.videos = uploadedVideos.map(v => v.path).filter(url => !url.startsWith('blob:'));
     const vlinkText = document.getElementById('edVideoLinks').value.trim();
     item.videoLinks = vlinkText ? vlinkText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
     item.videoUrl = item.videos[0] || '';  // 本地视频URL，不再混用外部链接
@@ -1305,15 +1307,22 @@ async function uploadFileToRepo(file, folder) {
     try {
       const fd = new FormData();
       fd.append('file', file);
+      console.log('[Worker Upload] 开始上传:', file.name, '大小:', (file.size/1024).toFixed(1), 'KB');
       const res = await fetch(workerBase + '/api/upload', { method: 'POST', body: fd });
-      if (!res.ok) throw new Error('Worker 上传返回 ' + res.status);
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error('Worker 返回 ' + res.status + ': ' + errText.substring(0,200));
+      }
       const result = await res.json();
       if (result && result.url) {
-        console.log('[Worker Upload] 成功:', result.url);
+        console.log('[Worker Upload] ✅ 成功:', result.url);
         return result.url;
+      } else {
+        throw new Error('Worker 返回数据异常: ' + JSON.stringify(result));
       }
     } catch (e) {
-      console.error('Worker 上传失败，尝试 GitHub:', e);
+      console.error('[Worker Upload] ❌ 失败:', e.message);
+      showToast('Worker 上传失败: ' + e.message + '，尝试 GitHub...', 'error');
       // 继续回退到 GitHub
     }
   }
@@ -1322,7 +1331,8 @@ async function uploadFileToRepo(file, folder) {
   if (!githubToken) {
     // 如果连 GitHub 也没有，返回临时 blob（仅当前页可用，会提示用户）
     const blobUrl = URL.createObjectURL(file);
-    showToast('警告：未配置 Worker 或 GitHub，文件仅临时可用', 'error');
+    console.warn('[Upload] ⚠️ 未配置 Worker 或 GitHub，返回临时 blob:', blobUrl);
+    showToast('⚠️ 警告：未配置 Worker 或 GitHub，文件仅当前页可用，刷新后失效', 'error');
     return blobUrl;
   }
   const ownerRepo = await getRepoInfo();

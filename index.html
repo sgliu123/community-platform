@@ -716,12 +716,10 @@ async function loadModuleFromWorker(paths, moduleName) {
   if (!Array.isArray(paths)) paths = [paths];
   for (const path of paths) {
     try {
-      const url = base + '/api/read/' + encodeURIComponent(path) + '?t=' + Date.now();
-      console.log('[Worker] 尝试读取:', moduleName || path, '->', url);
-      const res = await fetch(url, {
-        cache: 'no-store',
-        headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
-      });
+      // 用URL时间戳防缓存，避免添加自定义header触发CORS预检
+      const url = base + '/api/read/' + encodeURIComponent(path) + '?_=' + Date.now() + '&r=' + Math.random().toString(36).substr(2,5);
+      console.log('[Worker] 尝试读取:', moduleName || path);
+      const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) {
         console.log('[Worker] 读取失败:', path, '状态码:', res.status);
         continue;
@@ -890,9 +888,8 @@ async function loadData() {
     }
     // 2) 回退到静态 JSON（强制无缓存）
     try {
-      const r = await fetch("./data/" + f + ".json?t=" + Date.now(), {
-        cache: 'no-store',
-        headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+      const r = await fetch("./data/" + f + ".json?_=" + Date.now() + "&r=" + Math.random().toString(36).substr(2,5), {
+        cache: 'no-store'
       });
       if (!r.ok) throw new Error("fetch failed");
       return { key: f, data: await r.json(), ok: true, source: 'static' };
