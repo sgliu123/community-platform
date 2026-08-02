@@ -1848,10 +1848,15 @@ function renderWOList(list){
   let h = '<table class="data-table"><thead><tr><th>工单号</th><th>类型</th><th>标题</th><th>房号</th><th>状态</th><th>提交时间</th><th>操作</th></tr></thead><tbody>';
   list.slice().reverse().forEach(item=>{
     if(!item) return;
+    const isLocked = item.status === '已完成' && !item.isTest;
     h += '<tr><td>'+(item.id||'')+'</td><td>'+(item.type||'')+'</td><td>'+escapeHtml(item.title||'')+'</td><td>'+(item.residentRoom||'')+'</td>';
     h += '<td><span class="tag '+woStatusClass(item.status)+'">'+item.status+'</span></td>';
     h += '<td>'+formatDateTime(item.createdAt)+'</td>';
-    h += '<td class="actions"><button onclick="openWorkorderModal(\''+item.id+'\')">处理</button></td></tr>';
+    if(isLocked){
+      h += '<td class="actions"><span style="color:var(--text-secondary);font-size:12px;">🔒 已锁定</span></td></tr>';
+    } else {
+      h += '<td class="actions"><button onclick="openWorkorderModal(\''+item.id+'\')">处理</button></td></tr>';
+    }
   });
   h += '</tbody></table>';
   return h;
@@ -1886,6 +1891,17 @@ async function refreshWorkorders(){
   showLoading(true);
   try{
     appData.workorders = await loadAllWorkorders();
+    // 5-year retention: filter out completed non-test workorders older than 5 years from display
+    const now = new Date();
+    const fiveYearsAgo = new Date(now.getFullYear()-5, now.getMonth(), now.getDate());
+    appData.workorders = (appData.workorders || []).filter(item => {
+      if(!item) return false;
+      // Keep all non-completed, all test data, and completed within 5 years
+      if(item.status !== '已完成') return true;
+      if(item.isTest) return true;
+      const created = item.createdAt ? new Date(item.createdAt) : new Date();
+      return created >= fiveYearsAgo;
+    });
     renderWorkordersContent();
   }catch(e){ showToast('加载失败：'+e.message, 'error'); }
   finally{ showLoading(false); }
@@ -1949,6 +1965,7 @@ function openWorkorderModal(id){
   const list = appData.workorders || [];
   const item = list.find(x=>x.id===id);
   if(!item) return;
+  const isLocked = item.status === '已完成' && !item.isTest;
   document.getElementById('modalTitle').textContent = '处理工单：'+item.id;
   let body = '<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">';
   body += '<div style="font-weight:600;margin-bottom:4px;">'+escapeHtml(item.title)+'</div>';
@@ -1993,20 +2010,34 @@ function openWorkorderModal(id){
     body += '</div></div>';
   }
 
-  body += '<div class="form-group"><label>当前状态</label><select id="woNewStatus">';
+  if(isLocked){
+    body += '<div style="margin-bottom:16px;padding:12px;background:#fff3e0;border-radius:8px;border-left:4px solid var(--warning);text-align:center;">';
+    body += '<div style="font-weight:600;color:var(--warning);font-size:15px;">🔒 该工单已完成并锁定</div>';
+    body += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">系统归档保存，不可修改（测试数据除外）</div>';
+    body += '</div>';
+  }
+
+  body += '<div class="form-group"><label>当前状态</label><select id="woNewStatus" '+(isLocked?'disabled style="background:#f5f5f5;"':'')+'>';
   ['待受理','已派单','处理中','待评价','已完成'].forEach(s=>{
     body += '<option value="'+s+'" '+(item.status===s?'selected':'')+'>'+s+'</option>';
   });
   body += '</select></div>';
-  body += '<div class="form-group"><label>指派维修工</label><input type="text" id="woAssignee" value="'+escapeHtml(item.assignedTo||'')+'" placeholder="维修工姓名"></div>';
-  body += '<div class="form-group"><label>维修工电话</label><input type="text" id="woWorkerPhone" value="'+escapeHtml(item.workerPhone||'')+'" placeholder="联系电话"></div>';
-  body += '<div class="form-group"><label>处理说明</label><textarea id="woReply" rows="3" placeholder="填写处理进度、结果等"></textarea></div>';
+  body += '<div class="form-group"><label>指派维修工</label><input type="text" id="woAssignee" value="'+escapeHtml(item.assignedTo||'')+'" placeholder="维修工姓名" '+(isLocked?'readonly style="background:#f5f5f5;"':'')+'></div>';
+  body += '<div class="form-group"><label>维修工电话</label><input type="text" id="woWorkerPhone" value="'+escapeHtml(item.workerPhone||'')+'" placeholder="联系电话" '+(isLocked?'readonly style="background:#f5f5f5;"':'')+'></div>';
+  body += '<div class="form-group"><label>处理说明</label><textarea id="woReply" rows="3" placeholder="填写处理进度、结果等" '+(isLocked?'readonly style="background:#f5f5f5;"':'')+'></textarea></div>';
   body += '<div class="form-group"><label>处理图片（可选）</label><div id="woAdminImagesPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>';
-  body += '<input type="file" id="woAdminImages" accept="image/*" multiple style="display:none" onchange="handleWOAdminImages(this)">';
-  body += '<button type="button" class="btn" onclick="document.getElementById(\'woAdminImages\').click()">📎 上传图片</button></div>';
+  if(!isLocked){
+    body += '<input type="file" id="woAdminImages" accept="image/*" multiple style="display:none" onchange="handleWOAdminImages(this)">';
+    body += '<button type="button" class="btn" onclick="document.getElementById(\'woAdminImages\').click()">📎 上传图片</button>';
+  }
+  body += '</div>';
   body += '<div style="text-align:right;margin-top:8px;"><button class="btn" onclick="downloadWorkorderSummary(\''+id+'\')">📥 下载处理总结</button></div>';
   document.getElementById('modalBody').innerHTML = body;
-  document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveWorkorderAction(\''+id+'\')">保存</button>';
+  if(isLocked){
+    document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">关闭</button>';
+  } else {
+    document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveWorkorderAction(\''+id+'\')">保存</button>';
+  }
   document.getElementById('modalOverlay').classList.add('active');
 }
 
@@ -2027,6 +2058,12 @@ async function handleWOAdminImages(input){
 }
 
 async function saveWorkorderAction(id){
+  const list = appData.workorders || [];
+  const checkItem = list.find(x=>x.id===id);
+  if(checkItem && checkItem.status === '已完成' && !checkItem.isTest){
+    showToast('该工单已完成并锁定，不可修改', 'error');
+    return;
+  }
   const status = document.getElementById('woNewStatus').value;
   const assignee = document.getElementById('woAssignee').value.trim();
   const workerPhone = document.getElementById('woWorkerPhone').value.trim();
@@ -2037,6 +2074,9 @@ async function saveWorkorderAction(id){
     const list = await workerRead(path);
     const item = list.find(x=>x.id===id);
     if(!item) throw new Error('工单不存在');
+    if(item.status === '已完成' && !item.isTest){
+      throw new Error('该工单已完成并锁定，不可修改');
+    }
     const oldStatus = item.status;
     item.status = status;
     item.assignedTo = assignee;
