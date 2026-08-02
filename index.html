@@ -641,6 +641,10 @@ a { text-decoration:none; color:var(--primary); }
 .photo-item.error { background: #ffebee; display: flex; align-items: center; justify-content: center; min-height: 140px; }
 .photo-item.error::after { content: '图片加载失败'; color: #c62828; font-size: 12px; }
 .photo-item.error img { display: none; }
+.photo-item .photo-skeleton { position: absolute; inset: 0; background: linear-gradient(90deg, #f0f2f5 25%, #e4e6e9 50%, #f0f2f5 75%); background-size: 200% 100%; animation: skeletonShine 1.5s infinite; z-index: 1; }
+.photo-item img { position: relative; z-index: 2; opacity: 0; transition: opacity 0.3s; }
+.photo-item img.loaded { opacity: 1; }
+@keyframes skeletonShine { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 </style>
   <link rel="icon" id="faviconLink" type="image/png" href="">
@@ -2273,24 +2277,74 @@ async function doCPSatisfaction(id,sat){
 function renderPhotoGallery(images, title, color) {
   if (!images || !images.length) return '';
   color = color || 'var(--primary)';
-  var h = '<div style="margin-top:16px;">';
+  var gid = 'pg-' + Math.random().toString(36).substr(2, 6);
+  var h = '<div style="margin-top:16px;" id="' + gid + '">';
   h += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;display:flex;align-items:center;gap:6px;">';
   h += '<span style="display:inline-block;width:4px;height:14px;background:' + color + ';border-radius:2px;"></span>';
   h += escapeHtml(title) + ' <span style="font-weight:400;color:#999;">(' + images.length + '张)</span></div>';
   h += '<div class="photo-grid">';
   images.forEach(function(url, idx) {
     var safeUrl = url.replace(/'/g, "\'");
-    // 使用 thumb 参数或原图（如果服务器支持缩略图可以在这里加 ?w=400 等）
     var thumbUrl = url;
-    h += '<div class="photo-item" onclick="openImagePreview(' + "'" + safeUrl + "'" + ')">';
-    h += '<img src="' + thumbUrl + '" loading="lazy" decoding="async" alt="图片' + (idx+1) + '" onerror="this.parentElement.classList.add(\'error\')">';
+    var fallbackUrl = '';
+    var ghMatch = url.match(/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)/);
+    if (ghMatch) {
+      fallbackUrl = 'https://cdn.jsdelivr.net/gh/' + ghMatch[1] + '/' + ghMatch[2] + '@' + ghMatch[3] + '/' + ghMatch[4];
+    }
+    h += '<div class="photo-item" data-src="' + thumbUrl + '" data-fallback="' + fallbackUrl + '" data-preview="' + safeUrl + '" onclick="openImagePreview(this.dataset.preview)">';
+    h += '<div class="photo-skeleton"></div>';
+    h += '<img data-src="' + thumbUrl + '" data-fallback="' + fallbackUrl + '" alt="图片' + (idx+1) + '" onload="this.classList.add(\'loaded\');var sk=this.parentElement.querySelector(\'.photo-skeleton\');if(sk)sk.style.display=\'none\'" onerror="retryPhotoLoad(this)">';
     h += '<div class="photo-overlay"><span>🔍 查看大图</span></div>';
     h += '</div>';
   });
   h += '</div></div>';
+  setTimeout(function() { initPhotoLazyLoad(gid); }, 50);
   return h;
 }
 
+function retryPhotoLoad(img) {
+  var retries = parseInt(img.dataset.retries || '0');
+  var src = img.dataset.src;
+  var fallback = img.dataset.fallback;
+  if (retries < 2) {
+    img.dataset.retries = (retries + 1).toString();
+    setTimeout(function() {
+      img.src = src + (src.indexOf('?') > -1 ? '&' : '?') + '_retry=' + retries;
+    }, 300 * (retries + 1));
+  } else if (fallback && retries < 4) {
+    img.dataset.retries = (retries + 1).toString();
+    setTimeout(function() {
+      img.src = fallback;
+    }, 500);
+  } else {
+    img.parentElement.classList.add('error');
+    img.style.display = 'none';
+  }
+}
+
+function initPhotoLazyLoad(gid) {
+  var container = document.getElementById(gid);
+  if (!container) return;
+  var imgs = container.querySelectorAll('img[data-src]');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          var img = entry.target;
+          if (!img.src && img.dataset.src) {
+            img.src = img.dataset.src;
+          }
+          observer.unobserve(img);
+        }
+      });
+    }, { rootMargin: '200px', threshold: 0.01 });
+    imgs.forEach(function(img) { observer.observe(img); });
+  } else {
+    imgs.forEach(function(img) {
+      if (img.dataset.src) img.src = img.dataset.src;
+    });
+  }
+}
 function openImagePreview(url) {
   var modal = document.getElementById('imagePreviewModal');
   var img = document.getElementById('imagePreviewImg');
