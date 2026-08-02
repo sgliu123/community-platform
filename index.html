@@ -730,11 +730,10 @@ async function loadModuleFromWorker(paths, moduleName) {
         continue;
       }
       const data = JSON.parse(text);
-      // 检查是否为空数据（空对象或空数组），如果是则视为无效，继续尝试下一个路径
-      const isEmpty = (Array.isArray(data) && data.length === 0) ||
-                      (typeof data === 'object' && data !== null && Object.keys(data).length === 0);
-      if (isEmpty) {
-        console.log('[Worker] 返回空数据:', path, '继续尝试其他路径');
+      // 空数组 [] 和空对象 {} 都是合法数据（表示用户已清空该模块）
+      // 只有 null/undefined 才视为无效
+      if (data === null || data === undefined) {
+        console.log('[Worker] 返回 null/undefined:', path, '继续尝试其他路径');
         continue;
       }
       console.log('[Worker] ✅ 成功读取:', moduleName || path, '数据量:', Array.isArray(data) ? data.length : Object.keys(data).length);
@@ -912,7 +911,9 @@ async function loadData() {
       const b64 = document.getElementById("embedded-b64").textContent.trim();
       const ed = JSON.parse(decodeURIComponent(escape(atob(b64))));
       files.forEach(function(f){
-        if (!appData[f] || (Array.isArray(appData[f]) && appData[f].length === 0)) {
+        // 只有该模块完全未加载（undefined）时才使用 embedded 数据
+        // 已加载的空数组 [] 或空对象 {} 不应被覆盖
+        if (!(f in appData)) {
           appData[f] = ed[f] || (f === 'config' ? {} : []);
         }
       });
