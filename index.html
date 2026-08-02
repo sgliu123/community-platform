@@ -667,6 +667,7 @@ a { text-decoration:none; color:var(--primary); }
     <a href="javascript:void(0)" onclick="navigate('polls');return false;" data-page="polls">投票</a>
     <a href="javascript:void(0)" onclick="navigate('workorders');return false;" data-page="workorders">报修</a>
     <a href="javascript:void(0)" onclick="navigate('complaints');return false;" data-page="complaints">反馈</a>
+    <a href="javascript:void(0)" onclick="navigate('public-complaints');return false;" data-page="public-complaints">反馈公示</a>
   </nav>
   <div class="header-user">
     <span id="userName" style="font-size:13px;"></span>
@@ -873,6 +874,7 @@ function render() {
     "poll-detail": () => renderPollDetail(r.params),
     "workorder-detail": () => renderWorkorderDetail(r.params),
     "complaint-detail": () => renderComplaintDetail(r.params),
+    "public-complaints": renderPublicComplaints,
     workorders: renderWorkorders,
     complaints: renderComplaints,
     "submit-workorder": renderSubmitWorkorder,
@@ -902,6 +904,7 @@ function renderHome() {
   h += `<div class="quick-link" onclick="navigate('polls')"><div class="icon">🗳️</div><div class="label">投票征集</div></div>`;
   h += `<div class="quick-link" onclick="navigate('submit-workorder')"><div class="icon">🔧</div><div class="label">我要报修</div></div>`;
   h += `<div class="quick-link" onclick="navigate('submit-complaint')"><div class="icon">📝</div><div class="label">投诉建议</div></div>`;
+  h += `<div class="quick-link" onclick="navigate('public-complaints')"><div class="icon">📋</div><div class="label">反馈公示</div></div>`;
   if (residentAuth) {
     h += `<div class="quick-link" onclick="navigate('workorders')"><div class="icon">📋</div><div class="label">我的报修</div></div>`;
     h += `<div class="quick-link" onclick="navigate('complaints')"><div class="icon">📋</div><div class="label">我的反馈</div></div>`;
@@ -920,6 +923,35 @@ function renderHome() {
     latest.forEach(a => h += renderListItem(a, "announcement"));
     h += '</div>';
   }
+  setTimeout(async () => {
+    try {
+      const complaints = await loadComplaintsFromWorker();
+      const previewContainer = document.getElementById('homeComplaintsPreview');
+      if (previewContainer) {
+        if (!complaints || !complaints.length) {
+          previewContainer.innerHTML = '<div style="text-align:center;padding:20px;color:#999;font-size:13px;">暂无投诉建议</div>';
+        } else {
+          let html = '<div style="display:flex;flex-direction:column;gap:12px;">';
+          complaints.slice().reverse().slice(0, 3).forEach(item => {
+            if (!item) return;
+            const title = item.isAnonymous ? '匿名' + item.type : escapeHtml(item.title || '');
+            const statusColor = item.status === '已办结' ? '#2e7d32' : (item.status === '已回复' ? '#1976d2' : '#e65100');
+            const statusBg = item.status === '已办结' ? '#e8f5e9' : (item.status === '已回复' ? '#e3f2fd' : '#fff3e0');
+            html += '<div style="padding:12px;background:#fafbfc;border-radius:8px;border:1px solid #eef0f2;cursor:pointer;" onclick="navigate(&#39;public-complaints&#39;)">';
+            html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">';
+            html += '<div style="font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">' + title + '</div>';
+            html += '<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:' + statusBg + ';color:' + statusColor + ';margin-left:8px;flex-shrink:0;">' + item.status + '</span>';
+            html += '</div>';
+            html += '<div style="font-size:12px;color:#999;">' + (item.type || '') + ' &middot; ' + (item.residentRoom || '') + ' &middot; ' + formatDate(item.createdAt) + '</div>';
+            html += '</div>';
+          });
+          html += '</div>';
+          previewContainer.innerHTML = html;
+        }
+      }
+    } catch (e) { console.error('加载首页反馈预览失败', e); }
+  }, 100);
+
   return h;
 }
 
@@ -1001,6 +1033,75 @@ function renderPolls() {
   }
   h += '</div>';
   return h;
+}
+
+/* ===== 公开反馈公示（无需登录） ===== */
+async function loadComplaintsFromWorker() {
+  const workerBase = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
+  try {
+    const d = new Date();
+    const path = 'complaints/' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '.json';
+    const r = await fetch(workerBase + '/api/read/' + encodeURIComponent(path) + '?t=' + Date.now());
+    if (!r.ok) throw new Error('读取失败');
+    return await r.json();
+  } catch (e) {
+    console.error('加载投诉建议失败', e);
+    return [];
+  }
+}
+
+function renderComplaintsFrontEnd(list, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  if (!list || !list.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无投诉建议</div>';
+    return;
+  }
+  let html = '<div style="max-width:800px;margin:0 auto;">';
+  list.slice().reverse().forEach(item => {
+    if (!item) return;
+    html += '<div style="background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">';
+    html += '<div style="font-size:16px;font-weight:600;">' + (item.isAnonymous ? '匿名' + item.type : escapeHtml(item.title || '')) + '</div>';
+    html += '<span style="font-size:12px;padding:4px 10px;border-radius:20px;background:' + (item.status === '已办结' ? '#e8f5e9;color:#2e7d32' : (item.status === '已回复' ? '#e3f2fd;color:#1976d2' : '#fff3e0;color:#e65100')) + ';">' + item.status + '</span>';
+    html += '</div>';
+    html += '<div style="font-size:13px;color:#666;margin-bottom:12px;">' + (item.type || '') + ' &middot; ' + (item.residentRoom || '') + ' &middot; ' + formatDate(item.createdAt) + '</div>';
+    html += '<div style="font-size:14px;line-height:1.6;margin-bottom:16px;color:#333;">' + escapeHtml(item.content || '') + '</div>';
+    if (item.images && item.images.length) {
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px;">';
+      item.images.forEach(url => {
+        html += '<div style="position:relative;border-radius:8px;overflow:hidden;background:#f5f5f5;">';
+        html += '<img src="' + url + '" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;opacity:0;transition:opacity 0.2s;" loading="lazy" decoding="async" onload="this.style.opacity=1">';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+    if (item.reply) {
+      html += '<div style="background:#f8f9fa;border-radius:8px;padding:16px;margin-top:12px;">';
+      html += '<div style="font-weight:600;color:#1976d2;margin-bottom:8px;font-size:14px;">&#128172; 管理员回复</div>';
+      html += '<div style="font-size:12px;color:#666;margin-bottom:8px;">' + formatDate(item.replyAt) + ' &middot; ' + (item.handler || '管理员') + '</div>';
+      html += '<div style="font-size:14px;line-height:1.6;color:#333;">' + escapeHtml(item.reply) + '</div>';
+      if (item.replyImages && item.replyImages.length) {
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:12px;">';
+        item.replyImages.forEach(url => {
+          html += '<img src="' + url + '" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;" loading="lazy" decoding="async">';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function renderPublicComplaints() {
+  setTimeout(async () => {
+    const complaints = await loadComplaintsFromWorker();
+    renderComplaintsFrontEnd(complaints, 'publicComplaintsContainer');
+  }, 50);
+  return '<div class="card"><div class="card-title"><span class="icon">&#128203;</span>反馈公示 <span style="margin-left:auto;font-size:13px;color:var(--text-secondary);">公开透明的投诉建议展示</span></div><div id="publicComplaintsContainer"><div class="loading">加载中...</div></div></div>';
 }
 
 function renderProfile() {
