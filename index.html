@@ -705,6 +705,33 @@ a { text-decoration:none; color:var(--primary); }
 <script>
 let appData = {};
 
+// ===== 实时数据加载：优先从 Worker 读取，回退静态 JSON =====
+async function loadModuleFromWorker(paths) {
+  const workerBase = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
+  if (!workerBase) return null;
+  const base = workerBase.replace(/\/$/, '');
+  if (!Array.isArray(paths)) paths = [paths];
+  for (const path of paths) {
+    try {
+      const res = await fetch(base + '/api/read/' + encodeURIComponent(path) + '?t=' + Date.now(), {
+        cache: 'no-store',
+        headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+      });
+      if (!res.ok) continue;
+      const text = await res.text();
+      if (!text || text.trim() === '') continue;
+      return JSON.parse(text);
+    } catch (e) { continue; }
+  }
+  return null;
+}
+
+function isRealtimePage(page) {
+  return ['home','announcements','documents','activities','polls',
+          'announcement-detail','document-detail','activity-detail','poll-detail'].includes(page);
+}
+
+
 // ===== Worker 网关配置（工单/投诉模块，不影响原有功能） =====
 const WORKER_BASE = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
 function getWorkerBase(){ return WORKER_BASE.replace(/\/$/,''); }
@@ -792,7 +819,7 @@ const themes = {
 function updateFavicon() {
   const favicon = appData.config && appData.config.community && appData.config.community.favicon;
   if (favicon) {
-    document.getElementById('faviconLink').href = favicon;
+    document.getElementById('faviconLink').href = favicon + (favicon.includes('?') ? '&' : '?') + '_t=' + Date.now();
   }
 }
 function applyTheme(id) {
@@ -816,21 +843,65 @@ function toggleThemePanel() {
 
 async function loadData() {
   const files = ["config","announcements","documents","activities","polls","residents"];
-  let ok = true;
-  for (const f of files) {
+
+  // Worker 路径映射（支持多种可能的后台存储路径）
+  const workerPaths = {
+    "config": ["config.json", "data/config.json", "community/config.json"],
+    "announcements": ["announcements.json", "data/announcements.json", "community/announcements.json"],
+    "documents": ["documents.json", "data/documents.json", "community/documents.json"],
+    "activities": ["activities.json", "data/activities.json", "community/activities.json"],
+    "polls": ["polls.json", "data/polls.json", "community/polls.json"],
+    "residents": ["residents.json", "data/residents.json", "community/residents.json"]
+  };
+
+  // 并行加载所有模块
+  const results = await Promise.all(files.map(async (f) => {
+    // 1) 优先从 Worker 实时读取
+    if (workerPaths[f]) {
+      const wd = await loadModuleFromWorker(workerPaths[f]);
+      if (wd !== null) {
+        console.log('[Worker] 已加载模块:', f);
+        return { key: f, data: wd, ok: true, source: 'worker' };
+      }
+    }
+    // 2) 回退到静态 JSON（强制无缓存）
     try {
-      const r = await fetch("./data/" + f + ".json?t=" + Date.now());
+      const r = await fetch("./data/" + f + ".json?t=" + Date.now(), {
+        cache: 'no-store',
+        headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+      });
       if (!r.ok) throw new Error("fetch failed");
-      appData[f] = await r.json();
-    } catch(e) { ok = false; break; }
-  }
+      return { key: f, data: await r.json(), ok: true, source: 'static' };
+    } catch(e) {
+      return { key: f, data: null, ok: false, source: 'none' };
+    }
+  }));
+
+  let ok = true;
+  results.forEach(r => {
+    if (r.ok) {
+      appData[r.key] = r.data;
+    } else {
+      ok = false;
+    }
+  });
+
   if (!ok) {
     try {
       const b64 = document.getElementById("embedded-b64").textContent.trim();
       const ed = JSON.parse(decodeURIComponent(escape(atob(b64))));
-      files.forEach(function(f){ appData[f] = ed[f] || []; });
-    } catch(e2) { appData = { config: {}, announcements: [], documents: [], activities: [], polls: [], residents: [] }; }
+      files.forEach(function(f){
+        if (!appData[f] || (Array.isArray(appData[f]) && appData[f].length === 0)) {
+          appData[f] = ed[f] || (f === 'config' ? {} : []);
+        }
+      });
+    } catch(e2) {
+      files.forEach(function(f){
+        if (!appData[f]) appData[f] = (f === 'config' ? {} : []);
+      });
+    }
   }
+
   if (appData.config && appData.config.community) {
     document.getElementById("headerTitle").textContent = appData.config.community.name;
     const c = appData.config.community;
@@ -838,16 +909,16 @@ async function loadData() {
     document.title = (c.siteTitle || (c.name + " - 社区数字化平台"));
     const dt = appData.config?.settings?.defaultTheme || "T1";
     if (!localStorage.getItem("communityTheme")) applyTheme(dt);
-    // 更新header logo
     if (c.logo) {
       const img = document.getElementById("headerLogoImg");
-      img.src = c.logo;
+      img.src = c.logo + (c.logo.includes('?') ? '&' : '?') + '_t=' + Date.now();
       img.style.display = "block";
       document.getElementById("headerLogoFallback").style.display = "none";
     }
   }
   updateUserUI();
   updateFavicon();
+  appData._lastLoadTime = Date.now();
 }
 
 function navigate(page, params) {
@@ -1860,7 +1931,14 @@ function formatDateTime(iso) {
   return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0") + " " + String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
 }
 
-window.addEventListener("hashchange", render);
+window.addEventListener("hashchange", () => {
+  const r = getRoute();
+  if (isRealtimePage(r.page)) {
+    loadData().then(() => render()).catch(() => render());
+  } else {
+    render();
+  }
+});
 document.addEventListener("DOMContentLoaded", async () => {
   // ESC key to close image preview
   document.addEventListener('keydown', function(e) {
@@ -1873,6 +1951,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   applyTheme(currentTheme); renderThemePanel();
   try { await loadData(); } catch(e) { console.error('loadData failed', e); }
   render();
+
+  // ===== 实时刷新机制：实现"秒显示"效果 =====
+
+  // 1) 页面从后台切回前台时自动刷新数据
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      loadData().then(() => {
+        const r = getRoute();
+        if (isRealtimePage(r.page)) {
+          render();
+        }
+      }).catch(e => console.error('Visibility refresh failed', e));
+    }
+  });
+
+  // 2) 每10秒自动刷新一次关键数据（仅页面可见且不在表单页时）
+  setInterval(() => {
+    if (document.hidden) return;
+    const r = getRoute();
+    if (isRealtimePage(r.page)) {
+      loadData().then(() => render()).catch(() => {});
+    }
+  }, 10000);
 });
 
 
