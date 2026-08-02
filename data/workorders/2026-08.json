@@ -210,5 +210,32 @@
       "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785592088763_ubnru0______20240418142244.jpg",
       "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785592091252_66859k______20240418142249.jpg"
     ]
+  },
+  {
+    "id": "WO-20260802-VBX6",
+    "type": "水电",
+    "title": "测试",
+    "description": "",
+    "images": [
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785640639633_y8351r______20240418142257.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785640641119_z954x1______20240423100244.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785640642511_lv1y7f______20240423100358.jpg"
+    ],
+    "residentRoom": "1-1-101",
+    "residentName": "测试业主01",
+    "status": "待受理",
+    "createdAt": "2026-08-02T03:17:18.805Z",
+    "updatedAt": "2026-08-02T03:17:18.805Z",
+    "timeline": [
+      {
+        "time": "2026-08-02T03:17:18.805Z",
+        "action": "提交工单",
+        "operator": "测试业主01"
+      }
+    ],
+    "rating": null,
+    "comment": "",
+    "assignedTo": "",
+    "workerPhone": ""
   }
 ]
