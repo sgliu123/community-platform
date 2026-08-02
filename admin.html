@@ -1918,7 +1918,7 @@ function renderCPList(list){
   list.slice().reverse().forEach(item=>{
     if(!item) return;
     h += '<tr><td>'+(item.id||'')+'</td><td>'+(item.type||'')+'</td>';
-    h += '<td>'+(item.isAnonymous?'匿名'+item.type:escapeHtml(item.title||''))+'</td><td>'+(item.residentRoom||'')+'</td>';
+    h += '<td>'+(item.isAnonymous?'匿名'+item.type:escapeHtml(item.title||'')) + (item.images && item.images.length ? ' <span style="color:var(--primary);font-size:12px;">📷'+item.images.length+'</span>' : '') + '</td><td>'+(item.residentRoom||'')+'</td>';
     h += '<td><span class="tag '+cpStatusClass(item.status)+'">'+item.status+'</span></td>';
     h += '<td>'+formatDateTime(item.createdAt)+'</td>';
     h += '<td class="actions"><button onclick="openComplaintModal(\''+item.id+'\')">处理</button></td></tr>';
@@ -1974,7 +1974,7 @@ function openWorkorderModal(id){
   if(item.images && item.images.length){
     body += '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">';
     item.images.forEach(url=>{
-      body += '<img src="'+url+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="previewImage(\''+url+'\')" loading="lazy">';
+      body += '<img src="'+url+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="previewImage(\''+url+'\')" loading="lazy" decoding="async">';
     });
     body += '</div>';
   }
@@ -2005,7 +2005,7 @@ function openWorkorderModal(id){
     body += '<div style="margin-bottom:12px;"><div style="font-weight:600;margin-bottom:8px;">📷 已上传处理图片</div>';
     body += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
     item.adminImages.forEach(url=>{
-      body += '<img src="'+url+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="previewImage(\''+url+'\')" loading="lazy">';
+      body += '<img src="'+url+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="previewImage(\''+url+'\')" loading="lazy" decoding="async">';
     });
     body += '</div></div>';
   }
@@ -2042,6 +2042,7 @@ function openWorkorderModal(id){
 }
 
 let _woAdminImages = [];
+let _cpReplyImages = [];
 async function handleWOAdminImages(input){
   const files=Array.from(input.files).slice(0,3);
   const preview=document.getElementById('woAdminImagesPreview');
@@ -2104,7 +2105,37 @@ async function saveWorkorderAction(id){
   finally{ showLoading(false); }
 }
 
+async function handleCPReplyImages(input){
+  const files = Array.from(input.files);
+  const preview = document.getElementById('cpReplyImagesPreview');
+  const countEl = document.getElementById('cpReplyImgCount');
+  for(const f of files){
+    if(!f.type.startsWith('image/')) continue;
+    let file = f;
+    try{ file = await compressImageToBlob(f, 0.05); }
+    catch(e){ showToast('"'+f.name+'" 压缩失败：'+e.message, 'error'); continue; }
+    const url = URL.createObjectURL(file);
+    const div = document.createElement('div');
+    div.style.cssText = 'position:relative;width:60px;height:60px;border-radius:4px;overflow:hidden;border:1px solid var(--border);';
+    div.dataset.fname = file.name;
+    div.innerHTML = '<img src="'+url+'" style="width:100%;height:100%;object-fit:cover;"><button type="button" onclick="removeCPReplyImage(this)" style="position:absolute;top:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>';
+    preview.appendChild(div);
+    _cpReplyImages.push(file);
+  }
+  if(countEl) countEl.textContent = _cpReplyImages.length;
+  input.value = '';
+}
+function removeCPReplyImage(btn){
+  const div = btn.parentElement;
+  const fname = div.dataset.fname;
+  _cpReplyImages = _cpReplyImages.filter(f => f.name !== fname);
+  div.remove();
+  const countEl = document.getElementById('cpReplyImgCount');
+  if(countEl) countEl.textContent = _cpReplyImages.length;
+}
+
 function openComplaintModal(id){
+  _cpReplyImages = [];
   const list = appData.complaints || [];
   const item = list.find(x=>x.id===id);
   if(!item) return;
@@ -2116,11 +2147,20 @@ function openComplaintModal(id){
   if(item.images && item.images.length){
     body += '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">';
     item.images.forEach(url=>{
-      body += '<img src="'+url+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="previewImage(\''+url+'\')" loading="lazy">';
+      body += '<img src="'+url+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="previewImage(\''+url+'\')" loading="lazy" decoding="async">';
     });
     body += '</div>';
   }
   body += '</div>';
+
+  if(item.replyImages && item.replyImages.length){
+    body += '<div style="margin-bottom:12px;"><div style="font-weight:600;margin-bottom:8px;font-size:13px;color:#1976D2;">📷 已上传回复图片</div>';
+    body += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    item.replyImages.forEach(url=>{
+      body += '<img src="'+url+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="previewImage(\''+url+'\')" loading="lazy" decoding="async">';
+    });
+    body += '</div></div>';
+  }
 
   if(item.reply){
     body += '<div style="margin-bottom:12px;padding:12px;background:#e3f2fd;border-radius:8px;border-left:4px solid #1976D2;">';
@@ -2144,6 +2184,12 @@ function openComplaintModal(id){
   }
 
   body += '<div class="form-group"><label>回复内容</label><textarea id="cpReply" rows="4" placeholder="填写回复内容...">'+(item.reply||'')+'</textarea></div>';
+  body += '<div class="form-group"><label>回复图片（不限制数量，自动高强度压缩至50KB以内）</label>';
+  body += '<div id="cpReplyImagesPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>';
+  body += '<input type="file" id="cpReplyImages" accept="image/*" multiple style="display:none" onchange="handleCPReplyImages(this)">';
+  body += '<button type="button" class="btn" onclick="document.getElementById(\'cpReplyImages\').click()">📎 选择图片</button>';
+  body += '<span style="font-size:12px;color:var(--text-secondary);margin-left:8px;">支持多选，已选 <span id="cpReplyImgCount">0</span> 张</span>';
+  body += '</div>';
   body += '<div class="form-group"><label>操作</label><select id="cpAction"><option value="reply">回复业主</option><option value="close">直接办结</option></select></div>';
   body += '<div style="text-align:right;margin-top:8px;"><button class="btn" onclick="downloadComplaintSummary(\''+id+'\')">📥 下载处理总结</button></div>';
   document.getElementById('modalBody').innerHTML = body;
@@ -2152,6 +2198,7 @@ function openComplaintModal(id){
 }
 
 async function saveComplaintAction(id){
+  _cpReplyImages = [];
   const reply = document.getElementById('cpReply').value.trim();
   const action = document.getElementById('cpAction').value;
   if(action==='reply' && !reply){ alert('请填写回复内容'); return; }
@@ -2167,6 +2214,17 @@ async function saveComplaintAction(id){
     item.updatedAt = new Date().toISOString();
     item.timeline = item.timeline || [];
     item.timeline.push({time:new Date().toISOString(), action: action==='close'?'直接办结':('回复：'+reply), operator: item.handler});
+    // 上传回复图片（不限制数量，逐个上传）
+    item.replyImages = item.replyImages || [];
+    for(const f of _cpReplyImages){
+      try{
+        const r = await workerUpload(f);
+        item.replyImages.push(r.url || r);
+      }catch(e){
+        showToast('图片上传失败：'+e.message, 'error');
+      }
+    }
+    _cpReplyImages = [];
     await workerWrite(path, list, '管理员处理反馈 '+id);
     appData.complaints = list;
     closeModal();
