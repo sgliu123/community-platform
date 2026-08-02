@@ -32,6 +32,7 @@ a { text-decoration:none; color:var(--primary); }
 .header-user button:hover { background:rgba(255,255,255,0.3); }
 
 .main { padding-top:var(--header-h); min-height:100vh; padding-bottom:80px; }
+#main { min-height: calc(100vh - var(--header-h) - 80px); }
 .container { max-width:800px; margin:0 auto; padding:16px; }
 
 .card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:16px; }
@@ -132,7 +133,7 @@ a { text-decoration:none; color:var(--primary); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .video-native-wrap video { cursor: pointer; }
 .video-native-wrap video::-webkit-media-controls { background: rgba(0,0,0,0.5); }
-.page-content { animation:fadeIn .3s ease; }
+.page-content { animation:fadeIn .3s ease; transition: opacity .15s ease; will-change: opacity; }
 
 .loading { text-align:center; padding:40px; color:var(--text-secondary); }
 .empty { text-align:center; padding:40px; color:var(--text-secondary); font-size:14px; }
@@ -981,8 +982,13 @@ function getRoute() {
   return { page: p[0] || "home", params: p[1] };
 }
 
+let _lastRenderedRoute = '';
 function render() {
   const r = getRoute();
+  const routeKey = r.page + (r.params ? '/' + r.params : '');
+  if (routeKey === _lastRenderedRoute) return;
+  _lastRenderedRoute = routeKey;
+
   const main = document.getElementById("main");
   document.querySelectorAll(".header-nav a").forEach(a => a.classList.toggle("active", a.dataset.page === r.page));
   const pages = {
@@ -1001,8 +1007,26 @@ function render() {
     "submit-complaint": renderSubmitComplaint
   };
   const fn = pages[r.page] || renderHome;
-  main.innerHTML = '<div class="page-content">' + fn() + '</div>';
-  window.scrollTo(0,0);
+
+  const existing = main.querySelector('.page-content');
+  if (existing) {
+    existing.style.opacity = '0';
+    setTimeout(() => {
+      main.innerHTML = '<div class="page-content" style="opacity:0">' + fn() + '</div>';
+      requestAnimationFrame(() => {
+        const el = main.querySelector('.page-content');
+        if (el) el.style.opacity = '1';
+      });
+      if (!r.page.includes('detail')) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 120);
+  } else {
+    main.innerHTML = '<div class="page-content">' + fn() + '</div>';
+    if (!r.page.includes('detail')) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
 }
 
 function renderHome() {
