@@ -748,8 +748,9 @@ async function loadModuleFromWorker(paths, moduleName) {
 }
 
 function isRealtimePage(page) {
-  return ['home','announcements','documents','activities','polls',
-          'announcement-detail','document-detail','activity-detail','poll-detail'].includes(page);
+  // 只有列表页和首页需要自动刷新重渲染
+  // 详情页（activity-detail 等）不自动重渲染，否则会打断视频播放、重置滚动位置
+  return ['home','announcements','documents','activities','polls'].includes(page);
 }
 
 
@@ -2013,19 +2014,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!document.hidden) {
       loadData().then(() => {
         const r = getRoute();
+        // 只有列表页/首页切回前台时才重新渲染
         if (isRealtimePage(r.page)) {
           render();
         }
+        // 详情页保持当前视图，数据已在内存中静默更新
       }).catch(e => console.error('Visibility refresh failed', e));
     }
   });
 
-  // 2) 每10秒自动刷新一次关键数据（仅页面可见且不在表单页时）
+  // 2) 每10秒自动刷新一次关键数据
   setInterval(() => {
     if (document.hidden) return;
     const r = getRoute();
     if (isRealtimePage(r.page)) {
+      // 列表页/首页：加载数据后重新渲染，确保用户看到最新内容
       loadData().then(() => render()).catch(() => {});
+    } else if (['announcement-detail','document-detail','activity-detail','poll-detail'].includes(r.page)) {
+      // 详情页：静默加载数据到内存，不重新渲染 DOM（避免打断视频播放、重置滚动位置）
+      loadData().catch(() => {});
     }
   }, 10000);
 });
