@@ -668,7 +668,6 @@ a { text-decoration:none; color:var(--primary); }
     <a href="javascript:void(0)" onclick="navigate('polls');return false;" data-page="polls">投票</a>
     <a href="javascript:void(0)" onclick="navigate('workorders');return false;" data-page="workorders">报修</a>
     <a href="javascript:void(0)" onclick="navigate('complaints');return false;" data-page="complaints">反馈</a>
-    <a href="javascript:void(0)" onclick="navigate('public-complaints');return false;" data-page="public-complaints">反馈公示</a>
   </nav>
   <div class="header-user">
     <span id="userName" style="font-size:13px;"></span>
@@ -1000,7 +999,6 @@ function render() {
     "poll-detail": () => renderPollDetail(r.params),
     "workorder-detail": () => renderWorkorderDetail(r.params),
     "complaint-detail": () => renderComplaintDetail(r.params),
-    "public-complaints": renderPublicComplaints,
     workorders: renderWorkorders,
     complaints: renderComplaints,
     "submit-workorder": renderSubmitWorkorder,
@@ -1048,7 +1046,6 @@ function renderHome() {
   h += `<div class="quick-link" onclick="navigate('polls')"><div class="icon">🗳️</div><div class="label">投票征集</div></div>`;
   h += `<div class="quick-link" onclick="navigate('submit-workorder')"><div class="icon">🔧</div><div class="label">我要报修</div></div>`;
   h += `<div class="quick-link" onclick="navigate('submit-complaint')"><div class="icon">📝</div><div class="label">投诉建议</div></div>`;
-  h += `<div class="quick-link" onclick="navigate('public-complaints')"><div class="icon">📋</div><div class="label">反馈公示</div></div>`;
   if (residentAuth) {
     h += `<div class="quick-link" onclick="navigate('workorders')"><div class="icon">📋</div><div class="label">我的报修</div></div>`;
     h += `<div class="quick-link" onclick="navigate('complaints')"><div class="icon">📋</div><div class="label">我的反馈</div></div>`;
@@ -1240,13 +1237,7 @@ function renderComplaintsFrontEnd(list, containerId) {
   container.innerHTML = html;
 }
 
-function renderPublicComplaints() {
-  setTimeout(async () => {
-    const complaints = await loadComplaintsFromWorker();
-    renderComplaintsFrontEnd(complaints, 'publicComplaintsContainer');
-  }, 50);
-  return '<div class="card"><div class="card-title"><span class="icon">&#128203;</span>反馈公示 <span style="margin-left:auto;font-size:13px;color:var(--text-secondary);">公开透明的投诉建议展示</span></div><div id="publicComplaintsContainer"><div class="loading">加载中...</div></div></div>';
-}
+
 
 function renderProfile() {
   if (!residentAuth) return '<div class="card" style="text-align:center;padding:40px;"><div style="font-size:48px;margin-bottom:16px;">🔒</div><div style="font-size:16px;margin-bottom:20px;">您尚未登录</div><button class="poll-btn" onclick="showLogin()">业主登录</button></div>';
@@ -2109,16 +2100,18 @@ function renderWorkordersHTML(list){
 
 function renderComplaints(){
   if(!residentAuth) return renderAuthRequired('查看我的反馈');
-  loadMyComplaints().then(list=>{
-    appData._complaints=list;
+  Promise.all([loadMyComplaints(), loadComplaintsFromWorker()]).then(([myList, allList])=>{
+    appData._complaints = myList;
+    appData._allComplaints = allList;
     if(getRoute().page==='complaints'){
-      document.getElementById('main').innerHTML='<div class="page-content">'+renderComplaintsHTML(list)+'</div>';
+      document.getElementById('main').innerHTML='<div class="page-content">'+renderComplaintsHTML(myList, allList)+'</div>';
     }
   }).catch(e=>{
     console.error(e);
     appData._complaints=[];
+    appData._allComplaints=[];
     if(getRoute().page==='complaints'){
-      document.getElementById('main').innerHTML='<div class="page-content">'+renderComplaintsHTML([])+'</div>';
+      document.getElementById('main').innerHTML='<div class="page-content">'+renderComplaintsHTML([],[])+'</div>';
     }
   });
   return '<div class="loading">加载中...</div>';
