@@ -1918,6 +1918,7 @@ function compressImage(file, options) {
 }
 
 let _woImages=[];
+let _cpImages=[];
 async function handleWOImages(input) {
   var files = Array.from(input.files).slice(0, 3);
   var preview = document.getElementById('woImagesPreview');
@@ -1947,6 +1948,50 @@ async function handleWOImages(input) {
   var statusEl = document.getElementById('woCompressStatus');
   if (statusEl) statusEl.style.display = 'none';
   if (processed === 0) preview.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;">未选择图片</div>';
+}
+
+async function handleCPImages(input) {
+  var files = Array.from(input.files);
+  if (!files.length) return;
+  var preview = document.getElementById('cpImagesPreview');
+  var statusEl = document.getElementById('cpCompressStatus');
+  if (statusEl) statusEl.style.display = 'block';
+  for (var i = 0; i < files.length; i++) {
+    try {
+      var f = files[i];
+      var compressed = await compressImage(f, { maxWidth: 640, maxHeight: 640, quality: 0.25, maxSize: 30 * 1024 });
+      _cpImages.push(compressed);
+      var url = URL.createObjectURL(compressed);
+      var sizeHtml = '<div style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.6);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px;backdrop-filter:blur(2px);">' + formatFileSize(compressed.size) + '</div>';
+      var badgeHtml = compressed.size < f.size ? '<div style="position:absolute;top:2px;right:2px;background:var(--primary);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px;">已压缩</div>' : '';
+      var idx = _cpImages.length - 1;
+      var itemHtml = '<div id="cp-img-' + idx + '" style="width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid var(--border);position:relative;flex-shrink:0;"><img src="' + url + '" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy">' + sizeHtml + badgeHtml + '<button onclick="removeCPImage(' + idx + ')" style="position:absolute;top:2px;left:2px;width:18px;height:18px;background:rgba(200,0,0,0.75);color:#fff;border:none;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button></div>';
+      preview.insertAdjacentHTML('beforeend', itemHtml);
+    } catch (e) {
+      _cpImages.push(files[i]);
+      var url = URL.createObjectURL(files[i]);
+      var idx = _cpImages.length - 1;
+      var itemHtml = '<div id="cp-img-' + idx + '" style="width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid var(--border);position:relative;flex-shrink:0;"><img src="' + url + '" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy"><div style="position:absolute;bottom:2px;left:2px;background:rgba(200,0,0,0.7);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px;">原图</div><button onclick="removeCPImage(' + idx + ')" style="position:absolute;top:2px;left:2px;width:18px;height:18px;background:rgba(200,0,0,0.75);color:#fff;border:none;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button></div>';
+      preview.insertAdjacentHTML('beforeend', itemHtml);
+    }
+  }
+  if (statusEl) statusEl.style.display = 'none';
+  input.value = '';
+}
+function removeCPImage(idx) {
+  if (_cpImages[idx]) {
+    _cpImages.splice(idx, 1);
+    var el = document.getElementById('cpImagesPreview');
+    if (el) {
+      el.innerHTML = '';
+      _cpImages.forEach(function(f, i) {
+        var url = URL.createObjectURL(f);
+        var sizeHtml = '<div style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.6);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px;backdrop-filter:blur(2px);">' + formatFileSize(f.size) + '</div>';
+        var itemHtml = '<div id="cp-img-' + i + '" style="width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid var(--border);position:relative;flex-shrink:0;"><img src="' + url + '" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy">' + sizeHtml + '<button onclick="removeCPImage(' + i + ')" style="position:absolute;top:2px;left:2px;width:18px;height:18px;background:rgba(200,0,0,0.75);color:#fff;border:none;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button></div>';
+        el.insertAdjacentHTML('beforeend', itemHtml);
+      });
+    }
+  }
 }
 
 async function doSubmitWorkorder(){
@@ -1992,8 +2037,16 @@ async function doSubmitWorkorder(){
 function renderSubmitComplaint(){
   let h='<div class="card"><div class="card-title"><span class="icon">📝</span>投诉建议</div>';
   h+='<div class="form-group"><label>类型</label><select id="cpType" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;"><option>投诉</option><option>建议</option><option>咨询</option><option>表扬</option></select></div>';
-  h+='<div class="form-group"><label>标题</label><input type="text" id="cpTitle" placeholder="标题" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;"></div>';
-  h+='<div class="form-group"><label>内容</label><textarea id="cpContent" rows="5" placeholder="请详细描述..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;"></textarea></div>';
+  h+='<div class="form-group"><label>标题</label><input type="text" id="cpTitle" placeholder="简要描述问题" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;"></div>';
+  h+='<div class="form-group"><label>内容</label><textarea id="cpContent" rows="5" placeholder="请详细描述情况，便于物业及时处理..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;"></textarea></div>';
+  h+='<div class="form-group"><label>相关图片（可选，不限制数量）</label>';
+  h+='<div id="cpImagesPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;min-height:0;"></div>';
+  h+='<div style="display:none;width:100%;text-align:center;padding:12px;color:var(--text-secondary);font-size:13px;" id="cpCompressStatus">正在压缩处理图片，请稍候...</div>';
+  h+='<input type="file" id="cpImages" accept="image/*" multiple style="display:none" onchange="handleCPImages(this)">';
+  h+='<button type="button" class="btn" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;" onclick="document.getElementById(';
+  h+="'cpImages'";
+  h+=').click()">📎 选择图片</button>';
+  h+='<span style="font-size:12px;color:var(--text-secondary);margin-left:8px;">支持多张，自动压缩加速上传</span></div>';
   h+='<div class="form-group" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="cpAnonymous" style="width:auto;"><label for="cpAnonymous" style="margin-bottom:0;">匿名提交</label></div>';
   h+='<div style="margin-top:20px;"><button class="poll-btn" onclick="doSubmitComplaint()">提交</button>';
   h+='<button class="poll-btn" style="background:#888;margin-left:8px;" onclick="history.back()">取消</button></div></div>';
@@ -2009,15 +2062,31 @@ async function doSubmitComplaint(){
   if(!title||!content){ alert('请填写完整'); return; }
   showPageLoading(true);
   try{
+    let images=[];
+    let uploadErrors=[];
+    for(const f of _cpImages){
+      try{
+        const r=await workerUpload(f);
+        if(r && r.url) images.push(r.url);
+        else uploadErrors.push(f.name || '图片' + (uploadErrors.length+1) + ': 返回数据异常');
+      }catch(e){
+        uploadErrors.push((f.name || '图片' + (uploadErrors.length+1)) + ': ' + e.message);
+      }
+    }
+    if(uploadErrors.length > 0){
+      const msg = '以下图片上传失败（服务器暂时不可用）：\n' + uploadErrors.join('\n') + '\n\n是否继续提交？\n- 点「确定」：提交（不含失败的图片）\n- 点「取消」：返回修改';
+      if(!confirm(msg)){ showPageLoading(false); return; }
+    }
     const list=await workerRead(getCurrentMonthPath('complaints'));
     const item={
-      id:genCPId(), type, title, content, isAnonymous,
+      id:genCPId(), type, title, content, isAnonymous, images,
       residentRoom:residentAuth.roomNo, residentName:residentAuth.name,
       status:'待处理', createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
       reply:'', replyAt:'', satisfaction:null, handler:''
     };
     list.push(item);
     await workerWrite(getCurrentMonthPath('complaints'), list, '业主提交'+type+' '+title);
+    _cpImages=[];
     alert('✅ 提交成功！');
     navigate('complaints');
   }catch(e){ alert('提交失败：'+e.message); }
