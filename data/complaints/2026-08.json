@@ -74,5 +74,27 @@
     "replyAt": "",
     "satisfaction": null,
     "handler": ""
+  },
+  {
+    "id": "CP-20260802-WLU1",
+    "type": "投诉",
+    "title": "测试",
+    "content": "将在这里",
+    "isAnonymous": false,
+    "images": [
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785640796669_wfpzek______20240418142249.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785640798006_co2jk7______20240418142257.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785640799444_vx4eva______20240423100244.jpg",
+      "https://raw.githubusercontent.com/sgliu123/community-platform/HEAD/assets/uploads/1785640800720_0to1p2______20240423100358.jpg"
+    ],
+    "residentRoom": "1-1-101",
+    "residentName": "测试业主01",
+    "status": "待处理",
+    "createdAt": "2026-08-02T03:19:57.070Z",
+    "updatedAt": "2026-08-02T03:19:57.070Z",
+    "reply": "",
+    "replyAt": "",
+    "satisfaction": null,
+    "handler": ""
   }
 ]
