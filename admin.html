@@ -1853,7 +1853,7 @@ function renderWOList(list){
     h += '<td><span class="tag '+woStatusClass(item.status)+'">'+item.status+'</span></td>';
     h += '<td>'+formatDateTime(item.createdAt)+'</td>';
     if(isLocked){
-      h += '<td class="actions"><span style="color:var(--text-secondary);font-size:12px;">🔒 已锁定</span></td></tr>';
+      h += '<td class="actions"><button onclick="openWorkorderModal(\''+item.id+'\')">🔒 查看</button></td></tr>';
     } else {
       h += '<td class="actions"><button onclick="openWorkorderModal(\''+item.id+'\')">处理</button></td></tr>';
     }
