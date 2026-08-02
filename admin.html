@@ -387,25 +387,48 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadAllData() {
   const files = ['config','announcements','documents','activities','polls','residents','audit-log'];
+  const workerBase = localStorage.getItem('workerBase');
+
   for (const f of files) {
     let loaded = false;
+
+    // 1. 优先从 Worker 读取（已持久化的数据）
+    if (workerBase) {
+      try {
+        const r = await fetch(workerBase + '/api/read/' + encodeURIComponent('data/' + f + '.json') + '?t=' + Date.now());
+        if (r.ok) {
+          appData[f] = await r.json();
+          loaded = true;
+          continue;
+        }
+      } catch(e) {}
+    }
+
+    // 2. 尝试 fetch 本地 data/ 目录（静态文件）
     try {
       const r = await fetch('data/' + f + '.json?t=' + Date.now());
-      if (!r.ok) throw new Error('fetch failed');
-      appData[f] = await r.json();
-      loaded = true;
-    } catch(e) {
-      if (typeof EMBEDDED_DATA !== 'undefined' && EMBEDDED_DATA[f] !== undefined) {
-        appData[f] = EMBEDDED_DATA[f];
+      if (r.ok) {
+        appData[f] = await r.json();
         loaded = true;
       }
-    }
+    } catch(e) {}
+
+    // 3. 检查 localStorage（开发模式或回退）
     if (!loaded) {
       try {
         const saved = localStorage.getItem('adminData_' + f);
         if (saved) { appData[f] = JSON.parse(saved); loaded = true; }
       } catch(e) {}
     }
+
+    // 4. 最后回退到 EMBEDDED_DATA（初始默认值）
+    if (!loaded) {
+      if (typeof EMBEDDED_DATA !== 'undefined' && EMBEDDED_DATA[f] !== undefined) {
+        appData[f] = EMBEDDED_DATA[f];
+        loaded = true;
+      }
+    }
+
     if (!loaded) {
       const defaults = { config: {}, announcements: [], documents: [], activities: [], polls: [], residents: [], 'audit-log': [] };
       appData[f] = defaults[f] || [];
@@ -965,6 +988,21 @@ async function deleteItem(module, id) {
 
 async function saveDataFile(filename, data, detail, action) {
   action = action || 'update';
+
+  // 优先使用 Worker 持久化
+  const workerBase = localStorage.getItem('workerBase');
+  if (workerBase) {
+    try {
+      await workerWrite('data/' + filename + '.json', data, detail);
+      showToast('保存成功', 'success');
+      await appendAuditLog(action, filename, (data && data.id) || '', detail);
+      return;
+    } catch(e) {
+      console.error('Worker 保存失败，回退到本地:', e);
+      // 回退到 localStorage
+    }
+  }
+
   if (!githubToken) {
     localStorage.setItem('adminData_' + filename, JSON.stringify(data));
     showToast('保存成功', 'success');
@@ -1007,6 +1045,16 @@ async function appendAuditLog(action, target, targetId, detail) {
     clientInfo: navigator.userAgent
   });
   appData['audit-log'] = log;
+
+  // 优先使用 Worker 保存审计日志
+  const workerBase = localStorage.getItem('workerBase');
+  if (workerBase) {
+    try {
+      await workerWrite('data/audit-log.json', log, '[' + (currentAdmin && currentAdmin.name || '') + '] 审计日志更新');
+    } catch(e) { console.error('审计日志Worker保存失败', e); }
+    return;
+  }
+
   if (!githubToken) return;
   const ownerRepo = await getRepoInfo();
   if (!ownerRepo) return;
@@ -2198,7 +2246,6 @@ function openComplaintModal(id){
 }
 
 async function saveComplaintAction(id){
-  _cpReplyImages = [];
   const reply = document.getElementById('cpReply').value.trim();
   const action = document.getElementById('cpAction').value;
   if(action==='reply' && !reply){ alert('请填写回复内容'); return; }
