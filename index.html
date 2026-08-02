@@ -940,6 +940,32 @@ async function loadData() {
   updateUserUI();
   updateFavicon();
   appData._lastLoadTime = Date.now();
+  // === 数据清洗：移除失效 blob URL 并对 activities 做 ID 去重 ===
+  if (appData.activities) {
+    const seen = new Set();
+    appData.activities = appData.activities.filter(item => {
+      if (!item || !item.id) return false;
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      if (item.images) item.images = item.images.filter(u => !u.startsWith('blob:'));
+      if (item.videos) item.videos = item.videos.filter(u => !u.startsWith('blob:'));
+      if (item.videoLinks) item.videoLinks = item.videoLinks.filter(u => !u.startsWith('blob:'));
+      if (item.adminImages) item.adminImages = item.adminImages.filter(u => !u.startsWith('blob:'));
+      if (item.coverImage && item.coverImage.startsWith('blob:')) item.coverImage = '';
+      if (item.videoUrl && item.videoUrl.startsWith('blob:')) item.videoUrl = '';
+      return true;
+    });
+  }
+  if (appData.announcements) {
+    appData.announcements.forEach(item => {
+      if (item.attachments) item.attachments = item.attachments.filter(att => att.url && !att.url.startsWith('blob:'));
+    });
+  }
+  if (appData.documents) {
+    appData.documents.forEach(item => {
+      if (item.images) item.images = item.images.filter(u => !u.startsWith('blob:'));
+    });
+  }
 }
 
 function navigate(page, params) {
@@ -1546,6 +1572,14 @@ function goToSlide(gid, index, event) {
 function renderActivityDetail(id) {
   const a = (appData.activities||[]).find(x => x.id === id);
   if (!a) return '<div class="empty">动态不存在</div>';
+  // 清理失效的临时 blob URL（刷新后失效，会导致404/黑屏）
+  const cleanArr = (arr) => (arr || []).filter(u => u && typeof u === 'string' && !u.startsWith('blob:'));
+  a.images = cleanArr(a.images);
+  a.videos = cleanArr(a.videos);
+  a.videoLinks = cleanArr(a.videoLinks);
+  a.adminImages = cleanArr(a.adminImages);
+  if (a.coverImage && a.coverImage.startsWith('blob:')) a.coverImage = '';
+  if (a.videoUrl && a.videoUrl.startsWith('blob:')) a.videoUrl = '';
   const sc = a.status === "进行中" ? "status-ongoing" : (a.status === "预告" ? "status-upcoming" : "status-ended");
 
   const allVideos = [];
@@ -1853,9 +1887,7 @@ function joinPoll(pollId, event) {
   if (!residentAuth) { window._pendingPollId = pollId; showLogin(); return; }
   const p = (appData.polls||[]).find(x => x.id === pollId);
   if (p && p.tencentUrl) {
-    const main = document.getElementById('main');
-    main.innerHTML = '<div class="page-content"><div class="card"><div class="card-title"><span class="icon">🗳️</span>参与投票：' + p.title + '</div><div style="margin-bottom:12px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div><iframe id="idy_frame" height="100%" width="100%" src="' + p.tencentUrl + '" frameborder="0" style="min-height:650px;width:100%;border-radius:8px;border:1px solid var(--border);" allowfullscreen sandbox="allow-same-origin allow-scripts allow-modals allow-downloads allow-forms allow-popups"></iframe></div></div>';
-    window.scrollTo(0,0);
+    window.open(p.tencentUrl, '_blank');
   } else { alert('暂无可参与的问卷链接'); }
 }
 

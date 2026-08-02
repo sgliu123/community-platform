@@ -445,6 +445,27 @@ async function loadAllData() {
   }
   updateFavicon();
   updatePageTitle();
+  // === 数据清洗：移除已失效的 blob URL，防止脏数据持续保存 ===
+  if (appData.activities) {
+    appData.activities.forEach(item => {
+      if (item.images) item.images = item.images.filter(u => !u.startsWith('blob:'));
+      if (item.videos) item.videos = item.videos.filter(u => !u.startsWith('blob:'));
+      if (item.videoLinks) item.videoLinks = item.videoLinks.filter(u => !u.startsWith('blob:'));
+      if (item.adminImages) item.adminImages = item.adminImages.filter(u => !u.startsWith('blob:'));
+      if (item.coverImage && item.coverImage.startsWith('blob:')) item.coverImage = '';
+      if (item.videoUrl && item.videoUrl.startsWith('blob:')) item.videoUrl = '';
+    });
+  }
+  if (appData.announcements) {
+    appData.announcements.forEach(item => {
+      if (item.attachments) item.attachments = item.attachments.filter(att => att.url && !att.url.startsWith('blob:'));
+    });
+  }
+  if (appData.documents) {
+    appData.documents.forEach(item => {
+      if (item.images) item.images = item.images.filter(u => !u.startsWith('blob:'));
+    });
+  }
 }
 
 function updateFavicon() {
