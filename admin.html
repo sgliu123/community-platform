@@ -387,31 +387,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadAllData() {
   const files = ['config','announcements','documents','activities','polls','residents','audit-log'];
-  const workerBase = localStorage.getItem('workerBase');
+  const workerBase = getWorkerBase();
 
   for (const f of files) {
     let loaded = false;
+    let workerData = null;
 
     // 1. 优先从 Worker 读取（已持久化的数据）
     if (workerBase) {
       try {
         const r = await fetch(workerBase + '/api/read/' + encodeURIComponent('data/' + f + '.json') + '?t=' + Date.now());
         if (r.ok) {
-          appData[f] = await r.json();
-          loaded = true;
-          continue;
+          workerData = await r.json();
+          // 只有 Worker 返回非空数据才视为加载成功，避免空数组覆盖本地数据
+          const isEmpty = (Array.isArray(workerData) && workerData.length === 0) || 
+                          (typeof workerData === 'object' && workerData !== null && Object.keys(workerData).length === 0);
+          if (!isEmpty) {
+            appData[f] = workerData;
+            loaded = true;
+            continue;
+          }
         }
       } catch(e) {}
     }
 
     // 2. 尝试 fetch 本地 data/ 目录（静态文件）
-    try {
-      const r = await fetch('data/' + f + '.json?t=' + Date.now());
-      if (r.ok) {
-        appData[f] = await r.json();
-        loaded = true;
-      }
-    } catch(e) {}
+    if (!loaded) {
+      try {
+        const r = await fetch('data/' + f + '.json?t=' + Date.now());
+        if (r.ok) {
+          appData[f] = await r.json();
+          loaded = true;
+        }
+      } catch(e) {}
+    }
 
     // 3. 检查 localStorage（开发模式或回退）
     if (!loaded) {
@@ -990,7 +999,7 @@ async function saveDataFile(filename, data, detail, action) {
   action = action || 'update';
 
   // 优先使用 Worker 持久化
-  const workerBase = localStorage.getItem('workerBase');
+  const workerBase = getWorkerBase();
   if (workerBase) {
     try {
       await workerWrite('data/' + filename + '.json', data, detail);
@@ -1047,7 +1056,7 @@ async function appendAuditLog(action, target, targetId, detail) {
   appData['audit-log'] = log;
 
   // 优先使用 Worker 保存审计日志
-  const workerBase = localStorage.getItem('workerBase');
+  const workerBase = getWorkerBase();
   if (workerBase) {
     try {
       await workerWrite('data/audit-log.json', log, '[' + (currentAdmin && currentAdmin.name || '') + '] 审计日志更新');
@@ -2241,8 +2250,46 @@ function openComplaintModal(id){
   body += '<div class="form-group"><label>操作</label><select id="cpAction"><option value="reply">回复业主</option><option value="close">直接办结</option></select></div>';
   body += '<div style="text-align:right;margin-top:8px;"><button class="btn" onclick="downloadComplaintSummary(\''+id+'\')">📥 下载处理总结</button></div>';
   document.getElementById('modalBody').innerHTML = body;
-  document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveComplaintAction(\''+id+'\')">保存</button>';
+  document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn" onclick="previewComplaintFrontEnd(\''+id+'\')">👁️ 预览前端效果</button><button class="btn btn-primary" onclick="saveComplaintAction(\''+id+'\')">保存</button>';
   document.getElementById('modalOverlay').classList.add('active');
+}
+
+function previewComplaintFrontEnd(id){
+  const list = appData.complaints || [];
+  const item = list.find(x=>x.id===id);
+  if(!item) return;
+  let html = '<div style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,\'PingFang SC\',\'Microsoft YaHei\',sans-serif;">';
+  html += '<div style="background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">';
+  html += '<div style="font-size:18px;font-weight:600;margin-bottom:12px;">'+(item.isAnonymous?'匿名'+item.type:escapeHtml(item.title))+'</div>';
+  html += '<div style="font-size:13px;color:#666;margin-bottom:16px;">'+(item.type||'')+' · '+(item.residentRoom||'')+' · '+formatDateTime(item.createdAt)+'</div>';
+  html += '<div style="font-size:14px;line-height:1.6;margin-bottom:16px;">'+escapeHtml(item.content||'')+'</div>';
+  if(item.images && item.images.length){
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:16px;">';
+    item.images.forEach(url=>{
+      html += '<img src="'+url+'" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer;" onclick="previewImage(\''+url+'\')" loading="lazy" decoding="async">';
+    });
+    html += '</div>';
+  }
+  if(item.reply){
+    html += '<div style="background:#e3f2fd;border-radius:8px;padding:16px;margin-bottom:16px;border-left:4px solid #1976D2;">';
+    html += '<div style="font-weight:600;color:#1976D2;margin-bottom:8px;">💬 管理员回复</div>';
+    html += '<div style="font-size:13px;color:#666;margin-bottom:8px;">'+formatDateTime(item.replyAt)+' · '+(item.handler||'管理员')+'</div>';
+    html += '<div style="font-size:14px;line-height:1.6;">'+escapeHtml(item.reply)+'</div>';
+    if(item.replyImages && item.replyImages.length){
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:12px;">';
+      item.replyImages.forEach(url=>{
+        html += '<img src="'+url+'" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;cursor:pointer;" onclick="previewImage(\''+url+'\')" loading="lazy" decoding="async">';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div></div>';
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+  overlay.innerHTML = '<div style="position:relative;max-width:640px;width:100%;"><button onclick="this.closest(\'.preview-overlay\').remove()" style="position:absolute;top:-40px;right:0;background:rgba(255,255,255,0.9);border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:14px;">✕ 关闭预览</button>'+html+'</div>';
+  overlay.className = 'preview-overlay';
+  document.body.appendChild(overlay);
 }
 
 async function saveComplaintAction(id){
