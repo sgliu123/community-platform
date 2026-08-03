@@ -722,11 +722,16 @@ function renderActivitiesAdmin() {
 function renderPollsAdmin() {
   const list = appData.polls || [];
   return `<div class="card"><div class="card-header"><h3>🗳️ 投票管理</h3><button class="btn btn-primary" onclick="openEditModal('polls',null)">➕ 新增投票</button></div>` +
-    '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>状态</th><th>进度</th><th>操作</th></tr></thead><tbody>' +
+    '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>模式</th><th>状态</th><th>进度</th><th>操作</th></tr></thead><tbody>' +
     list.map(item => {
       const prog = item.progress || {current:0, target:1};
       const pct = Math.round((prog.current||0)/(prog.target||1)*100);
-      return `<tr><td>${item.caseNo||''}</td><td>${item.title||''}</td><td><span class="tag ${item.status==="进行中"?"tag-active":"tag-disabled"}">${item.status||''}</span></td><td><div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div> ${pct}%</td><td class="actions"><button onclick="openEditModal('polls','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('polls','${item.id}')">删除</button></td></tr>`;
+      const modeLabel = item.mode === 'local' ? '<span class="tag tag-active">本地问卷</span>' : '<span class="tag tag-test">腾讯问卷</span>';
+      let actions = `<button onclick="openEditModal('polls','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('polls','${item.id}')">删除</button>`;
+      if(item.mode === 'local') {
+        actions += `<button onclick="viewPollData('${item.id}')" style="margin-left:4px;">📊 数据</button>`;
+      }
+      return `<tr><td>${item.caseNo||''}</td><td>${item.title||''}</td><td>${modeLabel}</td><td><span class="tag ${item.status==="进行中"?"tag-active":"tag-disabled"}">${item.status||''}</span></td><td><div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div> ${pct}%</td><td class="actions">${actions}</td></tr>`;
     }).join('') +
     '</tbody></table></div>';
 }
@@ -813,17 +818,27 @@ function openEditModal(module, id) {
       '<div class="form-group"><label>内容</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>';
   } else if (module === 'polls') {
     const nextCaseNo = generateCaseNo();
+    const pollMode = item.mode || 'tencent';
     body = '<div class="form-group"><label>案卷编号</label><input type="text" id="edCaseNo" value="' + (item.caseNo||nextCaseNo) + '" ' + (!isNew?'readonly style="background:#f5f5f5;"':'') + '></div>' +
       '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
       '<div class="form-row"><div class="form-group"><label>开始日期</label><input type="date" id="edStart" value="' + (item.startDate||'') + '"></div>' +
       '<div class="form-group"><label>结束日期</label><input type="date" id="edEnd" value="' + (item.endDate||'') + '"></div></div>' +
       '<div class="form-group"><label>状态</label><select id="edStatus"><option value="进行中" ' + (item.status==='进行中'?'selected':'') + '>进行中</option><option value="已结束" ' + (item.status==='已结束'?'selected':'') + '>已结束</option></select></div>' +
-      '<div class="form-group"><label>腾讯问卷链接</label><input type="text" id="edTencent" value="' + (item.tencentUrl||'') + '"></div>' +
+      '<div class="form-group"><label>问卷模式</label><select id="edPollMode" onchange="onPollModeChange()"><option value="tencent" ' + (pollMode==='tencent'?'selected':'') + '>腾讯问卷（外部链接）</option><option value="local" ' + (pollMode==='local'?'selected':'') + '>本地问卷（前端直接填写）</option></select></div>' +
+      '<div id="tencentSection" style="' + (pollMode==='local'?'display:none;':'') + '"><div class="form-group"><label>腾讯问卷链接</label><input type="text" id="edTencent" value="' + (item.tencentUrl||'') + '"></div></div>' +
+      '<div id="localSection" style="' + (pollMode==='tencent'?'display:none;':'') + 'border:1px solid var(--border);border-radius:8px;padding:16px;background:#fafafa;">' +
+      '<div style="font-weight:600;margin-bottom:12px;">📝 问卷题目设置</div>' +
+      '<div id="pollQuestionsEditor"></div>' +
+      '<button type="button" class="btn" onclick="addPollQuestion()" style="margin-top:8px;">➕ 添加题目</button>' +
+      '</div>' +
       '<div class="form-row"><div class="form-group"><label>目标户数</label><input type="number" id="edTarget" value="' + (item.progress&&item.progress.target||300) + '"></div>' +
       '<div class="form-group"><label>当前参与</label><input type="number" id="edCurrent" value="' + (item.progress&&item.progress.current||0) + '"></div></div>' +
       '<div class="form-group form-check"><input type="checkbox" id="edPublishResult" ' + (item.results&&item.results.isPublished?'checked':'') + '><label for="edPublishResult">公示结果</label></div>' +
       '<div class="form-group"><label>结果摘要</label><textarea id="edResultSummary">' + (item.results&&item.results.summary||'') + '</textarea></div>' +
       '<div class="form-group"><label>描述</label><textarea id="edDesc">' + (item.description||'') + '</textarea></div>';
+    setTimeout(function() {
+      renderPollQuestionsEditor(item.questions || []);
+    }, 50);
   } else if (module === 'residents') {
     body = '<div class="form-row"><div class="form-group"><label>房号</label><input type="text" id="edRoom" value="' + (item.roomNo||'') + '" placeholder="如：1-1-101"></div>' +
       '<div class="form-group"><label>姓名</label><input type="text" id="edName" value="' + (item.name||'') + '"></div></div>' +
@@ -972,6 +987,7 @@ async function saveItem(module, id) {
     item.startDate = document.getElementById('edStart').value;
     item.endDate = document.getElementById('edEnd').value;
     item.status = document.getElementById('edStatus').value;
+    item.mode = document.getElementById('edPollMode').value;
     item.tencentUrl = document.getElementById('edTencent').value;
     item.progress = { target: parseInt(document.getElementById('edTarget').value)||0, current: parseInt(document.getElementById('edCurrent').value)||0, unit: '户' };
     item.results = { isPublished: document.getElementById('edPublishResult').checked, summary: document.getElementById('edResultSummary').value, detailUrl: '' };
@@ -979,6 +995,11 @@ async function saveItem(module, id) {
     item.type = item.type || 'opinion';
     item.createdBy = item.createdBy || currentAdmin && currentAdmin.name;
     item.createdAt = item.createdAt || new Date().toISOString();
+    if(item.mode === 'local') {
+      item.questions = collectPollQuestions();
+    } else {
+      item.questions = [];
+    }
   } else if (module === 'residents') {
     item.roomNo = document.getElementById('edRoom').value;
     item.name = document.getElementById('edName').value;
@@ -2485,6 +2506,198 @@ function escapeHtml(text){
   const div=document.createElement('div');
   div.textContent=text;
   return div.innerHTML;
+}
+
+
+
+/* ========== 本地问卷后台管理功能 ========== */
+
+function onPollModeChange() {
+  const mode = document.getElementById('edPollMode').value;
+  const tencentSec = document.getElementById('tencentSection');
+  const localSec = document.getElementById('localSection');
+  if(tencentSec) tencentSec.style.display = mode === 'tencent' ? 'block' : 'none';
+  if(localSec) localSec.style.display = mode === 'local' ? 'block' : 'none';
+}
+
+let _pollQuestions = [];
+
+function renderPollQuestionsEditor(questions) {
+  _pollQuestions = JSON.parse(JSON.stringify(questions || []));
+  const container = document.getElementById('pollQuestionsEditor');
+  if(!container) return;
+  if(!_pollQuestions.length) {
+    container.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:8px 0;">暂无题目，请点击下方按钮添加</div>';
+    return;
+  }
+  let html = '';
+  _pollQuestions.forEach((q, idx) => {
+    html += '<div class="poll-q-item" style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:10px;">';
+    html += '<div style="display:flex;gap:8px;margin-bottom:8px;">';
+    html += '<span style="font-weight:600;font-size:13px;">题目 ' + (idx+1) + '</span>';
+    html += '<button type="button" class="btn btn-sm btn-danger" onclick="removePollQuestion(' + idx + ')" style="margin-left:auto;">删除</button>';
+    html += '</div>';
+    html += '<div class="form-group" style="margin-bottom:10px;"><label style="font-size:12px;">题目标题</label><input type="text" id="qTitle-' + idx + '" value="' + escapeHtml(q.title||'') + '" placeholder="请输入题目标题"></div>';
+    html += '<div class="form-row" style="grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:10px;">';
+    html += '<div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">类型</label><select id="qType-' + idx + '" onchange="onQuestionTypeChange(' + idx + ')"><option value="single" ' + (q.type==='single'?'selected':'') + '>单选</option><option value="multiple" ' + (q.type==='multiple'?'selected':'') + '>多选</option><option value="text" ' + (q.type==='text'?'selected':'') + '>文本</option></select></div>';
+    html += '<div class="form-group form-check" style="margin-bottom:0;align-self:flex-end;padding-bottom:8px;"><input type="checkbox" id="qReq-' + idx + '" ' + (q.required?'checked':'') + '><label for="qReq-' + idx + '">必填</label></div>';
+    html += '</div>';
+    html += '<div id="qOptionsWrap-' + idx + '" style="' + (q.type==='text'?'display:none;':'') + '">';
+    html += '<label style="font-size:12px;display:block;margin-bottom:6px;">选项（每行一个）</label>';
+    html += '<textarea id="qOpts-' + idx + '" rows="3" placeholder="选项1&#10;选项2&#10;选项3" style="font-family:inherit;">' + escapeHtml((q.options||[]).join('\n')) + '</textarea>';
+    html += '</div>';
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
+function onQuestionTypeChange(idx) {
+  const type = document.getElementById('qType-' + idx).value;
+  const wrap = document.getElementById('qOptionsWrap-' + idx);
+  if(wrap) wrap.style.display = type === 'text' ? 'none' : 'block';
+}
+
+function addPollQuestion() {
+  _pollQuestions.push({ id: 'q-' + Date.now() + '-' + Math.random().toString(36).substr(2,4), title: '', type: 'single', options: ['选项1','选项2'], required: true });
+  renderPollQuestionsEditor(_pollQuestions);
+}
+
+function removePollQuestion(idx) {
+  _pollQuestions.splice(idx, 1);
+  renderPollQuestionsEditor(_pollQuestions);
+}
+
+function collectPollQuestions() {
+  const questions = [];
+  _pollQuestions.forEach((q, idx) => {
+    const title = document.getElementById('qTitle-' + idx).value.trim();
+    if(!title) return;
+    const type = document.getElementById('qType-' + idx).value;
+    const required = document.getElementById('qReq-' + idx).checked;
+    let options = [];
+    if(type !== 'text') {
+      const optsText = document.getElementById('qOpts-' + idx).value;
+      options = optsText.split('\n').map(s => s.trim()).filter(s => s);
+    }
+    questions.push({ id: q.id || ('q-' + Date.now() + '-' + idx), title, type, options, required });
+  });
+  return questions;
+}
+
+async function viewPollData(pollId) {
+  const p = (appData.polls||[]).find(x => x.id === pollId);
+  if(!p) return;
+  showLoading(true);
+  let responses = [];
+  try {
+    const d = new Date();
+    const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+    responses = await workerRead(path);
+    responses = responses.filter(x => x.pollId === pollId);
+  } catch(e) { responses = []; }
+  showLoading(false);
+
+  document.getElementById('modalTitle').textContent = '📊 问卷数据：' + p.title;
+  let body = '<div style="margin-bottom:12px;"><span style="font-size:13px;color:var(--text-secondary);">共 ' + responses.length + ' 人参与</span>';
+  body += '<button class="btn btn-sm" onclick="downloadPollData(\'' + pollId + '\')" style="margin-left:12px;">📥 下载CSV</button></div>';
+
+  if(!responses.length) {
+    body += '<div class="empty-state"><div class="icon">📊</div><div>暂无数据</div></div>';
+  } else {
+    body += '<div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>房号</th><th>姓名</th><th>提交时间</th>';
+    (p.questions||[]).forEach(q => {
+      body += '<th>' + escapeHtml(q.title) + '</th>';
+    });
+    body += '</tr></thead><tbody>';
+    responses.forEach(r => {
+      body += '<tr><td>' + (r.residentRoom||'') + '</td><td>' + (r.residentName||'') + '</td><td>' + formatDateTime(r.createdAt) + '</td>';
+      (p.questions||[]).forEach(q => {
+        const ans = r.answers.find(a => a.questionId === q.id);
+        let val = '';
+        if(ans) {
+          if(Array.isArray(ans.value)) val = ans.value.join(', ');
+          else val = ans.value;
+        }
+        body += '<td>' + escapeHtml(val) + '</td>';
+      });
+      body += '</tr>';
+    });
+    body += '</tbody></table></div>';
+
+    body += '<div style="margin-top:20px;"><div style="font-weight:600;margin-bottom:12px;">📈 选项统计</div>';
+    (p.questions||[]).forEach(q => {
+      if(q.type === 'text') return;
+      body += '<div style="background:#fafafa;border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:10px;">';
+      body += '<div style="font-weight:600;margin-bottom:8px;">' + escapeHtml(q.title) + '</div>';
+      const counts = {};
+      (q.options||[]).forEach(opt => counts[opt] = 0);
+      responses.forEach(r => {
+        const ans = r.answers.find(a => a.questionId === q.id);
+        if(!ans || !ans.value) return;
+        if(Array.isArray(ans.value)) {
+          ans.value.forEach(v => { if(counts[v] !== undefined) counts[v]++; });
+        } else {
+          if(counts[ans.value] !== undefined) counts[ans.value]++;
+        }
+      });
+      const total = responses.length || 1;
+      (q.options||[]).forEach(opt => {
+        const c = counts[opt] || 0;
+        const pct = Math.round(c / total * 100);
+        body += '<div style="margin-bottom:6px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;"><span>' + escapeHtml(opt) + '</span><span>' + c + ' (' + pct + '%)</span></div>';
+        body += '<div style="background:#e0e0e0;border-radius:4px;height:16px;overflow:hidden;"><div style="height:100%;background:var(--primary);width:' + pct + '%;"></div></div></div>';
+      });
+      body += '</div>';
+    });
+    body += '</div>';
+  }
+
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">关闭</button>';
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function downloadPollData(pollId) {
+  const p = (appData.polls||[]).find(x => x.id === pollId);
+  if(!p) return;
+  showLoading(true);
+  let responses = [];
+  try {
+    const d = new Date();
+    const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+    responses = await workerRead(path);
+    responses = responses.filter(x => x.pollId === pollId);
+  } catch(e) { responses = []; }
+  showLoading(false);
+
+  let csv = '\uFEFF';
+  csv += '房号,姓名,提交时间';
+  (p.questions||[]).forEach(q => {
+    csv += ',"' + (q.title||'').replace(/"/g, '""') + '"';
+  });
+  csv += '\n';
+
+  responses.forEach(r => {
+    csv += (r.residentRoom||'') + ',' + (r.residentName||'') + ',"' + (r.createdAt||'') + '"';
+    (p.questions||[]).forEach(q => {
+      const ans = r.answers.find(a => a.questionId === q.id);
+      let val = '';
+      if(ans) {
+        if(Array.isArray(ans.value)) val = ans.value.join(', ');
+        else val = ans.value;
+      }
+      csv += ',"' + val.replace(/"/g, '""') + '"';
+    });
+    csv += '\n';
+  });
+
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '问卷数据_' + (p.caseNo||pollId) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function previewImage(url){
