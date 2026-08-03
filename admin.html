@@ -537,6 +537,7 @@ async function loadAllData() {
   if (appData.documents) {
     appData.documents.forEach(item => {
       if (item.images) item.images = item.images.filter(u => !u.startsWith('blob:'));
+      if (item.attachments) item.attachments = item.attachments.filter(a => a.url && !a.url.startsWith('blob:'));
     });
   }
 }
@@ -783,8 +784,27 @@ function renderAnnouncementsAdmin() {
 function renderDocumentsAdmin() {
   const list = appData.documents || [];
   return `<div class="card"><div class="card-header"><h3>📄 文件管理</h3><button class="btn btn-primary" onclick="openEditModal('documents',null)">➕ 新增文件</button></div>` +
-    '<table class="data-table"><thead><tr><th>标题</th><th>来源</th><th>日期</th><th>操作</th></tr></thead><tbody>' +
-    list.map(item => `<tr><td>${item.title||''}</td><td>${item.source||''}</td><td>${item.publishDate||''}</td><td class="actions"><button onclick="openEditModal('documents','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('documents','${item.id}')">删除</button></td></tr>`).join('') +
+    '<table class="data-table"><thead><tr><th>标题</th><th>来源</th><th>日期</th><th>附件</th><th>操作</th></tr></thead><tbody>' +
+    list.map(item => {
+      let attachBadge = '';
+      const attachments = item.attachments || [];
+      const hasPdf = attachments.some(a => a.type === 'pdf') || (item.fileUrl && /\.pdf$/i.test(item.fileUrl));
+      const hasImage = attachments.some(a => a.type === 'image') || (item.images && item.images.length);
+      const hasLink = item.fileUrl && !hasPdf && !hasImage;
+
+      if (hasPdf) attachBadge += '<span class="pdf-badge">📄 PDF</span> ';
+      if (hasImage) attachBadge += '<span class="tag tag-active">🖼️ 图片</span> ';
+      if (hasLink) attachBadge += '<span class="tag tag-test">🔗 链接</span> ';
+      if (!hasPdf && !hasImage && !hasLink) attachBadge = '<span style="color:#999;font-size:12px;">—</span>';
+
+      const openUrl = item.fileUrl || (attachments[0] && attachments[0].url) || '';
+      let linkHtml = attachBadge;
+      if (openUrl) {
+        linkHtml = `<a href="${openUrl}" target="_blank" style="color:var(--primary);text-decoration:none;font-size:12px;">${attachBadge}查看 →</a>`;
+      }
+
+      return `<tr><td>${escapeHtml(item.title||'')}</td><td>${escapeHtml(item.source||'')}</td><td>${item.publishDate||''}</td><td>${linkHtml}</td><td class="actions"><button onclick="openEditModal('documents','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('documents','${item.id}')">删除</button></td></tr>`;
+    }).join('') +
     '</tbody></table></div>';
 }
 
@@ -935,8 +955,19 @@ function openEditModal(module, id) {
       if (videos.length) setMultiUploadedVideos('actVideos', videos);
     } else if (module === 'documents') {
       let docPaths = [];
-      if (item.images && item.images.length) docPaths.push(...item.images);
-      if (item.fileUrl && !docPaths.includes(item.fileUrl)) docPaths.push(item.fileUrl);
+      // 优先从新的 attachments 数组加载（参照公告管理）
+      if (item.attachments && item.attachments.length) {
+        docPaths.push(...item.attachments.map(a => a.url).filter(Boolean));
+      }
+      // 兼容旧数据：images + fileUrl
+      if (item.images && item.images.length) {
+        item.images.forEach(url => {
+          if (url && !docPaths.includes(url)) docPaths.push(url);
+        });
+      }
+      if (item.fileUrl && !docPaths.includes(item.fileUrl)) {
+        docPaths.push(item.fileUrl);
+      }
       if (docPaths.length) setMultiUploadedPaths('docFile', docPaths);
     } else if (module === 'announcements') {
       if (item.attachments && item.attachments.length) {
@@ -1017,14 +1048,38 @@ async function saveItem(module, id) {
     item.title = document.getElementById('edTitle').value;
     item.source = document.getElementById('edSource').value;
     item.publishDate = document.getElementById('edDate').value;
-    item.fileUrl = document.getElementById('edFileUrl').value.trim();
-    const uploadedPaths = getMultiUploadedPaths('docFile');
-    const validPaths = [...new Set(uploadedPaths)].filter(url => !url.startsWith('blob:'));
-    item.images = validPaths.filter(u => !/\.pdf$/i.test(u));
-    const pdfs = validPaths.filter(u => /\.pdf$/i.test(u));
-    if (pdfs.length && !item.fileUrl) item.fileUrl = pdfs[0];
     item.description = document.getElementById('edDesc').value;
     item.category = '上级文件';
+
+    // 参照公告管理：使用 attachments 数组保存所有上传附件
+    item.attachments = [];
+    const uploadedPaths = getMultiUploadedPaths('docFile');
+    uploadedPaths.filter(path => !path.startsWith('blob:')).forEach(path => {
+      item.attachments.push({ 
+        name: path.split('/').pop() || '附件', 
+        url: path,
+        type: /\.pdf$/i.test(path) ? 'pdf' : 'image'
+      });
+    });
+
+    // 兼容旧字段：自动同步 fileUrl 和 images
+    const pdfAttachments = item.attachments.filter(a => a.type === 'pdf');
+    const imageAttachments = item.attachments.filter(a => a.type === 'image');
+
+    // fileUrl：优先使用手动输入的值，否则取第一个PDF或第一个附件
+    const manualFileUrl = document.getElementById('edFileUrl').value.trim();
+    if (manualFileUrl) {
+      item.fileUrl = manualFileUrl;
+    } else if (pdfAttachments.length) {
+      item.fileUrl = pdfAttachments[0].url;
+    } else if (item.attachments.length) {
+      item.fileUrl = item.attachments[0].url;
+    } else {
+      item.fileUrl = '';
+    }
+
+    // images：取所有图片附件
+    item.images = imageAttachments.map(a => a.url);
   } else if (module === 'activities') {
     item.title = document.getElementById('edTitle').value;
     item.date = document.getElementById('edDate').value;
@@ -1695,18 +1750,18 @@ function renderMultiFilePreview(id, paths) {
   paths.forEach((path, idx) => {
     const isPdf = /\.pdf$/i.test(path);
     if (isPdf) {
-      html += `<div class="multi-preview-item" style="display:flex;align-items:center;justify-content:center;background:#f5f5f5;">
+      html += `<div class="multi-preview-item" style="display:flex;align-items:center;justify-content:center;background:#f5f5f5;cursor:pointer;" onclick="window.open('${path}','_blank')" title="点击打开PDF">
         <div style="text-align:center;">
           <div style="font-size:32px;">📄</div>
           <div style="font-size:10px;color:#666;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px;">${escapeHtml(path.split('/').pop() || 'PDF')}</div>
         </div>
-        <button class="remove" onclick="removeMultiFile('${id}', ${idx})" title="删除">×</button>
+        <button class="remove" onclick="event.stopPropagation();removeMultiFile('${id}', ${idx})" title="删除">×</button>
         <div class="idx">${idx + 1}</div>
       </div>`;
     } else {
-      html += `<div class="multi-preview-item">
+      html += `<div class="multi-preview-item" style="cursor:pointer;" onclick="previewImage('${path}')">
         <img src="${path}" onerror="this.src=''" loading="lazy" decoding="async">
-        <button class="remove" onclick="removeMultiFile('${id}', ${idx})" title="删除">×</button>
+        <button class="remove" onclick="event.stopPropagation();removeMultiFile('${id}', ${idx})" title="删除">×</button>
         <div class="idx">${idx + 1}</div>
       </div>`;
     }
