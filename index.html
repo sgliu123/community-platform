@@ -1162,7 +1162,8 @@ function renderPolls() {
       h += '<div class="poll-stats"><span>当前参与：' + (p.progress?.current||0) + ' ' + (p.progress?.unit||"户") + '</span><span>目标：' + (p.progress?.target||0) + ' ' + (p.progress?.unit||"户") + '</span></div>';
       if (p.status === "进行中") {
         if (residentAuth) {
-          h += `<div style="margin-top:4px;"><button class="poll-btn" onclick="joinPoll('${p.id}',event)" style="padding:8px 20px;font-size:13px;">我要参与</button></div>`;
+          const btnText = p.mode === 'local' ? '📝 立即参与' : '我要参与';
+          h += `<div style="margin-top:4px;"><button class="poll-btn" onclick="joinPoll('${p.id}',event)" style="padding:8px 20px;font-size:13px;">${btnText}</button></div>`;
         } else {
           h += '<div style="margin-top:4px;"><button class="poll-btn" onclick="showLogin();event.stopPropagation();" style="padding:8px 20px;font-size:13px;background:#888;">🔒 请登录后参与</button></div>';
         }
@@ -1878,6 +1879,9 @@ function closeExternalModal(modalId) {
 function renderPollDetail(id) {
   const p = (appData.polls||[]).find(x => x.id === id);
   if (!p) return '<div class="empty">投票不存在</div>';
+  if (p.mode === 'local') {
+    return renderLocalPollDetail(p);
+  }
   const pct = Math.round((p.progress?.current||0)/(p.progress?.target||1)*100);
   const sc = p.status === "进行中" ? "status-ongoing" : (p.status === "预告" ? "status-upcoming" : "status-ended");
   const canJoin = p.status === "进行中";
@@ -1903,9 +1907,191 @@ function joinPoll(pollId, event) {
   if (event) event.stopPropagation();
   if (!residentAuth) { window._pendingPollId = pollId; showLogin(); return; }
   const p = (appData.polls||[]).find(x => x.id === pollId);
-  if (p && p.tencentUrl) {
-    window.open(p.tencentUrl, '_blank');
-  } else { alert('暂无可参与的问卷链接'); }
+  if (!p) { alert('投票不存在'); return; }
+  if (p.mode === 'local') {
+    navigate('poll-detail', pollId);
+  } else {
+    if (p && p.tencentUrl) {
+      window.open(p.tencentUrl, '_blank');
+    } else { alert('暂无可参与的问卷链接'); }
+  }
+}
+
+
+/* ===== 本地问卷系统 ===== */
+async function loadPollResponses(pollId) {
+  const d = new Date();
+  const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+  try {
+    const all = await workerRead(path);
+    return all.filter(x => x.pollId === pollId);
+  } catch(e) { return []; }
+}
+
+function renderLocalPollDetail(p) {
+  const pct = Math.round((p.progress?.current||0)/(p.progress?.target||1)*100);
+  const sc = p.status === "进行中" ? "status-ongoing" : (p.status === "预告" ? "status-upcoming" : "status-ended");
+  let h = '<div class="card"><div class="detail-header">';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;"><span class="status-tag ' + sc + '">' + p.status + '</span>';
+  h += '<span style="font-size:13px;color:var(--text-secondary);">案卷号：' + p.caseNo + '</span>';
+  h += '<span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#e3f2fd;color:#1565c0;font-weight:600;">本地问卷</span></div>';
+  h += '<h1>' + p.title + '</h1><div class="detail-meta">';
+  h += '<span>开始：' + p.startDate + '</span><span>截止：' + p.endDate + '</span><span>发起：' + p.createdBy + '</span></div></div>';
+  h += '<div class="detail-content">' + (p.description||'') + '</div>';
+  h += '<div style="margin:20px 0;padding:16px;background:#f8f9fa;border-radius:8px;"><div style="font-weight:600;margin-bottom:8px;">参与进度</div>';
+  h += '<div class="poll-progress"><div class="poll-progress-bar" style="width:' + pct + '%">' + pct + '%</div></div>';
+  h += '<div class="poll-stats"><span>当前参与：' + (p.progress?.current||0) + ' ' + (p.progress?.unit||"户") + '</span><span>目标：' + (p.progress?.target||0) + ' ' + (p.progress?.unit||"户") + '</span></div></div>';
+  h += '<div id="localPollContainer"><div class="loading">加载问卷中...</div></div>';
+  h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
+  setTimeout(function() { initLocalPoll(p); }, 50);
+  return h;
+}
+
+async function initLocalPoll(p) {
+  const container = document.getElementById('localPollContainer');
+  if (!container) return;
+  if (!residentAuth) {
+    container.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:32px;margin-bottom:12px;">🔒</div><div style="font-size:15px;margin-bottom:16px;">请登录后参与问卷</div><button class="poll-btn" onclick="showLogin()">业主登录</button></div>';
+    return;
+  }
+  const responses = await loadPollResponses(p.id);
+  const hasVoted = responses.some(r => r.residentRoom === residentAuth.roomNo);
+  if (p.status !== '进行中' || hasVoted) {
+    container.innerHTML = renderLocalPollResults(p, responses, hasVoted);
+  } else {
+    container.innerHTML = renderLocalPollForm(p);
+  }
+}
+
+function renderLocalPollForm(p) {
+  let h = '<form id="localPollForm" onsubmit="event.preventDefault();">';
+  (p.questions || []).forEach(function(q, idx) {
+    h += '<div style="margin-bottom:20px;padding:16px;background:#fafbfc;border-radius:8px;border:1px solid #eef0f2;">';
+    h += '<div style="font-weight:600;margin-bottom:10px;">' + (idx+1) + '. ' + escapeHtml(q.title) + (q.required ? '<span style="color:#c62828;margin-left:4px;">*</span>' : '') + '</div>';
+    if (q.type === 'single') {
+      (q.options || []).forEach(function(opt, oidx) {
+        h += `<label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='#f0f2f5'" onmouseout="this.style.background='transparent'">`;
+        h += `<input type="radio" name="q_${q.id}" value="${escapeHtml(opt)}" style="width:auto;" ${q.required?"required":""}>`;
+        h += `<span style="font-size:14px;">${escapeHtml(opt)}</span></label>`;
+      });
+    } else if (q.type === 'multiple') {
+      (q.options || []).forEach(function(opt, oidx) {
+        h += `<label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='#f0f2f5'" onmouseout="this.style.background='transparent'">`;
+        h += `<input type="checkbox" name="q_${q.id}" value="${escapeHtml(opt)}" style="width:auto;">`;
+        h += `<span style="font-size:14px;">${escapeHtml(opt)}</span></label>`;
+      });
+    } else if (q.type === 'text') {
+      h += '<textarea name="q_' + q.id + '" rows="3" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:14px;" placeholder="请输入您的回答"></textarea>';
+    }
+    h += '</div>';
+  });
+  h += `<button type="button" class="poll-btn" onclick="submitLocalPoll('${p.id}')">提交问卷</button>`;
+  h += '</form>';
+  return h;
+}
+
+function renderLocalPollResults(p, responses, hasVoted) {
+  let h = '<div style="margin-top:8px;">';
+  if (hasVoted && p.status === '进行中') {
+    h += '<div style="margin-bottom:16px;padding:12px;background:#e8f5e9;border-radius:8px;border-left:4px solid var(--success);font-weight:500;">✅ 您已完成问卷，以下是当前统计结果</div>';
+  }
+  h += '<div style="font-weight:600;margin-bottom:16px;font-size:16px;">📊 投票结果（共 ' + responses.length + ' 人参与）</div>';
+  (p.questions || []).forEach(function(q, idx) {
+    h += '<div style="margin-bottom:24px;padding:16px;background:#fafbfc;border-radius:8px;border:1px solid #eef0f2;">';
+    h += '<div style="font-weight:600;margin-bottom:12px;">' + (idx+1) + '. ' + escapeHtml(q.title) + '</div>';
+    if (q.type === 'text') {
+      const texts = responses.map(function(r) {
+        const a = r.answers.find(function(x) { return x.questionId === q.id; });
+        return a ? a.value : '';
+      }).filter(function(v) { return v; });
+      h += '<div style="max-height:200px;overflow-y:auto;">';
+      texts.forEach(function(t) {
+        h += '<div style="padding:8px 12px;background:#fff;border-radius:6px;margin-bottom:6px;font-size:13px;border-left:3px solid var(--primary);">' + escapeHtml(t) + '</div>';
+      });
+      h += '</div>';
+    } else {
+      const counts = {};
+      (q.options || []).forEach(function(opt) { counts[opt] = 0; });
+      responses.forEach(function(r) {
+        const a = r.answers.find(function(x) { return x.questionId === q.id; });
+        if (!a || !a.value) return;
+        if (Array.isArray(a.value)) {
+          a.value.forEach(function(v) { if (counts[v] !== undefined) counts[v]++; });
+        } else {
+          if (counts[a.value] !== undefined) counts[a.value]++;
+        }
+      });
+      const total = responses.length || 1;
+      (q.options || []).forEach(function(opt) {
+        const c = counts[opt] || 0;
+        const pct = Math.round(c / total * 100);
+        h += '<div style="margin-bottom:10px;">';
+        h += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>' + escapeHtml(opt) + '</span><span>' + c + '票 (' + pct + '%)</span></div>';
+        h += '<div style="background:#e0e0e0;border-radius:6px;height:20px;overflow:hidden;">';
+        h += '<div style="height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-light));border-radius:6px;width:' + pct + '%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-size:11px;font-weight:600;">' + (pct > 10 ? pct + '%' : '') + '</div>';
+        h += '</div></div>';
+      });
+    }
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
+
+async function submitLocalPoll(pollId) {
+  if (!residentAuth) { showLogin(); return; }
+  const p = (appData.polls||[]).find(function(x) { return x.id === pollId; });
+  if (!p || p.status !== '进行中') { alert('该投票未在进行中'); return; }
+  const answers = [];
+  let valid = true;
+  (p.questions || []).forEach(function(q) {
+    if (q.type === 'single') {
+      const el = document.querySelector('input[name="q_' + q.id + '"]:checked');
+      if (q.required && !el) { valid = false; }
+      answers.push({ questionId: q.id, value: el ? el.value : '' });
+    } else if (q.type === 'multiple') {
+      const els = Array.from(document.querySelectorAll('input[name="q_' + q.id + '"]:checked'));
+      if (q.required && !els.length) { valid = false; }
+      answers.push({ questionId: q.id, value: els.map(function(e) { return e.value; }) });
+    } else if (q.type === 'text') {
+      const el = document.querySelector('textarea[name="q_' + q.id + '"]');
+      if (q.required && !el.value.trim()) { valid = false; }
+      answers.push({ questionId: q.id, value: el ? el.value.trim() : '' });
+    }
+  });
+  if (!valid) { alert('请填写所有必填项'); return; }
+  showPageLoading(true);
+  try {
+    const d = new Date();
+    const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+    let list = [];
+    try { list = await workerRead(path); } catch(e) { list = []; }
+    list.push({
+      id: 'pr-' + Date.now() + '-' + Math.random().toString(36).substr(2,4),
+      pollId: pollId,
+      residentRoom: residentAuth.roomNo,
+      residentName: residentAuth.name,
+      answers: answers,
+      createdAt: new Date().toISOString()
+    });
+    await workerWrite(path, list, '业主提交问卷 ' + pollId);
+    // 同步更新 polls.json 中的进度
+    try {
+      const pollsList = appData.polls || [];
+      const pIdx = pollsList.findIndex(function(x) { return x.id === pollId; });
+      if (pIdx >= 0 && pollsList[pIdx].progress) {
+        pollsList[pIdx].progress.current = (pollsList[pIdx].progress.current || 0) + 1;
+        await workerWrite('data/polls.json', pollsList, '更新投票进度 ' + pollId);
+        appData.polls = pollsList;
+      }
+    } catch(e2) { console.error('更新进度失败', e2); }
+    alert('✅ 提交成功！');
+    navigate('poll-detail', pollId);
+  } catch(e) {
+    alert('提交失败：' + e.message);
+  } finally {
+    showPageLoading(false);
+  }
 }
 
 function renderInlineMedia(htmlStr) {
