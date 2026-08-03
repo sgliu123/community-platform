@@ -1093,6 +1093,8 @@ function renderHome() {
     } catch (e) { console.error('加载首页反馈预览失败', e); }
   }, 100);
 
+  h += '<div class="card" style="margin-top:16px;"><div class="card-title"><span class="icon">📝</span>最新反馈</div><div id="homeComplaintsPreview"><div style="text-align:center;padding:20px;color:#999;font-size:13px;">加载中...</div></div></div>';
+
   return h;
 }
 
@@ -1289,50 +1291,76 @@ function renderProfileMiniList(list,module,title,emptyTip,navAction){
 function renderAnnouncementDetail(id) {
   const a = (appData.announcements||[]).find(x => x.id === id);
   if (!a) return '<div class="empty">公告不存在</div>';
-  let h = '<div class="card"><div class="detail-header"><h1>' + a.title + '</h1><div class="detail-meta">';
-  h += '<span>' + a.category + '</span><span>' + a.publishDate + '</span><span>作者：' + a.author + '</span><span>阅读：' + (a.views||0) + '</span>';
+  let h = '<div class="card"><div class="detail-header"><h1>' + escapeHtml(a.title || '') + '</h1><div class="detail-meta">';
+  h += '<span>' + escapeHtml(a.category || '') + '</span><span>' + (a.publishDate || '') + '</span><span>作者：' + escapeHtml(a.author || '') + '</span><span>阅读：' + (a.views||0) + '</span>';
   if (a.isPinned) h += '<span style="color:#c62828;">📌 置顶</span>';
-  h += '</div></div><div class="detail-content">' + a.content + '</div>';
-  h = renderInlineMedia(h);
+  h += '</div></div><div class="detail-content">' + renderInlineMedia(a.content || '') + '</div>';
   if (a.attachments && a.attachments.length) {
-    h += '<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">附件：</div>';
+    h += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;">📎 附件</div>';
     a.attachments.forEach(att => {
-      const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(att.url);
-      const isPdf = /\.pdf$/i.test(att.url);
+      const url = att.url || '';
+      const name = att.name || '附件';
+      const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(url);
+      const isPdf = /\.pdf$/i.test(url);
       if (isImg) {
-        h += '<div style="margin-bottom:12px;"><img src="' + att.url + '" style="max-width:100%;border-radius:8px;border:1px solid var(--border);" loading="lazy" onerror="this.style.display=\'none\'"></div>';
+        h += '<div style="margin-bottom:12px;"><img src="' + url + '" style="max-width:100%;border-radius:8px;border:1px solid var(--border);display:block;" loading="lazy" onerror="this.style.display=\'none\'"></div>';
       } else if (isPdf) {
-        h += '<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><iframe src="' + att.url + '" style="width:100%;height:500px;border:none;" title="PDF预览" loading="lazy"></iframe></div>';
+        h += '<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><iframe src="' + url + '" style="width:100%;height:500px;border:none;display:block;" title="' + escapeHtml(name) + '" loading="lazy"></iframe></div>';
       }
-      h += '<a href="' + att.url + '" target="_blank" style="display:block;padding:8px;background:#f5f5f5;border-radius:6px;margin-bottom:4px;font-size:13px;">📎 ' + att.name + '</a>';
+      h += '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:8px;padding:12px;background:#f8f9fa;border-radius:8px;margin-bottom:8px;font-size:14px;text-decoration:none;color:var(--text);border:1px solid var(--border);">';
+      h += '<span style="font-size:20px;">' + (isPdf ? '📄' : isImg ? '🖼️' : '📎') + '</span>';
+      h += '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(name) + '</span>';
+      h += '<span style="font-size:12px;color:var(--text-secondary);flex-shrink:0;">下载 ↓</span>';
+      h += '</a>';
     });
     h += '</div>';
   }
-  h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
+  h += '<div style="margin-top:24px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
   return h;
 }
 
 function renderDocumentDetail(id) {
   const d = (appData.documents||[]).find(x => x.id === id);
   if (!d) return '<div class="empty">文件不存在</div>';
-  let h = '<div class="card"><div class="detail-header"><h1>' + d.title + '</h1><div class="detail-meta">';
-  h += '<span>来源：' + d.source + '</span><span>发布日期：' + d.publishDate + '</span><span>' + d.category + '</span></div></div>';
-  h += '<div class="detail-content">' + d.description + '</div>';
-  h = renderInlineMedia(h);
+  let h = '<div class="card"><div class="detail-header"><h1>' + escapeHtml(d.title || '') + '</h1><div class="detail-meta">';
+  h += '<span>来源：' + escapeHtml(d.source || '') + '</span><span>发布日期：' + (d.publishDate || '') + '</span><span>' + escapeHtml(d.category || '') + '</span></div></div>';
+  h += '<div class="detail-content">' + renderInlineMedia(d.description || '') + '</div>';
   // 多图显示（后台 images 数组）
   const allImages = d.images || [];
   if (allImages.length > 0) {
     h += renderPhotoGallery(allImages, '文件图片', 'var(--primary)');
   }
-  // fileUrl 保留 PDF/文件下载
-  if (d.fileUrl) {
-    const isPdf = /\.pdf$/i.test(d.fileUrl);
-    if (isPdf) {
-      h += '<div style="margin-top:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;"><iframe src="' + d.fileUrl + '" style="width:100%;height:600px;border:none;" title="PDF预览" loading="lazy"></iframe></div>';
-    }
-    h += '<div style="margin-top:12px;"><a href="' + d.fileUrl + '" target="_blank" class="poll-btn">📎 查看/下载文件</a></div>';
+  // 附件处理：同时支持 fileUrl 和 attachments 数组
+  let allAttachments = [];
+  if (d.attachments && Array.isArray(d.attachments)) {
+    allAttachments = allAttachments.concat(d.attachments);
   }
-  h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
+  if (d.fileUrl) {
+    allAttachments.push({ name: d.fileName || d.title || '附件文件', url: d.fileUrl });
+  }
+  if (allAttachments.length > 0) {
+    h += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;">📎 附件</div>';
+    allAttachments.forEach(att => {
+      const url = att.url || '';
+      const name = att.name || '附件';
+      const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(url);
+      const isPdf = /\.pdf$/i.test(url);
+      if (isPdf) {
+        h += '<div style="margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff;">';
+        h += '<iframe src="' + url + '" style="width:100%;height:600px;border:none;display:block;" title="' + escapeHtml(name) + '" loading="lazy"></iframe>';
+        h += '</div>';
+      } else if (isImg) {
+        h += '<div style="margin-bottom:12px;"><img src="' + url + '" style="max-width:100%;border-radius:8px;border:1px solid var(--border);display:block;" loading="lazy" onerror="this.style.display=\'none\'"></div>';
+      }
+      h += '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:8px;padding:12px;background:#f8f9fa;border-radius:8px;margin-bottom:8px;font-size:14px;text-decoration:none;color:var(--text);border:1px solid var(--border);transition:all .2s;" onmouseover="this.style.borderColor=\'var(--primary)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+      h += '<span style="font-size:20px;">' + (isPdf ? '📄' : isImg ? '🖼️' : '📎') + '</span>';
+      h += '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(name) + '</span>';
+      h += '<span style="font-size:12px;color:var(--text-secondary);flex-shrink:0;">下载 ↓</span>';
+      h += '</a>';
+    });
+    h += '</div>';
+  }
+  h += '<div style="margin-top:24px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
   return h;
 }
 function getEmbedUrl(url) {
