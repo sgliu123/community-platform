@@ -328,7 +328,12 @@ async function workerRead(filePath){
   const base=getWorkerBase();
   if(!base){
     const key=filePath.replace(/\.json$/,'').replace(/\//g,'-');
-    return appData[key]||[];
+    const cached = appData[key];
+    if(cached && Array.isArray(cached) && cached.length > 0) return cached;
+    // 尝试从 appData 的模块名直接读取（如 appData.workorders）
+    const moduleName = filePath.split('/')[0];
+    if(appData[moduleName] && Array.isArray(appData[moduleName]) && appData[moduleName].length > 0) return appData[moduleName];
+    return [];
   }
   const res=await fetch(base+'/api/read/'+encodeURIComponent(filePath));
   if(!res.ok) throw new Error('读取失败');
@@ -1278,7 +1283,7 @@ async function compressImageToBlob(file, maxSizeMB = 0.05) {
         canvas.toBlob((b) => res(b), 'image/jpeg', q);
       });
       const maxSize = maxSizeMB * 1024 * 1024;
-      let blob = await toBlob(0.4);
+      let blob = await toBlob(0.25);
       if (blob.size <= maxSize) {
         resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
         return;
@@ -1295,7 +1300,7 @@ async function compressImageToBlob(file, maxSizeMB = 0.05) {
         return;
       }
       let scale = 0.7;
-      while (scale > 0.15) {
+      while (scale > 0.05) {
         const nw = Math.max(1, Math.floor(w * scale));
         const nh = Math.max(1, Math.floor(h * scale));
         canvas.width = nw; canvas.height = nh;
@@ -1305,7 +1310,7 @@ async function compressImageToBlob(file, maxSizeMB = 0.05) {
           resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
           return;
         }
-        scale -= 0.12;
+        scale -= 0.18;
       }
       reject(new Error('图片压缩后仍超过' + maxSizeMB + 'MB限制'));
     };
@@ -1443,7 +1448,7 @@ async function processFileUpload(file, id) {
   if (isImage && file.type.startsWith('image/')) {
     progressEl.textContent = '⏳ 压缩中...';
     try {
-      uploadFile = await compressImageToBlob(file, 0.15);
+      uploadFile = await compressImageToBlob(file, 0.03);
       progressEl.textContent = '⏳ 上传中...';
     } catch(e) {
       showToast('图片压缩失败：' + e.message, 'error');
@@ -1560,7 +1565,7 @@ async function processMultiFileUpload(files, id) {
     let uploadFile = file;
     if (file.type.startsWith('image/')) {
       try {
-        uploadFile = await compressImageToBlob(file, 0.15);
+        uploadFile = await compressImageToBlob(file, 0.03);
       } catch(e) {
         showToast('"' + file.name + '" 压缩失败：' + e.message, 'error');
         continue;
@@ -2075,6 +2080,7 @@ async function refreshComplaints(){
 }
 
 function openWorkorderModal(id){
+  _woAdminImages = [];
   const list = appData.workorders || [];
   const item = list.find(x=>x.id===id);
   if(!item) return;
@@ -2141,7 +2147,7 @@ function openWorkorderModal(id){
   body += '<div class="form-group"><label>处理图片（可选）</label><div id="woAdminImagesPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>';
   if(!isLocked){
     body += '<input type="file" id="woAdminImages" accept="image/*" multiple style="display:none" onchange="handleWOAdminImages(this)">';
-    body += '<button type="button" class="btn" onclick="document.getElementById(\'woAdminImages\').click()">📎 上传图片</button>';
+    body += '<button type="button" class="btn" onclick="document.getElementById(\'woAdminImages\').click()">📎 上传图片（自动压缩至30KB内）</button>';
   }
   body += '</div>';
   body += '<div style="text-align:right;margin-top:8px;"><button class="btn" onclick="downloadWorkorderSummary(\''+id+'\')">📥 下载处理总结</button></div>';
@@ -2163,7 +2169,7 @@ async function handleWOAdminImages(input){
   for(const f of files){
     let file=f;
     if(f.type.startsWith('image/')){
-      try{ file=await compressImageToBlob(f,0.15); }catch(e){ showToast('图片压缩失败：'+e.message,'error'); continue; }
+      try{ file=await compressImageToBlob(f,0.03); }catch(e){ showToast('图片压缩失败：'+e.message,'error'); continue; }
     }
     const url=URL.createObjectURL(file);
     preview.innerHTML+='<div style="width:60px;height:60px;border-radius:4px;overflow:hidden;border:1px solid var(--border);"><img src="'+url+'" style="width:100%;height:100%;object-fit:cover;"></div>';
@@ -2184,10 +2190,18 @@ async function saveWorkorderAction(id){
   const reply = document.getElementById('woReply').value.trim();
   showLoading(true);
   try{
-    const path = getCurrentMonthPath('workorders');
-    const list = await workerRead(path);
-    const item = list.find(x=>x.id===id);
-    if(!item) throw new Error('工单不存在');
+    // 优先从内存中获取记录，避免跨月份或数据不同步导致找不到
+    let woList = appData.workorders || [];
+    let item = woList.find(x=>x.id===id);
+
+    // 如果内存中没有，尝试从当前月份文件读取（兼容旧逻辑）
+    if(!item){
+      const path = getCurrentMonthPath('workorders');
+      woList = await workerRead(path);
+      item = woList.find(x=>x.id===id);
+    }
+
+    if(!item) throw new Error('工单不存在或已过期，请刷新页面后重试');
     if(item.status === '已完成' && !item.isTest){
       throw new Error('该工单已完成并锁定，不可修改');
     }
@@ -2197,7 +2211,7 @@ async function saveWorkorderAction(id){
     item.workerPhone = workerPhone;
     if(reply){
       item.timeline = item.timeline || [];
-      item.timeline.push({time:new Date().toISOString(), action:reply, operator:(currentAdmin&&currentAdmin.name)||'管理员'});
+      item.timeline.push({time:new Date().toISOString(), action:reply, operator:(currentAdmin&&currentAdmin.name)||'管理员', status: status});
     }
     if(assignee && oldStatus==='待受理' && status==='待受理') item.status='已派单';
     if(reply && (status==='已派单'||status==='处理中')) item.status='处理中';
@@ -2209,8 +2223,9 @@ async function saveWorkorderAction(id){
       item.adminImages.push(r.url || r);
     }
     _woAdminImages = [];
-    await workerWrite(path, list, '管理员处理工单 '+id);
-    appData.workorders = list;
+    const path = getCurrentMonthPath('workorders');
+    await workerWrite(path, woList, '管理员处理工单 '+id);
+    appData.workorders = woList;
     closeModal();
     showToast('处理成功', 'success');
     navigateTo('workorders');
@@ -2225,7 +2240,7 @@ async function handleCPReplyImages(input){
   for(const f of files){
     if(!f.type.startsWith('image/')) continue;
     let file = f;
-    try{ file = await compressImageToBlob(f, 0.05); }
+    try{ file = await compressImageToBlob(f, 0.03); }
     catch(e){ showToast('"'+f.name+'" 压缩失败：'+e.message, 'error'); continue; }
     const url = URL.createObjectURL(file);
     const div = document.createElement('div');
@@ -2300,7 +2315,7 @@ function openComplaintModal(id){
   body += '<div class="form-group"><label>回复图片（不限制数量，自动高强度压缩至50KB以内）</label>';
   body += '<div id="cpReplyImagesPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>';
   body += '<input type="file" id="cpReplyImages" accept="image/*" multiple style="display:none" onchange="handleCPReplyImages(this)">';
-  body += '<button type="button" class="btn" onclick="document.getElementById(\'cpReplyImages\').click()">📎 选择图片</button>';
+  body += '<button type="button" class="btn" onclick="document.getElementById(\'cpReplyImages\').click()">📎 选择图片（自动压缩至30KB内）</button>';
   body += '<span style="font-size:12px;color:var(--text-secondary);margin-left:8px;">支持多选，已选 <span id="cpReplyImgCount">0</span> 张</span>';
   body += '</div>';
   body += '<div class="form-group"><label>操作</label><select id="cpAction"><option value="reply">回复业主</option><option value="close">直接办结</option></select></div>';
@@ -2354,17 +2369,25 @@ async function saveComplaintAction(id){
   if(action==='reply' && !reply){ alert('请填写回复内容'); return; }
   showLoading(true);
   try{
-    const path = getCurrentMonthPath('complaints');
-    const list = await workerRead(path);
-    const item = list.find(x=>x.id===id);
-    if(!item) throw new Error('记录不存在');
+    // 优先从内存中获取记录，避免跨月份或数据不同步导致找不到
+    let cpList = appData.complaints || [];
+    let item = cpList.find(x=>x.id===id);
+
+    // 如果内存中没有，尝试从当前月份文件读取（兼容旧逻辑）
+    if(!item){
+      const path = getCurrentMonthPath('complaints');
+      cpList = await workerRead(path);
+      item = cpList.find(x=>x.id===id);
+    }
+
+    if(!item) throw new Error('记录不存在或已过期，请刷新页面后重试');
     if(reply){ item.reply = reply; item.replyAt = new Date().toISOString(); }
     item.status = action==='close' ? '已办结' : '已回复';
     item.handler = currentAdmin && currentAdmin.name || '管理员';
     item.updatedAt = new Date().toISOString();
     item.timeline = item.timeline || [];
-    item.timeline.push({time:new Date().toISOString(), action: action==='close'?'直接办结':('回复：'+reply), operator: item.handler});
-    // 上传回复图片（不限制数量，逐个上传）
+    item.timeline.push({time:new Date().toISOString(), action: action==='close'?'直接办结':('回复：'+reply), operator: item.handler, status: item.status});
+    // 上传回复图片（不限制数量，逐个上传，高强度压缩）
     item.replyImages = item.replyImages || [];
     for(const f of _cpReplyImages){
       try{
@@ -2375,8 +2398,9 @@ async function saveComplaintAction(id){
       }
     }
     _cpReplyImages = [];
-    await workerWrite(path, list, '管理员处理反馈 '+id);
-    appData.complaints = list;
+    const path = getCurrentMonthPath('complaints');
+    await workerWrite(path, cpList, '管理员处理反馈 '+id);
+    appData.complaints = cpList;
     closeModal();
     showToast('处理成功', 'success');
     navigateTo('complaints');
