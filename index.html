@@ -2406,7 +2406,10 @@ function renderWorkorderDetail(id){
   h+='<span>类型：'+item.type+'</span><span>工单号：'+item.id+'</span><span>提交：'+formatDate(item.createdAt)+'</span></div></div>';
   h+='<div class="detail-content"><p>'+escapeHtml(item.description||'暂无描述')+'</p></div>';
   h += renderPhotoGallery(item.images, '故障图片（业主上传）', '#e65100');
-  h += renderPhotoGallery(item.adminImages, '处理照片（物业上传）', 'var(--primary)');
+  var replyImages = item.replyImages || item.adminImages || [];
+  if (replyImages.length > 0) {
+    h += renderPhotoGallery(replyImages, '已上传回复图片', 'var(--primary)');
+  }
   h+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><div style="font-weight:600;margin-bottom:12px;">📋 处理进度</div>';
   var timeline=item.timeline||[];
   if(!timeline.length){h+='<div style="font-size:13px;color:var(--text-secondary);padding:8px 0;">暂无处理记录</div>';}
@@ -2496,29 +2499,40 @@ function renderComplaintDetail(id){
   h+='<span>类型：'+item.type+'</span><span>编号：'+item.id+'</span><span>提交：'+formatDate(item.createdAt)+'</span></div></div>';
   h+='<div class="detail-content"><p>'+escapeHtml(item.content)+'</p></div>';
   h += renderPhotoGallery(item.images, '相关图片（业主上传）', '#e65100');
-  h += renderPhotoGallery(item.adminImages, '处理照片（物业上传）', 'var(--primary)');
-  h+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><div style="font-weight:600;margin-bottom:12px;">📋 处理记录</div>';
-  var records=[];
-  if(item.reply){
-    records.push({action:'📢 物业回复：'+escapeHtml(item.reply),operator:item.handler||'物业',time:item.replyAt||item.updatedAt,level:0});
+  var replyImages = item.replyImages || item.adminImages || [];
+  if (replyImages.length > 0) {
+    h += renderPhotoGallery(replyImages, '已上传回复图片', 'var(--primary)');
   }
-  if(item.satisfaction!==null){
-    records.push({action:'💬 业主反馈：'+(item.satisfaction?'👍 满意':'👎 不满意'),operator:item.residentName||'业主',time:item.updatedAt,level:1});
+  h+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><div style="font-weight:600;margin-bottom:12px;">📋 处理节点记录</div>';
+  var timeline = item.timeline || [];
+  if (!timeline.length && item.reply) {
+    timeline = [{
+      time: item.replyAt || item.updatedAt,
+      action: '物业回复',
+      operator: item.handler || '管理员',
+      content: item.reply
+    }];
   }
-  if(!records.length){h+='<div style="font-size:13px;color:var(--text-secondary);padding:8px 0;">暂无处理记录</div>';}
+  if(!timeline.length){h+='<div style="font-size:13px;color:var(--text-secondary);padding:8px 0;">暂无处理记录</div>';}
   else{
-    records.forEach(function(t,idx){
-      var level=Math.min(t.level||idx,4);
-      var indent=level*20;
-      var isLast=idx===records.length-1;
-      h+='<div style="position:relative;padding-left:'+(24+indent)+'px;margin-bottom:16px;">';
-      if(!isLast) h+='<div style="position:absolute;left:'+(8+indent)+'px;top:10px;bottom:-20px;width:2px;background:#e0e0e0;"></div>';
-      h+='<div style="position:absolute;left:'+(2+indent)+'px;top:6px;width:12px;height:12px;background:var(--primary);border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px var(--primary);z-index:1;"></div>';
+    timeline.forEach(function(t,idx){
+      var isLast=idx===timeline.length-1;
+      h+='<div style="position:relative;padding-left:28px;margin-bottom:16px;">';
+      if(!isLast) h+='<div style="position:absolute;left:8px;top:14px;bottom:-16px;width:2px;background:#e0e0e0;"></div>';
+      h+='<div style="position:absolute;left:2px;top:6px;width:12px;height:12px;background:var(--primary);border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px var(--primary);z-index:1;"></div>';
       h+='<div style="background:#f8f9fa;border-radius:8px;padding:12px 14px;border:1px solid #eef0f2;">';
-      h+='<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">'+t.action+'</div>';
-      h+='<div style="font-size:12px;color:var(--text-secondary);display:flex;gap:8px;flex-wrap:wrap;">';
-      h+='<span>👤 '+escapeHtml(t.operator)+'</span><span>🕐 '+formatDateTime(t.time)+'</span>';
-      h+='</div></div></div>';
+      h+='<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">';
+      h+='<span>🕐 '+formatDateTime(t.time)+'</span>';
+      h+='<span>👤 '+escapeHtml(t.operator || item.handler || '管理员')+'</span>';
+      h+='</div>';
+      if (t.action) {
+        h+='<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">'+escapeHtml(t.action)+'</div>';
+      }
+      var contentText = t.content || t.reply || '';
+      if (contentText) {
+        h+='<div style="font-size:14px;color:var(--text);line-height:1.6;">'+escapeHtml(contentText)+'</div>';
+      }
+      h+='</div></div>';
     });
   }
   h+='</div>';
