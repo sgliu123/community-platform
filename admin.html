@@ -386,8 +386,16 @@ let currentAdmin = null;
 const SALT = "SunlightCommunity2026";
 
 document.addEventListener('DOMContentLoaded', async () => {
-  try { await loadAllData(); } catch(e) { console.error(e); }
-  autoSkipLogin();
+  try { 
+    await loadAllData(); 
+    autoSkipLogin();
+  } catch(e) { 
+    console.error('Init error:', e);
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('tokenPage').style.display = 'none';
+    document.getElementById('adminLayout').classList.add('active');
+    document.getElementById('contentArea').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div>初始化失败，请刷新页面重试</div><div style="font-size:12px;color:#999;margin-top:8px;">' + escapeHtml(e.message) + '</div></div>';
+  }
 });
 
 async function loadAllData() {
@@ -614,24 +622,33 @@ function renderSidebar() {
 }
 
 function navigateTo(module) {
-  currentModule = module;
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === module));
-  const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', audit: '操作日志', workorders: '工单管理', complaints: '投诉建议', settings: '系统设置' };
-  var pt = document.getElementById('pageTitle');
-  if (pt) pt.textContent = titles[module] || module;
-  var sb = document.getElementById('saveBtn');
-  if (sb) sb.style.display = ['dashboard','audit','settings'].indexOf(module) >= 0 ? 'none' : 'inline-block';
-  const renderers = {
-    dashboard: renderDashboard, config: renderConfig, announcements: renderAnnouncementsAdmin,
-    documents: renderDocumentsAdmin, activities: renderActivitiesAdmin, polls: renderPollsAdmin,
-    residents: renderResidentsAdmin, audit: renderAuditLog,
-    workorders: renderWorkordersAdmin,
-    complaints: renderComplaintsAdmin,
-    settings: renderSettings
-  };
-  const fn = renderers[module] || renderDashboard;
-  var ca = document.getElementById('contentArea');
-  if (ca) ca.innerHTML = fn();
+  try {
+    currentModule = module;
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === module));
+    const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', audit: '操作日志', workorders: '工单管理', complaints: '投诉建议', settings: '系统设置' };
+    var pt = document.getElementById('pageTitle');
+    if (pt) pt.textContent = titles[module] || module;
+    var sb = document.getElementById('saveBtn');
+    if (sb) sb.style.display = ['dashboard','audit','settings'].indexOf(module) >= 0 ? 'none' : 'inline-block';
+    const renderers = {
+      dashboard: renderDashboard, config: renderConfig, announcements: renderAnnouncementsAdmin,
+      documents: renderDocumentsAdmin, activities: renderActivitiesAdmin, polls: renderPollsAdmin,
+      residents: renderResidentsAdmin, audit: renderAuditLog,
+      workorders: renderWorkordersAdmin,
+      complaints: renderComplaintsAdmin,
+      settings: renderSettings
+    };
+    const fn = renderers[module] || renderDashboard;
+    var ca = document.getElementById('contentArea');
+    if (ca) {
+      const html = fn();
+      ca.innerHTML = typeof html === 'string' ? html : '<div class="empty-state"><div class="icon">⚠️</div><div>页面加载异常</div></div>';
+    }
+  } catch(e) {
+    console.error('navigateTo error:', e);
+    var ca = document.getElementById('contentArea');
+    if (ca) ca.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div>页面加载出错，请刷新重试</div><div style="font-size:12px;color:#999;margin-top:8px;">' + escapeHtml(e.message) + '</div></div>';
+  }
 }
 
 function renderDashboard() {
@@ -807,11 +824,10 @@ function openEditModal(module, id) {
       '<div class="form-group"><label>状态</label><select id="edStatus"><option value="预告" ' + (item.status==='预告'?'selected':'') + '>预告</option><option value="进行中" ' + (item.status==='进行中'?'selected':'') + '>进行中</option><option value="已结束" ' + (item.status==='已结束'?'selected':'') + '>已结束</option></select></div>' +
       '<div class="form-group"><label>封面图片链接</label><input type="text" id="edCoverImage" value="' + (item.coverImage||'') + '" placeholder="https://example.com/cover.jpg"></div>' +
       createFileUploaderHTML({id:'actCover', accept:'image/*', hint:'支持拖拽或点击上传封面图（自动压缩），上传后自动填充上方链接'}) +
-      '<div class="form-group"><label>活动图集链接（每行一个，最多15张）</label><textarea id="edImages" rows="3" placeholder="https://example.com/img1.jpg\nhttps://example.com/img2.jpg">' + (item.images||[]).join('\n') + '</textarea></div>' +
-      '<div class="form-group"><label>上传活动图片（支持多选拖拽，最多15张，自动压缩）</label>' +
-      createMultiImageUploaderHTML('actImages', '支持拖拽或点击上传多张图片（自动压缩）') + '</div>' +
+      '<div class="form-group"><label>上传活动图片（支持多选拖拽，最多15张，高强度自动压缩至30KB以内）</label>' +
+      createMultiImageUploaderHTML('actImages', '支持拖拽或点击上传多张图片（自动压缩至30KB以内，宽度限制640px）') + '</div>' +
       '<div class="form-group"><label>上传本地视频（支持多选拖拽，最多5个，单个800M以内，上传后自动压缩至100M以内）</label>' +
-      createMultiVideoUploaderHTML('actVideos', '支持拖拽或点击上传视频（mp4/mov/webm/avi等，单个100M以内，GitHub API限制）') + '</div>' +
+      createMultiVideoUploaderHTML('actVideos', '推荐上传 MP4 (H.264编码) 格式，手机微信兼容性最佳；单个100M以内') + '</div>' +
       '<div class="form-group"><label>视频链接（每行一个，支持哔哩哔哩/YouTube/抖音/西瓜/腾讯等，不限制数量）</label><textarea id="edVideoLinks" rows="3" placeholder="https://www.bilibili.com/video/BVxxxxx\nhttps://www.youtube.com/watch?v=xxxxx">' + (item.videoLinks||[]).join('\n') + '</textarea></div>' +
       
       '<div class="form-group"><label>外部链接（每行一个，不限制数量）</label><textarea id="edExternalLinks" rows="2" placeholder="https://www.example.com/article">' + (item.externalLinks||[]).join('\n') + '</textarea></div>' +
@@ -965,10 +981,8 @@ async function saveItem(module, id) {
     const coverPath = getUploadedPath('actCover');
     if (coverPath) item.coverImage = coverPath;
     else item.coverImage = document.getElementById('edCoverImage').value.trim();
-    const imgText = document.getElementById('edImages').value.trim();
-    let allImages = imgText ? imgText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
     const uploadedImages = getMultiUploadedPaths('actImages');
-    allImages = [...new Set([...allImages, ...uploadedImages])].slice(0, 15);
+    let allImages = [...new Set(uploadedImages)].slice(0, 15);
     item.images = allImages;
     // 检测并过滤掉失效的 blob 链接
     item.images = item.images.filter(url => !url.startsWith('blob:'));
@@ -1282,7 +1296,7 @@ async function updateToken() {
 
 /* ========== 图片压缩 ========== */
 
-async function compressImageToBlob(file, maxSizeMB = 0.05) {
+async function compressImageToBlob(file, maxSizeMB = 0.03) {
   if (!file.type.startsWith('image/')) return file;
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -1292,7 +1306,7 @@ async function compressImageToBlob(file, maxSizeMB = 0.05) {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       let w = img.width, h = img.height;
-      const maxDim = 800;
+      const maxDim = 640;
       if (w > maxDim || h > maxDim) {
         if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
         else { w = Math.round(w * maxDim / h); h = maxDim; }
@@ -1654,7 +1668,7 @@ function createMultiVideoUploaderHTML(id, hint) {
   return `<div class="file-upload-wrap" id="wrap-${id}">
     <div class="file-dropzone" id="drop-${id}" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleMultiVideoDrop(event,'${id}')" onclick="document.getElementById('inp-${id}').click()">
       <div>🎬 点击或拖拽视频到此处上传</div>
-      <div class="hint">${hint || '支持拖拽或点击上传视频（mp4/mov/webm/avi等，单个100M以内）'}</div>
+      <div class="hint">${hint || '推荐上传 MP4 (H.264编码) 格式，手机微信兼容性最佳；单个100M以内'}</div>
       <div class="hint" style="color:var(--primary);font-weight:500;">已上传 <span id="count-${id}">0</span> / 5 个</div>
     </div>
     <input type="file" id="inp-${id}" style="display:none" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska" multiple onchange="handleMultiVideoSelect(event,'${id}')">
