@@ -1548,6 +1548,134 @@ function renderActivityDetail(id) {
   h += '</div></div>';
   return h;
 }
+function renderSingleVideoPlayer(video, vidId, coverImage) {
+  let h = '';
+  if (video.type === 'local') {
+    h += '<div class="video-player-native" id="' + vidId + '">';
+    h += '<div class="video-loading-state" id="' + vidId + '-loading">';
+    h += '<div class="spinner"></div><div class="load-text">视频加载中...</div></div>';
+    h += '<div class="video-error-state" id="' + vidId + '-error">';
+    h += '<div class="error-icon">⚠️</div><div class="error-text">视频加载失败</div>';
+    h += '<div class="error-hint">请检查网络连接，或尝试刷新页面</div>';
+    h += '<button class="poll-btn" style="margin-top:12px;background:var(--primary);" onclick="retryVideo(' + "'" + vidId + "'" + ')">重新加载</button></div>';
+    h += '<video controls preload="metadata" playsinline webkit-playsinline x5-video-player-type="h5" fetchpriority="high"';
+    if (coverImage) {
+      h += ' poster="' + coverImage + '"';
+    }
+    h += ' style="width:100%;display:block;border-radius:8px;background:#0a0a0a;min-height:200px;">';
+    // Events are bound by initVideoPlayers() for reliability
+    h += '<source src="' + video.url + '" type="video/mp4">';
+    h += '您的浏览器不支持视频播放';
+    h += '</video></div>';
+  } else {
+    const embedUrl = getEmbedUrl(video.url);
+    const platform = detectVideoPlatform(video.url);
+    if (embedUrl === null) {
+      h += renderPlatformRedirectCard(video.url, platform, coverImage);
+    } else {
+      h += '<div class="video-wrapper" id="' + vidId + '">';
+      h += '<div class="video-placeholder" onclick="showVideoPlayer(' + "'" + vidId + "'" + ')">';
+      if (coverImage) {
+        h += '<img src="' + coverImage + '" alt="cover">';
+      } else {
+        h += '<div style="position:absolute;inset:0;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;">';
+        h += '<div style="text-align:center;color:#fff;"><div style="font-size:48px;margin-bottom:8px;">' + platform.icon + '</div><div style="font-size:14px;opacity:0.9;">' + platform.name + '</div></div>';
+        h += '</div>';
+      }
+      h += '<div class="play-btn"></div>';
+      h += '<div class="video-platform-badge">' + platform.icon + ' ' + platform.name + '</div>';
+      h += '</div>';
+      h += '<div class="video-player" id="' + vidId + '-player">';
+      h += '<button class="video-close" onclick="hideVideoPlayer(' + "'" + vidId + "'" + ')">✕</button>';
+      if (embedUrl !== video.url) {
+        // Direct load for instant playback; data-src kept for recovery after hide/switch
+        h += '<iframe data-src="' + embedUrl + '" src="' + embedUrl + '" allowfullscreen allow="autoplay; fullscreen" style="z-index:1;position:relative;"></iframe>';
+      } else {
+        h += '<div class="video-loading-state" id="' + vidId + '-vidload">';
+        h += '<div class="spinner"></div><div class="load-text">视频加载中...</div></div>';
+        h += '<div class="video-error-state" id="' + vidId + '-viderror">';
+        h += '<div class="error-icon">⚠️</div><div class="error-text">视频加载失败</div>';
+        h += '<div class="error-hint">请检查网络连接或视频格式</div>';
+        h += '<button class="poll-btn" style="margin-top:12px;background:var(--primary);" onclick="retryVideo(' + "'" + vidId + "'" + ')">重新加载</button></div>';
+        h += '<video controls preload="metadata" playsinline webkit-playsinline x5-video-player-type="h5"';
+        h += ' style="width:100%;height:100%;display:block;background:#0a0a0a;min-height:200px;position:relative;z-index:1;">';
+        h += '<source src="' + video.url + '" type="video/mp4">';
+        h += '</video>';
+      }
+      h += '</div></div>';
+    }
+  }
+  return h;
+}
+
+function detectVideoPlatform(url) {
+  if (!url) return { name: '未知', icon: '📹' };
+  if (/bilibili\.com|b23\.tv/i.test(url)) return { name: '哔哩哔哩', icon: '📺' };
+  if (/youtube\.com|youtu\.be/i.test(url)) return { name: 'YouTube', icon: '▶️' };
+  if (/douyin\.com|iesdouyin\.com/i.test(url)) return { name: '抖音', icon: '🎵' };
+  if (/ixigua\.com/i.test(url)) return { name: '西瓜视频', icon: '🍉' };
+  if (/weibo\.com|weibo\.cn/i.test(url)) return { name: '微博', icon: '📱' };
+  if (/qq\.com\/x\/cover|v\.qq\.com/i.test(url)) return { name: '腾讯视频', icon: '📺' };
+  if (/youku\.com/i.test(url)) return { name: '优酷', icon: '👁️' };
+  if (/iqiyi\.com/i.test(url)) return { name: '爱奇艺', icon: '▶️' };
+  if (/channels\.weixin\.qq\.com|weixin\.qq\.com\/sph|finder\.video\.qq\.com|mp\.weixin\.qq\.com/i.test(url)) return { name: '微信视频', icon: '💬' };
+  return { name: '外部视频', icon: '📹' };
+}
+
+function extractDomain(url) {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, '');
+  } catch(e) {
+    return url.substring(0, 30) + '...';
+  }
+}
+
+function switchVideoTab(tabId, idx) {
+  const tab = document.getElementById(tabId);
+  if (!tab) return;
+  // Stop all videos in inactive tabs before switching
+  tab.querySelectorAll('.video-tab-content').forEach(function(c, i) {
+    if (i !== idx) {
+      c.querySelectorAll('video').forEach(function(v) { v.pause(); v.currentTime = 0; });
+      c.querySelectorAll('iframe').forEach(function(f) {
+        var src = f.getAttribute('data-src') || f.src;
+        if (src && src !== 'about:blank') { f.src = 'about:blank'; }
+      });
+      // Also hide any active video players and show placeholders
+      c.querySelectorAll('.video-player').forEach(function(p) {
+        p.style.display = 'none'; p.classList.remove('active');
+      });
+      c.querySelectorAll('.video-placeholder').forEach(function(p) {
+        p.style.display = 'flex';
+      });
+    }
+  });
+  tab.querySelectorAll('.video-tab-header').forEach((h, i) => h.classList.toggle('active', i === idx));
+  tab.querySelectorAll('.video-tab-content').forEach((c, i) => c.classList.toggle('active', i === idx));
+}
+
+function openExternalModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeExternalModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+    const iframe = modal.querySelector('iframe');
+    if (iframe) {
+      const src = iframe.src;
+      iframe.src = '';
+      setTimeout(() => { iframe.src = src; }, 100);
+    }
+  }
+}
 
 function renderPollDetail(id) {
   const p = (appData.polls||[]).find(x => x.id === id);
