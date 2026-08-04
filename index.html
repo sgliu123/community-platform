@@ -1462,7 +1462,8 @@ function renderActivityDetail(id) {
     var u = url.trim();
     if (seenUrls.has(u)) return;
     seenUrls.add(u);
-    allVideos.push({url: u, isLocal: isLocal});
+    var looksLikePlatform = /(?:^|\/\/|\.)(bilibili\.com|b23\.tv|youtube\.com|youtu\.be|douyin\.com|iesdouyin\.com|ixigua\.com|weibo\.com|weibo\.cn|v\.qq\.com|youku\.com|iqiyi\.com|channels\.weixin\.qq\.com|weixin\.qq\.com\/sph|finder\.video\.qq\.com|mp\.weixin\.qq\.com)/i.test(u);
+    allVideos.push({url: u, isLocal: isLocal && !looksLikePlatform});
   }
   if (a.videos && a.videos.length) {
     a.videos.forEach(function(v) { addVideo(v, true); });
@@ -1545,17 +1546,18 @@ function renderActivityDetail(id) {
   return h;
 }
 function renderSingleVideoPlayer(video, vidId, coverImage) {
-  var url = video.url;
+  var url = video.url || '';
+  if (!url) return '';
   // Step 1: Detect known platform URLs (Bilibili, YouTube, Douyin, etc.)
-  var isPlatformUrl = /bilibili\.com|b23\.tv|youtube\.com|youtu\.be|douyin\.com|iesdouyin\.com|ixigua\.com|weibo\.com|weibo\.cn|v\.qq\.com|youku\.com|iqiyi\.com|channels\.weixin\.qq\.com|weixin\.qq\.com\/sph|finder\.video\.qq\.com|mp\.weixin\.qq\.com/i.test(url);
+  var isPlatformUrl = /(?:^|\/\/|\.)(bilibili\.com|b23\.tv|youtube\.com|youtu\.be|douyin\.com|iesdouyin\.com|ixigua\.com|weibo\.com|weibo\.cn|v\.qq\.com|youku\.com|iqiyi\.com|channels\.weixin\.qq\.com|weixin\.qq\.com\/sph|finder\.video\.qq\.com|mp\.weixin\.qq\.com)/i.test(url);
 
   // Step 2: Detect direct video files by extension, blob, data, or relative path
   var hasVideoExt = /\.(mp4|webm|ogg|ogv|mov|qt|m3u8|mkv|avi|flv|wmv|3gp)(\?.*)?$/i.test(url);
   var isBlobOrData = /^blob:/i.test(url) || /^data:video\//i.test(url);
-  var isRelativePath = url.length > 0 && !/^https?:\/\//i.test(url);
+  // Protocol-relative URLs (//example.com) are absolute, not relative paths
+  var isRelativePath = url.length > 0 && !/^https?:\/\//i.test(url) && !/^\/\//i.test(url);
 
   // Step 3: Backend-uploaded files (videos[] array) that are NOT known platforms → native player
-  // This handles files like https://site/api/image/videos/xxx (no extension)
   var isBackendFile = video.isLocal && !isPlatformUrl;
 
   var isDirectVideo = hasVideoExt || isBlobOrData || isRelativePath || isBackendFile;
