@@ -1454,39 +1454,28 @@ function renderActivityDetail(id) {
   }
   h += '<div class="activity-content-box"><div class="detail-content">' + contentHtml + '</div></div>';
 
-  // Local videos - direct native video tag for instant display
-  const allLocalVideos = [];
-  if (a.videos && a.videos.length) allLocalVideos.push(...a.videos);
-  if (!allLocalVideos.length && a.videoUrl) allLocalVideos.push(a.videoUrl);
-  if (allLocalVideos.length > 0) {
-    h += '<div style="margin-top:20px;">';
-    h += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border);">🎬 活动视频 (' + allLocalVideos.length + '个)</div>';
-    allLocalVideos.forEach(function(vurl) {
-      h += '<div style="margin:16px 0;border-radius:12px;overflow:hidden;background:#0a0a0a;box-shadow:0 2px 12px rgba(0,0,0,0.08);">';
-      h += '<video controls preload="metadata" playsinline style="width:100%;display:block;max-height:480px;background:#0a0a0a;">';
-      h += '<source src="' + vurl + '" type="video/mp4">';
-      h += '您的浏览器不支持视频播放';
-      h += '</video></div>';
-    });
-    h += '</div>';
+  // Videos - unified player supporting both local and online sources
+  const allVideos = [];
+  if (a.videos && a.videos.length) {
+    a.videos.forEach(function(v) { allVideos.push({type: 'local', url: v}); });
   }
-
-  // Online video links - simple clickable cards
-  const allVideoLinks = [];
-  if (a.videoLinks && a.videoLinks.length) allVideoLinks.push(...a.videoLinks);
-  if (allVideoLinks.length > 0) {
+  if (a.videoUrl) {
+    allVideos.push({type: 'online', url: a.videoUrl});
+  }
+  if (a.videoLinks && a.videoLinks.length) {
+    a.videoLinks.forEach(function(v) { allVideos.push({type: 'online', url: v}); });
+  }
+  if (allVideos.length > 0) {
     h += '<div style="margin-top:20px;">';
-    h += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border);">🔗 在线视频</div>';
-    allVideoLinks.forEach(function(vurl) {
-      const platform = detectVideoPlatform(vurl);
-      h += '<a href="' + vurl + '" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#f8f9fa;border-radius:8px;margin-bottom:8px;text-decoration:none;color:var(--text);border:1px solid var(--border);transition:all .2s;">';
-      h += '<span style="font-size:22px;">' + platform.icon + '</span>';
-      h += '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:500;">' + platform.name + ' 视频</div>';
-      h += '<div style="font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + vurl + '</div></div>';
-      h += '<span style="font-size:18px;color:var(--text-secondary);">→</span>';
-      h += '</a>';
+    h += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border);">🎬 活动视频 (' + allVideos.length + '个)</div>';
+    allVideos.forEach(function(video, idx) {
+      var vidId = 'act-vid-' + a.id + '-' + idx;
+      h += '<div style="margin:16px 0;">';
+      h += renderSingleVideoPlayer(video, vidId, a.coverImage);
+      h += '</div>';
     });
     h += '</div>';
+    setTimeout(function() { initVideoPlayers(); }, 100);
   }
 
   // Images - direct img tags, instant display like announcements
