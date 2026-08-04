@@ -313,124 +313,6 @@ a { text-decoration:none; color:var(--primary); }
   transform: scale(1.1);
 }
 
-/* Image Gallery */
-.image-gallery {
-  position: relative;
-  width: 100%;
-  background: #0a0a0a;
-  border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: var(--shadow);
-  user-select: none;
-}
-.gallery-container {
-  display: flex;
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  height: 420px;
-}
-.gallery-slide {
-  min-width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: zoom-in;
-}
-.gallery-slide img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  display: block;
-}
-.gallery-nav {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 44px;
-  height: 44px;
-  background: rgba(255,255,255,0.9);
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 22px;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  transition: all 0.25s;
-  z-index: 5;
-  opacity: 0;
-}
-.image-gallery:hover .gallery-nav {
-  opacity: 1;
-}
-.gallery-nav:hover {
-  background: #fff;
-  transform: translateY(-50%) scale(1.12);
-}
-.gallery-nav.prev { left: 14px; }
-.gallery-nav.next { right: 14px; }
-.gallery-dots {
-  position: absolute;
-  bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 10px;
-  z-index: 5;
-  padding: 6px 14px;
-  background: rgba(0,0,0,0.25);
-  border-radius: 20px;
-  backdrop-filter: blur(4px);
-}
-.gallery-dots span {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.45);
-  cursor: pointer;
-  transition: all 0.3s;
-}
-.gallery-dots span.active {
-  background: #fff;
-  width: 24px;
-  border-radius: 4px;
-}
-.gallery-counter {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  background: rgba(0,0,0,0.5);
-  color: #fff;
-  padding: 5px 14px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  z-index: 5;
-  backdrop-filter: blur(6px);
-  letter-spacing: 0.5px;
-}
-
-/* Single image display */
-.single-image-box {
-  border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: var(--shadow);
-  cursor: zoom-in;
-  transition: transform 0.3s;
-}
-.single-image-box:hover {
-  transform: translateY(-2px);
-}
-.single-image-box img {
-  width: 100%;
-  display: block;
-  transition: transform 0.5s;
-}
-.single-image-box:hover img {
-  transform: scale(1.02);
-}
-
 /* Action buttons */
 .action-buttons {
   display: flex;
@@ -479,56 +361,6 @@ a { text-decoration:none; color:var(--primary); }
   .gallery-nav { opacity: 1; width: 36px; height: 36px; font-size: 18px; }
   .video-placeholder .play-btn { width: 56px; height: 56px; }
   .video-placeholder .play-btn::after { border-left-width: 18px; border-top-width: 11px; border-bottom-width: 11px; }
-}
-
-/* ===== Activity Detail Enhanced Styles ===== */
-.activity-detail-card { border-radius: var(--radius); overflow: hidden; }
-.section-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
-.section-title .section-icon { font-size: 18px; }
-.section-title .section-count { font-size: 12px; color: var(--text-secondary); font-weight: 500; background: var(--bg); padding: 2px 10px; border-radius: 12px; margin-left: auto; }
-.video-section { margin: 28px 0; padding: 20px; background: linear-gradient(135deg, #fafbfc 0%, #f0f4f8 100%); border-radius: var(--radius); border: 1px solid #e8ecf1; }
-.video-tabs { border-radius: var(--radius); overflow: hidden; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.video-tab-headers { display: flex; gap: 0; background: #f5f7fa; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
-.video-tab-headers::-webkit-scrollbar { display: none; }
-.video-tab-header { flex: 1; min-width: 100px; padding: 12px 16px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-secondary); border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.video-tab-header:hover { background: rgba(46,139,87,0.05); color: var(--primary); }
-.video-tab-header.active { color: var(--primary); border-bottom-color: var(--primary); background: #fff; }
-.tab-platform { font-size: 16px; }
-.tab-title { max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
-.video-tab-content { display: none; padding: 16px; }
-.video-tab-content.active { display: block; }
-.video-player-native { border-radius: 8px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.1); background: #0a0a0a; }
-.video-player-native video { width: 100%; display: block; max-height: 520px; }
-.video-platform-badge { position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.65); color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; z-index: 3; backdrop-filter: blur(6px); display: flex; align-items: center; gap: 4px; }
-.gallery-section { margin: 28px 0; padding: 20px; background: linear-gradient(135deg, #fafbfc 0%, #f0f4f8 100%); border-radius: var(--radius); border: 1px solid #e8ecf1; }
-.external-links-section { margin: 28px 0; padding: 20px; background: linear-gradient(135deg, #fafbfc 0%, #f0f4f8 100%); border-radius: var(--radius); border: 1px solid #e8ecf1; }
-.external-links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-.external-link-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #fff; border-radius: 10px; border: 1px solid var(--border); text-decoration: none; transition: all 0.25s; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
-.external-link-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(46,139,87,0.12); }
-.ext-icon { font-size: 24px; flex-shrink: 0; }
-.ext-info { flex: 1; min-width: 0; }
-.ext-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
-.ext-domain { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ext-arrow { font-size: 20px; color: var(--text-secondary); flex-shrink: 0; }
-.video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; background: #0f0f0f; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
-.video-wrapper iframe, .video-wrapper video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
-.video-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-.video-placeholder:hover { transform: scale(1.02); }
-.video-placeholder > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.55; transition: opacity 0.3s; }
-.video-placeholder:hover > img { opacity: 0.75; }
-.video-placeholder .play-btn { position: relative; z-index: 2; width: 72px; height: 72px; background: rgba(255,255,255,0.95); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); transition: all 0.3s; }
-.video-placeholder:hover .play-btn { transform: scale(1.12); background: #fff; }
-.video-placeholder .play-btn::after { content: ''; width: 0; height: 0; border-left: 22px solid var(--primary); border-top: 14px solid transparent; border-bottom: 14px solid transparent; margin-left: 6px; }
-.video-player { position: absolute; inset: 0; display: none; }
-.video-player.active { display: block; }
-.video-close { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; background: rgba(0,0,0,0.55); color: #fff; border: none; border-radius: 50%; font-size: 16px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); transition: all 0.2s; }
-.video-close:hover { background: rgba(0,0,0,0.8); transform: scale(1.1); }
-@media (max-width: 600px) {
-  .video-tab-header { padding: 10px 12px; font-size: 12px; min-width: 80px; }
-  .tab-title { max-width: 60px; }
-  .video-player-native video { max-height: 280px; }
-  .external-links-grid { grid-template-columns: 1fr; }
-  .video-section, .gallery-section, .external-links-section { padding: 14px; margin: 20px 0; }
 }
 
 /* External Link Modal */
@@ -607,28 +439,6 @@ a { text-decoration:none; color:var(--primary); }
     border-radius: 8px;
   }
 }
-
-
-/* ===== Video Loading & Error States ===== */
-.video-loading-state { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0f0f0f; color:#fff; z-index:3; transition:opacity .3s; }
-.video-loading-state.hidden { display:none !important; }
-.video-loading-state .spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,.2); border-top-color:var(--primary-light); border-radius:50%; animation:spin .8s linear infinite; margin-bottom:12px; }
-.video-loading-state .load-text { font-size:13px; opacity:.7; }
-.video-error-state { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; background:#1a1a1a; color:#fff; z-index:4; text-align:center; padding:20px; }
-.video-error-state.active { display:flex; }
-.video-error-state .error-icon { font-size:40px; margin-bottom:10px; opacity:.6; }
-.video-error-state .error-text { font-size:14px; margin-bottom:8px; opacity:.9; }
-.video-error-state .error-hint { font-size:12px; opacity:.5; }
-.douyin-redirect { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(135deg,#1a1a2e,#16213e); color:#fff; z-index:3; text-align:center; padding:24px; }
-.douyin-redirect .douyin-icon { font-size:56px; margin-bottom:12px; }
-.douyin-redirect .douyin-title { font-size:16px; font-weight:600; margin-bottom:6px; }
-.douyin-redirect .douyin-desc { font-size:13px; opacity:.7; margin-bottom:20px; }
-.douyin-redirect .douyin-btn { display:inline-flex; align-items:center; gap:8px; padding:12px 28px; background:#fe2c55; color:#fff; border-radius:24px; font-size:14px; font-weight:600; text-decoration:none; transition:all .2s; border:none; cursor:pointer; }
-.douyin-redirect .douyin-btn:hover { transform:scale(1.05); box-shadow:0 4px 16px rgba(254,44,85,.4); }
-.video-player-native { position:relative; background:#0a0a0a; border-radius:8px; overflow:hidden; }
-.video-player-native video { width:100%; display:block; max-height:520px; background:#0a0a0a; position:relative; z-index:1; }
-.video-player-native .video-overlay-msg { position:absolute; bottom:60px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.7); color:#fff; padding:6px 16px; border-radius:20px; font-size:12px; opacity:0; transition:opacity .3s; pointer-events:none; white-space:nowrap; }
-.video-player-native .video-overlay-msg.show { opacity:1; }
 
 
 /* ===== Photo Gallery & Image Preview ===== */
@@ -1618,7 +1428,6 @@ function goToSlide(gid, index, event) {
 function renderActivityDetail(id) {
   const a = (appData.activities||[]).find(x => x.id === id);
   if (!a) return '<div class="empty">动态不存在</div>';
-  // 清理失效的临时 blob URL（刷新后失效，会导致404/黑屏）
   const cleanArr = (arr) => (arr || []).filter(u => u && typeof u === 'string' && !u.startsWith('blob:'));
   a.images = cleanArr(a.images);
   a.videos = cleanArr(a.videos);
@@ -1626,32 +1435,11 @@ function renderActivityDetail(id) {
   a.adminImages = cleanArr(a.adminImages);
   if (a.coverImage && a.coverImage.startsWith('blob:')) a.coverImage = '';
   if (a.videoUrl && a.videoUrl.startsWith('blob:')) a.videoUrl = '';
-  const sc = a.status === "进行中" ? "status-ongoing" : (a.status === "预告" ? "status-upcoming" : "status-ended");
 
-  const allVideos = [];
-  if (a.videos && a.videos.length) {
-    a.videos.forEach((v, i) => { allVideos.push({ type: 'local', url: v, title: '视频 ' + (i+1) }); });
-  }
-  if (!allVideos.length && a.videoUrl) {
-    allVideos.push({ type: 'local', url: a.videoUrl, title: '视频 1' });
-  }
-  if (a.videoLinks && a.videoLinks.length) {
-    a.videoLinks.forEach((v, i) => { allVideos.push({ type: 'embed', url: v, title: '在线视频 ' + (i+1) }); });
-  }
-
-  const allExternals = [];
-  if (a.externalLinks && a.externalLinks.length) {
-    allExternals.push.apply(allExternals, a.externalLinks);
-  }
-  if (!allExternals.length && a.externalLink) {
-    allExternals.push(a.externalLink);
-  }
-
-  let h = '<div class="card activity-detail-card" style="padding:0;overflow:hidden;">';
-
+  let h = '<div class="card" style="padding:0;overflow:hidden;">';
   h += '<div style="padding:24px 24px 0;">';
-  h += '<div class="detail-header" style="margin-bottom:0;"><h1>' + a.title + '</h1></div>';
-  h += '</div>'
+  h += '<div class="detail-header" style="margin-bottom:0;"><h1>' + escapeHtml(a.title||'') + '</h1></div>';
+  h += '</div>';
 
   h += '<div class="activity-meta-bar">';
   h += '<div class="meta-item">📅 ' + (a.date||"--") + '</div>';
@@ -1665,243 +1453,100 @@ function renderActivityDetail(id) {
     contentHtml = '<p style="color:var(--text-secondary);text-align:center;padding:20px 0;">📝 该动态暂无文字描述</p>';
   }
   h += '<div class="activity-content-box"><div class="detail-content">' + contentHtml + '</div></div>';
-  
 
-  if (allVideos.length > 0) {
-    h += '<div class="video-section">';
-    h += '<div class="section-title"><span class="section-icon">🎬</span>活动视频 <span class="section-count">' + allVideos.length + ' 个</span></div>';
-    if (allVideos.length === 1) {
-      const v = allVideos[0];
-      const vidId = 'vid-' + id.replace(/[^a-zA-Z0-9]/g, '') + '-0';
-      h += renderSingleVideoPlayer(v, vidId, a.coverImage);
-    } else {
-      const vidTabId = 'vidtab-' + id.replace(/[^a-zA-Z0-9]/g, '');
-      h += '<div class="video-tabs" id="' + vidTabId + '">';
-      h += '<div class="video-tab-headers">';
-      allVideos.forEach((v, idx) => {
-        const platform = detectVideoPlatform(v.url);
-        h += '<div class="video-tab-header ' + (idx===0 ? 'active' : '') + '" data-idx="' + idx + '" onclick="switchVideoTab(\'' + vidTabId + '\', ' + idx + ')">';
-        h += '<span class="tab-platform">' + platform.icon + '</span>';
-        h += '<span class="tab-title">' + v.title + '</span>';
-        h += '</div>';
-      });
-      h += '</div>';
-      h += '<div class="video-tab-contents">';
-      allVideos.forEach((v, idx) => {
-        const vidId = 'vid-' + id.replace(/[^a-zA-Z0-9]/g, '') + '-' + idx;
-        h += '<div class="video-tab-content ' + (idx===0 ? 'active' : '') + '" data-idx="' + idx + '">';
-        h += renderSingleVideoPlayer(v, vidId, a.coverImage);
-        h += '</div>';
-      });
-      h += '</div></div>';
-    }
+  // Local videos - direct native video tag for instant display
+  const allLocalVideos = [];
+  if (a.videos && a.videos.length) allLocalVideos.push(...a.videos);
+  if (!allLocalVideos.length && a.videoUrl) allLocalVideos.push(a.videoUrl);
+  if (allLocalVideos.length > 0) {
+    h += '<div style="margin-top:20px;">';
+    h += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border);">🎬 活动视频 (' + allLocalVideos.length + '个)</div>';
+    allLocalVideos.forEach(function(vurl) {
+      h += '<div style="margin:16px 0;border-radius:12px;overflow:hidden;background:#0a0a0a;box-shadow:0 2px 12px rgba(0,0,0,0.08);">';
+      h += '<video controls preload="metadata" playsinline style="width:100%;display:block;max-height:480px;background:#0a0a0a;">';
+      h += '<source src="' + vurl + '" type="video/mp4">';
+      h += '您的浏览器不支持视频播放';
+      h += '</video></div>';
+    });
     h += '</div>';
   }
 
+  // Online video links - simple clickable cards
+  const allVideoLinks = [];
+  if (a.videoLinks && a.videoLinks.length) allVideoLinks.push(...a.videoLinks);
+  if (allVideoLinks.length > 0) {
+    h += '<div style="margin-top:20px;">';
+    h += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border);">🔗 在线视频</div>';
+    allVideoLinks.forEach(function(vurl) {
+      const platform = detectVideoPlatform(vurl);
+      h += '<a href="' + vurl + '" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#f8f9fa;border-radius:8px;margin-bottom:8px;text-decoration:none;color:var(--text);border:1px solid var(--border);transition:all .2s;">';
+      h += '<span style="font-size:22px;">' + platform.icon + '</span>';
+      h += '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:500;">' + platform.name + ' 视频</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + vurl + '</div></div>';
+      h += '<span style="font-size:18px;color:var(--text-secondary);">→</span>';
+      h += '</a>';
+    });
+    h += '</div>';
+  }
+
+  // Images - direct img tags, instant display like announcements
   if (a.images && a.images.length > 0) {
-    h += '<div class="gallery-section">';
-    h += '<div class="section-title"><span class="section-icon">📷</span>活动图集 <span class="section-count">' + a.images.length + ' 张</span></div>';
+    h += '<div style="margin-top:20px;">';
+    h += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border);">📷 活动图集 (' + a.images.length + '张)</div>';
     if (a.images.length === 1) {
-      h += '<div class="single-image-box" onclick="window.open(\'' + a.images[0] + '\')">';
-      h += '<img src="' + a.images[0] + '" alt="活动图片" loading="lazy">';
-      h += '</div>';
+      h += '<img src="' + a.images[0] + '" style="max-width:100%;border-radius:8px;display:block;border:1px solid var(--border);cursor:pointer;" onclick="window.open(this.src)" loading="lazy">';
     } else {
-      const gid = 'gal-' + id.replace(/[^a-zA-Z0-9]/g, '');
-      h += '<div class="image-gallery" id="' + gid + '" data-index="0" data-total="' + a.images.length + '" data-auto="true">';
-      h += '<div class="gallery-counter">1 / ' + a.images.length + '</div>';
-      h += '<div class="gallery-container">';
-      a.images.forEach(function(img, idx) {
-        h += '<div class="gallery-slide" onclick="window.open(\'' + img + '\')">';
-        h += '<img src="' + img + '" alt="图' + (idx+1) + '" loading="lazy">';
-        h += '</div>';
+      h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">';
+      a.images.forEach(function(img) {
+        h += '<img src="' + img + '" style="width:100%;height:180px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;" onclick="window.open(this.src)" loading="lazy" onerror="this.style.display=\'none\'">';
       });
       h += '</div>';
-      h += '<button class="gallery-nav prev" onclick="prevSlide(\'' + gid + '\', event)">‹</button>';
-      h += '<button class="gallery-nav next" onclick="nextSlide(\'' + gid + '\', event)">›</button>';
-      h += '<div class="gallery-dots">';
-      a.images.forEach(function(_, idx) {
-        h += '<span class="' + (idx===0 ? 'active' : '') + '" onclick="goToSlide(\'' + gid + '\', ' + idx + ', event)"></span>';
-      });
-      h += '</div></div>';
     }
     h += '</div>';
   }
 
-  
-
-
+  // Admin images
   if (a.adminImages && a.adminImages.length > 0) {
-    h += '<div class="gallery-section">';
-    h += '<div class="section-title"><span class="section-icon">📷</span>补充图集 <span class="section-count">' + a.adminImages.length + ' 张</span></div>';
+    h += '<div style="margin-top:20px;">';
+    h += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border);">📷 补充图集 (' + a.adminImages.length + '张)</div>';
     if (a.adminImages.length === 1) {
-      h += '<div class="single-image-box" onclick="window.open(\'' + a.adminImages[0] + '\')">';
-      h += '<img src="' + a.adminImages[0] + '" alt="补充图片" loading="lazy">';
-      h += '</div>';
+      h += '<img src="' + a.adminImages[0] + '" style="max-width:100%;border-radius:8px;display:block;border:1px solid var(--border);cursor:pointer;" onclick="window.open(this.src)" loading="lazy">';
     } else {
-      const gid = 'gal-admin-' + id.replace(/[^a-zA-Z0-9]/g, '');
-      h += '<div class="image-gallery" id="' + gid + '" data-index="0" data-total="' + a.adminImages.length + '" data-auto="true">';
-      h += '<div class="gallery-counter">1 / ' + a.adminImages.length + '</div>';
-      h += '<div class="gallery-container">';
-      a.adminImages.forEach(function(img, idx) {
-        h += '<div class="gallery-slide" onclick="window.open(\'' + img + '\')">';
-        h += '<img src="' + img + '" alt="图' + (idx+1) + '" loading="lazy">';
-        h += '</div>';
+      h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">';
+      a.adminImages.forEach(function(img) {
+        h += '<img src="' + img + '" style="width:100%;height:180px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;" onclick="window.open(this.src)" loading="lazy" onerror="this.style.display=\'none\'">';
       });
       h += '</div>';
-      h += '<button class="gallery-nav prev" onclick="prevSlide(\'' + gid + '\', event)">‹</button>';
-      h += '<button class="gallery-nav next" onclick="nextSlide(\'' + gid + '\', event)">›</button>';
-      h += '<div class="gallery-dots">';
-      a.adminImages.forEach(function(_, idx) {
-        h += '<span class="' + (idx===0 ? 'active' : '') + '" onclick="goToSlide(\'' + gid + '\', ' + idx + ', event)"></span>';
-      });
-      h += '</div></div>';
     }
+    h += '</div>';
+  }
+
+  // External links
+  const allExternals = [];
+  if (a.externalLinks && a.externalLinks.length) allExternals.push(...a.externalLinks);
+  if (!allExternals.length && a.externalLink) allExternals.push(a.externalLink);
+  if (allExternals.length > 0) {
+    h += '<div style="margin-top:20px;">';
+    h += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border);">🔗 相关链接</div>';
+    allExternals.forEach(function(link) {
+      var url = typeof link === 'string' ? link : (link.url || '');
+      var title = typeof link === 'string' ? '外部链接' : (link.title || '外部链接');
+      if (!url) return;
+      h += '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#f8f9fa;border-radius:8px;margin-bottom:8px;text-decoration:none;color:var(--text);border:1px solid var(--border);">';
+      h += '<span style="font-size:20px;">🔗</span>';
+      h += '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:500;">' + escapeHtml(title) + '</div>';
+      h += '<div style="font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + url + '</div></div>';
+      h += '<span style="font-size:18px;color:var(--text-secondary);">→</span>';
+      h += '</a>';
+    });
     h += '</div>';
   }
 
   h += '<div class="action-buttons">';
   h += '<button class="action-btn primary" onclick="history.back()">← 返回列表</button>';
   h += '</div>';
-
   h += '</div></div>';
-
-  setTimeout(function() {
-    document.querySelectorAll('.image-gallery').forEach(function(g) {
-      initGallery(g.id);
-    });
-    initVideoPlayers();
-  }, 100);
-
   return h;
-}
-
-function renderSingleVideoPlayer(video, vidId, coverImage) {
-  let h = '';
-  if (video.type === 'local') {
-    h += '<div class="video-player-native" id="' + vidId + '">';
-    h += '<div class="video-loading-state" id="' + vidId + '-loading">';
-    h += '<div class="spinner"></div><div class="load-text">视频加载中...</div></div>';
-    h += '<div class="video-error-state" id="' + vidId + '-error">';
-    h += '<div class="error-icon">⚠️</div><div class="error-text">视频加载失败</div>';
-    h += '<div class="error-hint">请检查网络连接，或尝试刷新页面</div>';
-    h += '<button class="poll-btn" style="margin-top:12px;background:var(--primary);" onclick="retryVideo(' + "'" + vidId + "'" + ')">重新加载</button></div>';
-    h += '<video controls preload="metadata" playsinline webkit-playsinline x5-video-player-type="h5" fetchpriority="high"';
-    if (coverImage) {
-      h += ' poster="' + coverImage + '"';
-    }
-    h += ' style="width:100%;display:block;border-radius:8px;background:#0a0a0a;min-height:200px;">';
-    // Events are bound by initVideoPlayers() for reliability
-    h += '<source src="' + video.url + '" type="video/mp4">';
-    h += '您的浏览器不支持视频播放';
-    h += '</video></div>';
-  } else {
-    const embedUrl = getEmbedUrl(video.url);
-    const platform = detectVideoPlatform(video.url);
-    if (embedUrl === null) {
-      h += renderPlatformRedirectCard(video.url, platform, coverImage);
-    } else {
-      h += '<div class="video-wrapper" id="' + vidId + '">';
-      h += '<div class="video-placeholder" onclick="showVideoPlayer(' + "'" + vidId + "'" + ')">';
-      if (coverImage) {
-        h += '<img src="' + coverImage + '" alt="cover">';
-      } else {
-        h += '<div style="position:absolute;inset:0;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;">';
-        h += '<div style="text-align:center;color:#fff;"><div style="font-size:48px;margin-bottom:8px;">' + platform.icon + '</div><div style="font-size:14px;opacity:0.9;">' + platform.name + '</div></div>';
-        h += '</div>';
-      }
-      h += '<div class="play-btn"></div>';
-      h += '<div class="video-platform-badge">' + platform.icon + ' ' + platform.name + '</div>';
-      h += '</div>';
-      h += '<div class="video-player" id="' + vidId + '-player">';
-      h += '<button class="video-close" onclick="hideVideoPlayer(' + "'" + vidId + "'" + ')">✕</button>';
-      if (embedUrl !== video.url) {
-        // Direct load for instant playback; data-src kept for recovery after hide/switch
-        h += '<iframe data-src="' + embedUrl + '" src="' + embedUrl + '" allowfullscreen allow="autoplay; fullscreen" style="z-index:1;position:relative;"></iframe>';
-      } else {
-        h += '<div class="video-loading-state" id="' + vidId + '-vidload">';
-        h += '<div class="spinner"></div><div class="load-text">视频加载中...</div></div>';
-        h += '<div class="video-error-state" id="' + vidId + '-viderror">';
-        h += '<div class="error-icon">⚠️</div><div class="error-text">视频加载失败</div>';
-        h += '<div class="error-hint">请检查网络连接或视频格式</div>';
-        h += '<button class="poll-btn" style="margin-top:12px;background:var(--primary);" onclick="retryVideo(' + "'" + vidId + "'" + ')">重新加载</button></div>';
-        h += '<video controls preload="metadata" playsinline webkit-playsinline x5-video-player-type="h5"';
-        h += ' style="width:100%;height:100%;display:block;background:#0a0a0a;min-height:200px;position:relative;z-index:1;">';
-        h += '<source src="' + video.url + '" type="video/mp4">';
-        h += '</video>';
-      }
-      h += '</div></div>';
-    }
-  }
-  return h;
-}
-
-function detectVideoPlatform(url) {
-  if (!url) return { name: '未知', icon: '📹' };
-  if (/bilibili\.com|b23\.tv/i.test(url)) return { name: '哔哩哔哩', icon: '📺' };
-  if (/youtube\.com|youtu\.be/i.test(url)) return { name: 'YouTube', icon: '▶️' };
-  if (/douyin\.com|iesdouyin\.com/i.test(url)) return { name: '抖音', icon: '🎵' };
-  if (/ixigua\.com/i.test(url)) return { name: '西瓜视频', icon: '🍉' };
-  if (/weibo\.com|weibo\.cn/i.test(url)) return { name: '微博', icon: '📱' };
-  if (/qq\.com\/x\/cover|v\.qq\.com/i.test(url)) return { name: '腾讯视频', icon: '📺' };
-  if (/youku\.com/i.test(url)) return { name: '优酷', icon: '👁️' };
-  if (/iqiyi\.com/i.test(url)) return { name: '爱奇艺', icon: '▶️' };
-  if (/channels\.weixin\.qq\.com|weixin\.qq\.com\/sph|finder\.video\.qq\.com|mp\.weixin\.qq\.com/i.test(url)) return { name: '微信视频', icon: '💬' };
-  return { name: '外部视频', icon: '📹' };
-}
-
-function extractDomain(url) {
-  try {
-    const u = new URL(url);
-    return u.hostname.replace(/^www\./, '');
-  } catch(e) {
-    return url.substring(0, 30) + '...';
-  }
-}
-
-function switchVideoTab(tabId, idx) {
-  const tab = document.getElementById(tabId);
-  if (!tab) return;
-  // Stop all videos in inactive tabs before switching
-  tab.querySelectorAll('.video-tab-content').forEach(function(c, i) {
-    if (i !== idx) {
-      c.querySelectorAll('video').forEach(function(v) { v.pause(); v.currentTime = 0; });
-      c.querySelectorAll('iframe').forEach(function(f) {
-        var src = f.getAttribute('data-src') || f.src;
-        if (src && src !== 'about:blank') { f.src = 'about:blank'; }
-      });
-      // Also hide any active video players and show placeholders
-      c.querySelectorAll('.video-player').forEach(function(p) {
-        p.style.display = 'none'; p.classList.remove('active');
-      });
-      c.querySelectorAll('.video-placeholder').forEach(function(p) {
-        p.style.display = 'flex';
-      });
-    }
-  });
-  tab.querySelectorAll('.video-tab-header').forEach((h, i) => h.classList.toggle('active', i === idx));
-  tab.querySelectorAll('.video-tab-content').forEach((c, i) => c.classList.toggle('active', i === idx));
-}
-
-function openExternalModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-  }
-}
-
-function closeExternalModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.remove('active');
-    document.body.style.overflow = '';
-    const iframe = modal.querySelector('iframe');
-    if (iframe) {
-      const src = iframe.src;
-      iframe.src = '';
-      setTimeout(() => { iframe.src = src; }, 100);
-    }
-  }
 }
 
 function renderPollDetail(id) {
