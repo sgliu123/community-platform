@@ -1454,16 +1454,24 @@ function renderActivityDetail(id) {
   }
   h += '<div class="activity-content-box"><div class="detail-content">' + contentHtml + '</div></div>';
 
-  // Videos: local files use native <video> (adaptive aspect ratio), online platforms use iframe embed
+  // Videos: deduplicate, local files use native <video>, platforms use iframe embed
   const allVideos = [];
+  const seenUrls = new Set();
+  function addVideo(url, isLocal) {
+    if (!url || !url.trim()) return;
+    var u = url.trim();
+    if (seenUrls.has(u)) return;
+    seenUrls.add(u);
+    allVideos.push({url: u, isLocal: isLocal});
+  }
   if (a.videos && a.videos.length) {
-    a.videos.forEach(function(v) { if (v && v.trim()) allVideos.push({url: v.trim(), isLocal: true}); });
+    a.videos.forEach(function(v) { addVideo(v, true); });
   }
   if (a.videoUrl && a.videoUrl.trim()) {
-    allVideos.push({url: a.videoUrl.trim(), isLocal: false});
+    addVideo(a.videoUrl, false);
   }
   if (a.videoLinks && a.videoLinks.length) {
-    a.videoLinks.forEach(function(v) { if (v && v.trim()) allVideos.push({url: v.trim(), isLocal: false}); });
+    a.videoLinks.forEach(function(v) { addVideo(v, false); });
   }
   if (allVideos.length > 0) {
     h += '<div style="margin-top:20px;">';
@@ -1538,26 +1546,34 @@ function renderActivityDetail(id) {
 }
 function renderSingleVideoPlayer(video, vidId, coverImage) {
   var url = video.url;
-  // Auto-detect direct video files (mp4/webm/ogg/mov/m3u8) even if marked as online
-  var isDirectVideo = video.isLocal || /\.(mp4|webm|ogg|mov|m3u8)(\?.*)?$/i.test(url);
+  // Determine if this is a direct video file (not a platform page link)
+  // isLocal=true means it came from the videos[] array (uploaded via backend)
+  var hasVideoExt = /\.(mp4|webm|ogg|ogv|mov|qt|m3u8|mkv|avi|flv|wmv|3gp)(\?.*)?$/i.test(url);
+  var isBlobOrData = /^blob:/i.test(url) || /^data:video\//i.test(url);
+  var isRelativePath = url.length > 0 && !/^https?:\/\//i.test(url);
+  var isDirectVideo = video.isLocal || hasVideoExt || isBlobOrData || isRelativePath;
 
   if (isDirectVideo) {
-    // Direct video file: simple native player, adaptive aspect ratio (not forced 16:9)
+    // Native player for all direct video files — adaptive aspect ratio, supports all formats
+    var ext = '';
+    try { ext = url.split('?')[0].split('.').pop().toLowerCase(); } catch(e) {}
+    var mimeMap = {mp4:'video/mp4',webm:'video/webm',ogg:'video/ogg',ogv:'video/ogg',mov:'video/quicktime',qt:'video/quicktime',m3u8:'application/x-mpegURL',mkv:'video/x-matroska',avi:'video/x-msvideo',flv:'video/x-flv',wmv:'video/x-ms-wmv','3gp':'video/3gpp'};
+    var mimeType = mimeMap[ext] || 'video/mp4';
     return '<div style="border-radius:12px;overflow:hidden;background:#0a0a0a;box-shadow:0 2px 12px rgba(0,0,0,0.08);">' +
       '<video controls preload="metadata" playsinline webkit-playsinline x5-video-player-type="h5"' +
       (coverImage ? ' poster="' + coverImage + '" ' : '') +
       'style="width:100%;max-height:80vh;display:block;border-radius:12px;background:#0a0a0a;min-height:200px;object-fit:contain;">' +
-      '<source src="' + url + '" type="video/mp4">' +
+      '<source src="' + url + '" type="' + mimeType + '">' +
       '您的浏览器不支持视频播放' +
       '</video></div>';
   }
 
-  // Online platform video
+  // Online platform video (Bilibili, YouTube, etc.)
   const embedUrl = getEmbedUrl(url);
   const platform = detectVideoPlatform(url);
 
   if (embedUrl === null) {
-    // Platform that cannot be embedded (Douyin, WeChat, etc.)
+    // Platform that cannot be embedded (Douyin, WeChat video pages, etc.)
     return renderPlatformRedirectCard(url, platform, coverImage);
   }
 
