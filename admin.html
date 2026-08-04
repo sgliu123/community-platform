@@ -634,7 +634,15 @@ function showAdminLayout() {
   document.getElementById('adminInfo').textContent = currentAdmin && currentAdmin.name || '管理员';
   document.getElementById('adminRole').textContent = currentAdmin && currentAdmin.role === 'super' ? '超级管理员' : (currentAdmin && currentAdmin.role === 'editor' ? '编辑员' : '查看员');
   renderSidebar();
-  navigateTo('dashboard');
+  const hash = location.hash;
+  const match = hash.match(/module=([^&]+)/);
+  const targetModule = match ? match[1] : 'dashboard';
+  const validModules = ['dashboard','config','announcements','documents','activities','polls','residents','audit','workorders','complaints','settings'];
+  if (validModules.includes(targetModule)) {
+    navigateTo(targetModule);
+  } else {
+    navigateTo('dashboard');
+  }
 }
 
 function logout() {
@@ -685,6 +693,7 @@ function renderSidebar() {
 function navigateTo(module) {
   try {
     currentModule = module;
+    location.hash = 'module=' + module;
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === module));
     const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', audit: '操作日志', workorders: '工单管理', complaints: '投诉建议', settings: '系统设置' };
     var pt = document.getElementById('pageTitle');
