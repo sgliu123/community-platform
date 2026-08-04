@@ -1454,16 +1454,16 @@ function renderActivityDetail(id) {
   }
   h += '<div class="activity-content-box"><div class="detail-content">' + contentHtml + '</div></div>';
 
-  // Videos - unified player supporting both local and online sources
+  // Videos: local files use native <video> (adaptive aspect ratio), online platforms use iframe embed
   const allVideos = [];
   if (a.videos && a.videos.length) {
-    a.videos.forEach(function(v) { allVideos.push({type: 'local', url: v}); });
+    a.videos.forEach(function(v) { if (v && v.trim()) allVideos.push({url: v.trim(), isLocal: true}); });
   }
-  if (a.videoUrl) {
-    allVideos.push({type: 'online', url: a.videoUrl});
+  if (a.videoUrl && a.videoUrl.trim()) {
+    allVideos.push({url: a.videoUrl.trim(), isLocal: false});
   }
   if (a.videoLinks && a.videoLinks.length) {
-    a.videoLinks.forEach(function(v) { allVideos.push({type: 'online', url: v}); });
+    a.videoLinks.forEach(function(v) { if (v && v.trim()) allVideos.push({url: v.trim(), isLocal: false}); });
   }
   if (allVideos.length > 0) {
     h += '<div style="margin-top:20px;">';
@@ -1475,7 +1475,6 @@ function renderActivityDetail(id) {
       h += '</div>';
     });
     h += '</div>';
-    setTimeout(function() { initVideoPlayers(); }, 100);
   }
 
   // Images - direct img tags, instant display like announcements
@@ -1538,63 +1537,43 @@ function renderActivityDetail(id) {
   return h;
 }
 function renderSingleVideoPlayer(video, vidId, coverImage) {
-  let h = '';
-  if (video.type === 'local') {
-    h += '<div class="video-player-native" id="' + vidId + '">';
-    h += '<div class="video-loading-state" id="' + vidId + '-loading">';
-    h += '<div class="spinner"></div><div class="load-text">视频加载中...</div></div>';
-    h += '<div class="video-error-state" id="' + vidId + '-error">';
-    h += '<div class="error-icon">⚠️</div><div class="error-text">视频加载失败</div>';
-    h += '<div class="error-hint">请检查网络连接，或尝试刷新页面</div>';
-    h += '<button class="poll-btn" style="margin-top:12px;background:var(--primary);" onclick="retryVideo(' + "'" + vidId + "'" + ')">重新加载</button></div>';
-    h += '<video controls preload="metadata" playsinline webkit-playsinline x5-video-player-type="h5" fetchpriority="high"';
-    if (coverImage) {
-      h += ' poster="' + coverImage + '"';
-    }
-    h += ' style="width:100%;display:block;border-radius:8px;background:#0a0a0a;min-height:200px;">';
-    // Events are bound by initVideoPlayers() for reliability
-    h += '<source src="' + video.url + '" type="video/mp4">';
-    h += '您的浏览器不支持视频播放';
-    h += '</video></div>';
-  } else {
-    const embedUrl = getEmbedUrl(video.url);
-    const platform = detectVideoPlatform(video.url);
-    if (embedUrl === null) {
-      h += renderPlatformRedirectCard(video.url, platform, coverImage);
-    } else {
-      h += '<div class="video-wrapper" id="' + vidId + '">';
-      h += '<div class="video-placeholder" onclick="showVideoPlayer(' + "'" + vidId + "'" + ')">';
-      if (coverImage) {
-        h += '<img src="' + coverImage + '" alt="cover">';
-      } else {
-        h += '<div style="position:absolute;inset:0;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;">';
-        h += '<div style="text-align:center;color:#fff;"><div style="font-size:48px;margin-bottom:8px;">' + platform.icon + '</div><div style="font-size:14px;opacity:0.9;">' + platform.name + '</div></div>';
-        h += '</div>';
-      }
-      h += '<div class="play-btn"></div>';
-      h += '<div class="video-platform-badge">' + platform.icon + ' ' + platform.name + '</div>';
-      h += '</div>';
-      h += '<div class="video-player" id="' + vidId + '-player">';
-      h += '<button class="video-close" onclick="hideVideoPlayer(' + "'" + vidId + "'" + ')">✕</button>';
-      if (embedUrl !== video.url) {
-        // Direct load for instant playback; data-src kept for recovery after hide/switch
-        h += '<iframe data-src="' + embedUrl + '" src="' + embedUrl + '" allowfullscreen allow="autoplay; fullscreen" style="z-index:1;position:relative;"></iframe>';
-      } else {
-        h += '<div class="video-loading-state" id="' + vidId + '-vidload">';
-        h += '<div class="spinner"></div><div class="load-text">视频加载中...</div></div>';
-        h += '<div class="video-error-state" id="' + vidId + '-viderror">';
-        h += '<div class="error-icon">⚠️</div><div class="error-text">视频加载失败</div>';
-        h += '<div class="error-hint">请检查网络连接或视频格式</div>';
-        h += '<button class="poll-btn" style="margin-top:12px;background:var(--primary);" onclick="retryVideo(' + "'" + vidId + "'" + ')">重新加载</button></div>';
-        h += '<video controls preload="metadata" playsinline webkit-playsinline x5-video-player-type="h5"';
-        h += ' style="width:100%;height:100%;display:block;background:#0a0a0a;min-height:200px;position:relative;z-index:1;">';
-        h += '<source src="' + video.url + '" type="video/mp4">';
-        h += '</video>';
-      }
-      h += '</div></div>';
-    }
+  var url = video.url;
+  // Auto-detect direct video files (mp4/webm/ogg/mov/m3u8) even if marked as online
+  var isDirectVideo = video.isLocal || /\.(mp4|webm|ogg|mov|m3u8)(\?.*)?$/i.test(url);
+
+  if (isDirectVideo) {
+    // Direct video file: simple native player, adaptive aspect ratio (not forced 16:9)
+    return '<div style="border-radius:12px;overflow:hidden;background:#0a0a0a;box-shadow:0 2px 12px rgba(0,0,0,0.08);">' +
+      '<video controls preload="metadata" playsinline webkit-playsinline x5-video-player-type="h5"' +
+      (coverImage ? ' poster="' + coverImage + '" ' : '') +
+      'style="width:100%;max-height:80vh;display:block;border-radius:12px;background:#0a0a0a;min-height:200px;object-fit:contain;">' +
+      '<source src="' + url + '" type="video/mp4">' +
+      '您的浏览器不支持视频播放' +
+      '</video></div>';
   }
-  return h;
+
+  // Online platform video
+  const embedUrl = getEmbedUrl(url);
+  const platform = detectVideoPlatform(url);
+
+  if (embedUrl === null) {
+    // Platform that cannot be embedded (Douyin, WeChat, etc.)
+    return renderPlatformRedirectCard(url, platform, coverImage);
+  }
+
+  // Embed with 16:9 iframe
+  return '<div class="video-wrapper" id="' + vidId + '">' +
+    '<div class="video-placeholder" onclick="showVideoPlayer(' + "'" + vidId + "'" + ')">' +
+    (coverImage ? '<img src="' + coverImage + '" alt="cover">' : 
+      '<div style="position:absolute;inset:0;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;">' +
+      '<div style="text-align:center;color:#fff;"><div style="font-size:48px;margin-bottom:8px;">' + platform.icon + '</div><div style="font-size:14px;opacity:0.9;">' + platform.name + '</div></div>' +
+      '</div>') +
+    '<div class="play-btn"></div>' +
+    '</div>' +
+    '<div class="video-player" id="' + vidId + '-player">' +
+    '<button class="video-close" onclick="hideVideoPlayer(' + "'" + vidId + "'" + ')">✕</button>' +
+    '<iframe data-src="' + embedUrl + '" src="' + embedUrl + '" allowfullscreen allow="autoplay; fullscreen" style="z-index:1;position:relative;"></iframe>' +
+    '</div></div>';
 }
 
 function detectVideoPlatform(url) {
