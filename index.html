@@ -1546,15 +1546,15 @@ function renderActivityDetail(id) {
 }
 function renderSingleVideoPlayer(video, vidId, coverImage) {
   var url = video.url;
-  // Determine if this is a direct video file (not a platform page link)
-  // isLocal=true means it came from the videos[] array (uploaded via backend)
+  // Determine player type SOLELY by URL pattern.
+  // NOTE: videos[] array may contain platform links (Bilibili), so NEVER trust video.isLocal.
   var hasVideoExt = /\.(mp4|webm|ogg|ogv|mov|qt|m3u8|mkv|avi|flv|wmv|3gp)(\?.*)?$/i.test(url);
   var isBlobOrData = /^blob:/i.test(url) || /^data:video\//i.test(url);
   var isRelativePath = url.length > 0 && !/^https?:\/\//i.test(url);
-  var isDirectVideo = video.isLocal || hasVideoExt || isBlobOrData || isRelativePath;
+  var isDirectVideo = hasVideoExt || isBlobOrData || isRelativePath;
 
   if (isDirectVideo) {
-    // Native player for all direct video files — adaptive aspect ratio, supports all formats
+    // Native player for direct video files — adaptive aspect ratio, all formats
     var ext = '';
     try { ext = url.split('?')[0].split('.').pop().toLowerCase(); } catch(e) {}
     var mimeMap = {mp4:'video/mp4',webm:'video/webm',ogg:'video/ogg',ogv:'video/ogg',mov:'video/quicktime',qt:'video/quicktime',m3u8:'application/x-mpegURL',mkv:'video/x-matroska',avi:'video/x-msvideo',flv:'video/x-flv',wmv:'video/x-ms-wmv','3gp':'video/3gpp'};
