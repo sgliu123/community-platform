@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二手交易管理后台</title>
+<style>
+:root {
+  --primary: #2E8B57; --primary-light: #3da76b; --primary-dark: #1f6b41;
+  --bg: #f0f2f5; --card: #fff; --text: #333; --text-secondary: #666;
+  --border: #e0e0e0; --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --radius: 8px; --sidebar-w: 220px; --header-h: 56px;
+  --danger: #c62828; --warning: #f9a825; --success: #2e7d32; --info: #1976D2;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+
+.admin-layout { display:flex; min-height:100vh; }
+
+.sidebar { width:var(--sidebar-w); background:#fff; border-right:1px solid var(--border); position:fixed; top:0; bottom:0; left:0; overflow-y:auto; z-index:100; }
+.sidebar-header { padding:16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+.sidebar-header .logo { width:36px; height:36px; background:var(--primary); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.sidebar-header .title { font-size:15px; font-weight:600; }
+.sidebar-header .role { font-size:11px; color:var(--text-secondary); }
+.sidebar-nav { padding:8px; }
+.nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:6px; cursor:pointer; font-size:14px; color:var(--text); transition:.15s; margin-bottom:2px; }
+.nav-item:hover { background:#f5f5f5; }
+.nav-item.active { background:var(--primary); color:#fff; }
+.nav-item .icon { font-size:18px; width:24px; text-align:center; }
+.sidebar-footer { padding:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-secondary); }
+.sidebar-footer button { width:100%; padding:8px; background:#f5f5f5; border:1px solid var(--border); border-radius:6px; cursor:pointer; font-size:13px; margin-top:8px; }
+
+.main-content { flex:1; margin-left:var(--sidebar-w); min-height:100vh; }
+.topbar { height:var(--header-h); background:#fff; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 24px; position:sticky; top:0; z-index:50; }
+.topbar h1 { font-size:18px; font-weight:600; }
+.topbar-actions { display:flex; gap:8px; }
+.topbar-actions button { padding:6px 14px; border:1px solid var(--border); background:#fff; border-radius:6px; cursor:pointer; font-size:13px; }
+.topbar-actions button.primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+.content-area { padding:24px; max-width:1200px; }
+
+.card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:20px; }
+.card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px; }
+.card-header h3 { font-size:16px; font-weight:600; }
+.card-header .actions { display:flex; gap:8px; flex-wrap:wrap; }
+
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px; }
+.stat-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; }
+.stat-card .label { font-size:13px; color:var(--text-secondary); margin-bottom:8px; }
+.stat-card .value { font-size:28px; font-weight:700; color:var(--primary); }
+
+.data-table { width:100%; border-collapse:collapse; font-size:14px; }
+.data-table th { text-align:left; padding:12px; border-bottom:2px solid var(--border); font-weight:600; color:var(--text-secondary); font-size:13px; white-space:nowrap; }
+.data-table td { padding:12px; border-bottom:1px solid var(--border); vertical-align:top; }
+.data-table tr:hover td { background:#fafafa; }
+.data-table .actions { display:flex; gap:6px; flex-wrap:wrap; }
+.data-table .actions button { padding:4px 10px; border:1px solid var(--border); background:#fff; border-radius:4px; cursor:pointer; font-size:12px; }
+.data-table .actions button.danger { color:var(--danger); border-color:var(--danger); }
+.data-table .actions button.success { color:var(--success); border-color:var(--success); }
+.data-table .actions button.warning { color:var(--warning); border-color:var(--warning); }
+.data-table .actions button:hover { background:#f5f5f5; }
+
+.form-group { margin-bottom:16px; }
+.form-group label { display:block; font-size:13px; font-weight:500; margin-bottom:6px; }
+.form-group input, .form-group select, .form-group textarea { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:6px; font-size:14px; font-family:inherit; }
+.form-group textarea { min-height:120px; resize:vertical; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline:none; border-color:var(--primary); }
+.form-row { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+
+.btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:6px; font-size:14px; cursor:pointer; border:1px solid var(--border); background:#fff; }
+.btn:hover { background:#f5f5f5; }
+.btn-primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+.btn-primary:hover { background:var(--primary-dark); }
+.btn-danger { color:var(--danger); border-color:var(--danger); }
+.btn-danger:hover { background:#ffebee; }
+.btn-success { color:var(--success); border-color:var(--success); }
+.btn-success:hover { background:#e8f5e9; }
+.btn-sm { padding:6px 12px; font-size:13px; }
+
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; display:none; align-items:center; justify-content:center; }
+.modal-overlay.active { display:flex; }
+.modal-box { background:#fff; border-radius:12px; width:90%; max-width:600px; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,0.2); }
+.modal-box .modal-header { padding:20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.modal-box .modal-header h3 { font-size:18px; }
+.modal-box .modal-header .close { font-size:24px; cursor:pointer; color:var(--text-secondary); }
+.modal-box .modal-body { padding:20px; }
+.modal-box .modal-footer { padding:16px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; }
+
+.toast-container { position:fixed; top:20px; right:20px; z-index:2000; display:flex; flex-direction:column; gap:8px; }
+.toast { background:#fff; border-radius:8px; padding:12px 16px; box-shadow:0 4px 16px rgba(0,0,0,0.15); display:flex; align-items:center; gap:10px; min-width:280px; animation:slideIn .3s ease; }
+.toast.success { border-left:4px solid var(--success); }
+.toast.error { border-left:4px solid var(--danger); }
+.toast.info { border-left:4px solid var(--primary); }
+@keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+
+.tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.tag-pending { background:#fff3e0; color:#e65100; }
+.tag-approved { background:#e8f5e9; color:#2e7d32; }
+.tag-rejected { background:#ffebee; color:#c62828; }
+.tag-sold { background:#e3f2fd; color:#1976D2; }
+.tag-deleted { background:#eceff1; color:#546e7a; }
+.tag-resolved { background:#e8f5e9; color:#2e7d32; }
+
+.filter-bar { display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+.filter-bar select, .filter-bar input { padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; min-width:140px; }
+
+.empty-state { text-align:center; padding:60px 20px; color:var(--text-secondary); }
+.empty-state .icon { font-size:48px; margin-bottom:16px; }
+
+.loading-overlay { position:fixed; inset:0; background:rgba(255,255,255,0.8); z-index:3000; display:none; align-items:center; justify-content:center; }
+.loading-overlay.active { display:flex; }
+.spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; background:#f5f5f5; color:var(--text-secondary); }
+.thumb-img { width:48px; height:48px; object-fit:cover; border-radius:4px; border:1px solid var(--border); cursor:pointer; }
+
+@media (max-width:768px) {
+  .sidebar { transform:translateX(-100%); transition:.3s; }
+  .sidebar.open { transform:translateX(0); }
+  .main-content { margin-left:0; }
+  .stats-grid { grid-template-columns:repeat(2,1fr); }
+  .form-row { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="admin-layout" id="adminLayout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">🛒</div>
+      <div>
+        <div class="title">交易管理后台</div>
+        <div class="role" id="adminRole">超级管理员</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav"></nav>
+    <div class="sidebar-footer">
+      <div id="adminInfo">管理员</div>
+      <button onclick="location.reload()">刷新页面</button>
+      <button onclick="window.open('admin.html','_blank')">返回主后台</button>
+    </div>
+  </aside>
+  <main class="main-content">
+    <div class="topbar">
+      <h1 id="pageTitle">仪表盘</h1>
+      <div class="topbar-actions">
+        <button onclick="window.open('index.html','_blank')">查看前台</button>
+      </div>
+    </div>
+    <div class="content-area" id="contentArea"></div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-header">
+      <h3 id="modalTitle">标题</h3>
+      <span class="close" onclick="closeModal()">&times;</span>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* ========== 全局错误保护 ========== */
+window.onerror = function(msg, url, line) {
+  console.error('Error:', msg, 'line', line);
+  var el = document.getElementById('contentArea');
+  if(el) el.innerHTML = '<div style="padding:40px;color:#c62828"><h3>页面出错 (line ' + line + ')</h3><p>' + String(msg) + '</p><p>请按F12查看控制台</p></div>';
+  return false;
+};
+
+/* ========== 数据层 ========== */
+var LS_PREFIX = 'trade_';
+var currentModule = 'dashboard';
+var reviewFilters = { category:'', status:'', identity:'', _search:'' };
+var reviewSelected = new Set();
+var reportFilterStatus = '';
+
+function getData(key, def) {
+  try { var v = localStorage.getItem(LS_PREFIX + key); return v ? JSON.parse(v) : def; }
+  catch(e) { return def; }
+}
+function setData(key, val) {
+  try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(val)); }
+  catch(e) { console.error('setData failed', e); }
+}
+function ensureData() {
+  if(!getData('posts', null)) {
+    setData('posts', [
+      {id:'post-001', title:'【测试】出租1号楼2单元三居室', category:'rent', identity:'supply', price:'3500元/月', author:'管理员A', contact:'138****0001', content:'精装修，拎包入住，采光好。', status:'pending', createdAt:'2026-08-04T10:00:00Z', images:[]},
+      {id:'post-002', title:'【测试】求购二手冰箱', category:'used', identity:'demand', price:'500元以内', author:'管理员B', contact:'139****0002', content:'需要双门冰箱，功能正常。', status:'pending', createdAt:'2026-08-04T11:00:00Z', images:[]},
+      {id:'post-003', title:'【测试】家政保洁服务', category:'house', identity:'supply', price:'80元/小时', author:'管理员C', contact:'137****0003', content:'专业保洁团队，深度清洁。', status:'approved', createdAt:'2026-08-03T09:00:00Z', images:[]}
+    ]);
+  }
+  if(!getData('reports', null)) {
+    setData('reports', [
+      {id:'rep-001', postId:'post-003', postTitle:'【测试】家政保洁服务', reporterName:'测试业主', reporterRoom:'1-1-101', reason:'虚假信息', detail:'联系后对方要求先付定金，疑似诈骗。', status:'pending', createdAt:'2026-08-04T12:00:00Z'},
+      {id:'rep-002', postId:'post-001', postTitle:'【测试】出租1号楼2单元三居室', reporterName:'测试业主02', reporterRoom:'1-1-102', reason:'价格不实', detail:'实际看房后价格与发布不符。', status:'pending', createdAt:'2026-08-04T13:00:00Z'}
+    ]);
+  }
+  if(!getData('categories', null)) {
+    setData('categories', {
+      rent: [{id:'t1',name:'整租'},{id:'t2',name:'合租'},{id:'t3',name:'短租'},{id:'t4',name:'车位出租'}],
+      house: [{id:'h1',name:'户型改造'},{id:'h2',name:'装修设计'},{id:'h3',name:'家政服务'},{id:'h4',name:'搬家服务'}],
+      used: [{id:'u1',name:'家电'},{id:'u2',name:'家具'},{id:'u3',name:'母婴'},{id:'u4',name:'书籍'},{id:'u5',name:'数码'},{id:'u6',name:'代步工具'},{id:'u7',name:'运动户外'},{id:'u8',name:'其他'}]
+    });
+  }
+  if(!getData('sensitive_words', null)) {
+    setData('sensitive_words', [
+      {id:'sw-1', word:'诈骗', category:'交易违规'},
+      {id:'sw-2', word:'假币', category:'违禁品'},
+      {id:'sw-3', word:'脏话测试', category:'通用违规'}
+    ]);
+  }
+}
+
+/* ========== 工具函数 ========== */
+function esc(t) { if(!t) return ''; var d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+function fmt(iso) { if(!iso) return ''; var d=new Date(iso); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function gid(p) { return p+'-'+Date.now()+'-'+Math.random().toString(36).substr(2,4); }
+function toast(msg, type) {
+  var c=document.getElementById('toastContainer'); if(!c) return;
+  var t=document.createElement('div'); t.className='toast '+type; t.textContent=msg; c.appendChild(t); setTimeout(function(){t.remove();},3000);
+}
+function loading(show) { var el=document.getElementById('loadingOverlay'); if(el) el.classList.toggle('active', show); }
+function closeModal() { var el=document.getElementById('modalOverlay'); if(el) el.classList.remove('active'); }
+function openModal(title, body, footer) {
+  var t=document.getElementById('modalTitle'), b=document.getElementById('modalBody'), f=document.getElementById('modalFooter'), o=document.getElementById('modalOverlay');
+  if(t) t.textContent=title; if(b) b.innerHTML=body||''; if(f) f.innerHTML=footer||''; if(o) o.classList.add('active');
+}
+
+/* ========== 导航 ========== */
+function renderSidebar() {
+  var items = [
+    { id:'dashboard', label:'仪表盘', icon:'📊' },
+    { id:'review', label:'内容审核', icon:'📋' },
+    { id:'reports', label:'举报处理', icon:'🚨' },
+    { id:'categories', label:'标签管理', icon:'🏷️' },
+    { id:'sensitive', label:'敏感词库', icon:'🛡️' }
+  ];
+  var html = '';
+  items.forEach(function(item) {
+    html += '<div class="nav-item" data-module="'+item.id+'" onclick="go(\''+item.id+'\')">';
+    html += '<span class="icon">'+item.icon+'</span><span>'+item.label+'</span></div>';
+  });
+  html += '<div class="nav-item" onclick="window.open(\'admin.html\',\'_blank\')"><span class="icon">🏠</span><span>返回主后台</span></div>';
+  var nav = document.getElementById('sidebarNav'); if(nav) nav.innerHTML = html;
+}
+
+function go(module) {
+  try {
+    currentModule = module;
+    location.hash = 'module=' + module;
+    document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.toggle('active', n.dataset.module === module); });
+    var titles = { dashboard:'仪表盘', review:'内容审核', reports:'举报处理', categories:'标签管理', sensitive:'敏感词库' };
+    var pt = document.getElementById('pageTitle'); if(pt) pt.textContent = titles[module] || module;
+    var renderers = { dashboard:renderDashboard, review:renderReview, reports:renderReports, categories:renderCategories, sensitive:renderSensitive };
+    var fn = renderers[module] || renderDashboard;
+    var ca = document.getElementById('contentArea');
+    if(ca) { var html = fn(); ca.innerHTML = typeof html === 'string' ? html : '<div class="empty-state"><div class="icon">⚠️</div><div>渲染异常</div></div>'; }
+  } catch(e) {
+    console.error(e);
+    var ca = document.getElementById('contentArea');
+    if(ca) ca.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div>加载出错</div><div style="font-size:12px;color:#999;margin-top:8px;">'+esc(e.message)+'</div></div>';
+  }
+}
+
+/* ========== 仪表盘 ========== */
+function renderDashboard() {
+  var posts = getData('posts', []); if(!Array.isArray(posts)) posts = [];
+  var reports = getData('reports', []); if(!Array.isArray(reports)) reports = [];
+  var pending = posts.filter(function(p){ return p && p.status === 'pending'; }).length;
+  var total = posts.length;
+  var pendingReports = reports.filter(function(r){ return r && r.status === 'pending'; }).length;
+  var sold = posts.filter(function(p){ return p && p.status === 'sold'; }).length;
+  var recentPending = posts.filter(function(p){ return p && p.status === 'pending'; }).slice(-5).reverse();
+
+  var html = '<div class="stats-grid">' +
+    '<div class="stat-card"><div class="label">待审核</div><div class="value">'+pending+'</div></div>' +
+    '<div class="stat-card"><div class="label">总发布</div><div class="value">'+total+'</div></div>' +
+    '<div class="stat-card"><div class="label">待处理举报</div><div class="value">'+pendingReports+'</div></div>' +
+    '<div class="stat-card"><div class="label">已成交</div><div class="value">'+sold+'</div></div>' +
+    '</div>';
+
+  html += '<div class="card"><div class="card-header"><h3>最近待审核内容</h3></div>';
+  if(!recentPending.length) {
+    html += '<div class="empty-state"><div class="icon">📭</div><div>暂无待审核内容</div></div>';
+  } else {
+    html += '<table class="data-table"><thead><tr><th>标题</th><th>分类</th><th>身份</th><th>提交时间</th><th>操作</th></tr></thead><tbody>';
+    recentPending.forEach(function(p) {
+      html += '<tr><td>'+esc(p.title)+'</td><td>'+(p.category||'')+'</td><td>'+(p.identity==='supply'?'供应':'需求')+'</td><td>'+fmt(p.createdAt)+'</td>';
+      html += '<td class="actions"><button class="success" onclick="approvePost(\''+p.id+'\')">通过</button><button class="danger" onclick="rejectPrompt(\''+p.id+'\')">驳回</button></td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+  return html;
+}
+
+/* ========== 内容审核 ========== */
+function renderReview() {
+  var posts = getData('posts', []); if(!Array.isArray(posts)) posts = [];
+  if(reviewFilters.category) posts = posts.filter(function(p){ return p && (p.category === reviewFilters.category || p.type === reviewFilters.category); });
+  if(reviewFilters.status) posts = posts.filter(function(p){ return p && p.status === reviewFilters.status; });
+  if(reviewFilters.identity) posts = posts.filter(function(p){ return p && (p.identity === reviewFilters.identity || p.role === reviewFilters.identity); });
+  if(reviewFilters._search) {
+    var s = reviewFilters._search.toLowerCase();
+    posts = posts.filter(function(p){ return p && (p.title||'').toLowerCase().indexOf(s) >= 0; });
+  }
+  reviewSelected.clear();
+
+  var html = '<div class="card"><div class="card-header"><h3>内容审核</h3>';
+  html += '<div class="actions"><button class="btn btn-success" onclick="batchApprove()">批量通过</button><button class="btn btn-danger" onclick="batchReject()">批量驳回</button><button class="btn btn-danger" onclick="batchDelete()">批量删除</button></div></div>';
+
+  html += '<div class="filter-bar">' +
+    '<select onchange="setFilter(\'category\',this.value)"><option value="">全部分类</option><option value="rent" '+(reviewFilters.category==='rent'?'selected':'')+'>房屋租赁</option><option value="house" '+(reviewFilters.category==='house'?'selected':'')+'>家政装修</option><option value="used" '+(reviewFilters.category==='used'?'selected':'')+'>二手闲置</option></select>' +
+    '<select onchange="setFilter(\'status\',this.value)"><option value="">全部状态</option><option value="pending" '+(reviewFilters.status==='pending'?'selected':'')+'>待审核</option><option value="approved" '+(reviewFilters.status==='approved'?'selected':'')+'>已通过</option><option value="rejected" '+(reviewFilters.status==='rejected'?'selected':'')+'>已驳回</option><option value="sold" '+(reviewFilters.status==='sold'?'selected':'')+'>已下架</option><option value="deleted" '+(reviewFilters.status==='deleted'?'selected':'')+'>已删除</option></select>' +
+    '<select onchange="setFilter(\'identity\',this.value)"><option value="">全部身份</option><option value="supply" '+(reviewFilters.identity==='supply'?'selected':'')+'>供应</option><option value="demand" '+(reviewFilters.identity==='demand'?'selected':'')+'>需求</option></select>' +
+    '<input type="text" placeholder="搜索标题..." value="'+esc(reviewFilters._search)+'" oninput="setFilter(\'search\',this.value)">' +
+    '</div>';
+
+  if(!posts.length) {
+    html += '<div class="empty-state"><div class="icon">📭</div><div>暂无数据</div></div>';
+  } else {
+    html += '<table class="data-table"><thead><tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>标题</th><th>分类</th><th>身份</th><th>价格</th><th>状态</th><th>作者</th><th>时间</th><th>操作</th></tr></thead><tbody>';
+    posts.forEach(function(p) {
+      if(!p) return;
+      var cat = p.category || p.type || '';
+      var iden = p.identity || p.role || '';
+      var time = p.createdAt || p.createTime || '';
+      var author = p.author || p.contact || p.userId || '';
+      var sm = { pending:'<span class="tag tag-pending">待审核</span>', approved:'<span class="tag tag-approved">已通过</span>', rejected:'<span class="tag tag-rejected">已驳回</span>', sold:'<span class="tag tag-sold">已下架</span>', deleted:'<span class="tag tag-deleted">已删除</span>' };
+      var thumb = (p.images && p.images.length) ? '<img src="'+p.images[0]+'" class="thumb-img" onclick="previewImg(\''+p.images[0]+'\')">' : '';
+      html += '<tr><td><input type="checkbox" value="'+p.id+'" onchange="toggleOne(this)"></td>';
+      html += '<td>'+thumb+' '+esc(p.title)+'</td>';
+      html += '<td>'+esc(cat)+'</td><td>'+(iden==='supply'?'供应':'需求')+'</td>';
+      html += '<td>'+(p.price||'-')+'</td><td>'+(sm[p.status]||p.status||'-')+'</td>';
+      html += '<td>'+esc(author)+'<br><span style="font-size:11px;color:#999">'+(p.contact||'')+'</span></td>';
+      html += '<td>'+fmt(time)+'</td>';
+      html += '<td class="actions">';
+      if(p.status !== 'approved') html += '<button class="success" onclick="approvePost(\''+p.id+'\')">通过</button>';
+      if(p.status !== 'rejected') html += '<button class="danger" onclick="rejectPrompt(\''+p.id+'\')">驳回</button>';
+      if(p.status !== 'sold') html += '<button onclick="soldPost(\''+p.id+'\')">下架</button>';
+      html += '<button onclick="viewPost(\''+p.id+'\')">详情</button>';
+      html += '<button class="danger" onclick="delPost(\''+p.id+'\')">删除</button>';
+      html += '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function setFilter(k,v) { if(k==='search') reviewFilters._search=v; else reviewFilters[k]=v; go('review'); }
+function toggleAll(cb) { document.querySelectorAll('.data-table tbody input[type=checkbox]').forEach(function(c){ c.checked=cb.checked; if(cb.checked) reviewSelected.add(c.value); else reviewSelected.delete(c.value); }); }
+function toggleOne(cb) { if(cb.checked) reviewSelected.add(cb.value); else reviewSelected.delete(cb.value); }
+
+function batchApprove() {
+  var ids = Array.from(reviewSelected); if(!ids.length){ toast('请先选择内容','error'); return; }
+  var posts = getData('posts',[]); posts.forEach(function(p){ if(p && ids.indexOf(p.id)>=0) p.status='approved'; });
+  setData('posts',posts); toast('已批量通过','success'); go('review');
+}
+function batchReject() {
+  var ids = Array.from(reviewSelected); if(!ids.length){ toast('请先选择内容','error'); return; }
+  openModal('批量驳回','<div class="form-group"><label>驳回原因</label><textarea id="batchReason" rows="3"></textarea></div>','<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-danger" onclick="doBatchReject()">确认驳回</button>');
+}
+function doBatchReject() {
+  var reason = document.getElementById('batchReason').value.trim();
+  var ids = Array.from(reviewSelected);
+  var posts = getData('posts',[]); posts.forEach(function(p){ if(p && ids.indexOf(p.id)>=0){ p.status='rejected'; p.rejectReason=reason||'批量驳回'; } });
+  setData('posts',posts); closeModal(); toast('已批量驳回','success'); go('review');
+}
+function batchDelete() {
+  var ids = Array.from(reviewSelected); if(!ids.length){ toast('请先选择内容','error'); return; }
+  if(!confirm('确定批量删除 '+ids.length+' 条内容？')) return;
+  var posts = getData('posts',[]); posts = posts.filter(function(p){ return p && ids.indexOf(p.id)<0; });
+  setData('posts',posts); toast('已批量删除','success'); go('review');
+}
+function approvePost(id) {
+  var posts = getData('posts',[]); var p = posts.find(function(x){ return x && x.id===id; });
+  if(p){ p.status='approved'; p.updatedAt=new Date().toISOString(); setData('posts',posts); toast('已通过','success'); go('review'); }
+}
+function rejectPrompt(id) {
+  openModal('驳回内容','<div class="form-group"><label>驳回原因</label><textarea id="rejReason" rows="3"></textarea></div>','<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-danger" onclick="doReject(\''+id+'\')">确认驳回</button>');
+}
+function doReject(id) {
+  var reason = document.getElementById('rejReason').value.trim();
+  var posts = getData('posts',[]); var p = posts.find(function(x){ return x && x.id===id; });
+  if(p){ p.status='rejected'; p.rejectReason=reason; p.updatedAt=new Date().toISOString(); setData('posts',posts); closeModal(); toast('已驳回','success'); go('review'); }
+}
+function soldPost(id) {
+  var posts = getData('posts',[]); var p = posts.find(function(x){ return x && x.id===id; });
+  if(p){ p.status='sold'; p.updatedAt=new Date().toISOString(); setData('posts',posts); toast('已下架','success'); go('review'); }
+}
+function delPost(id) { if(!confirm('确定删除？此操作不可恢复。')) return; var posts=getData('posts',[]); posts=posts.filter(function(p){ return p && p.id!==id; }); setData('posts',posts); toast('已删除','success'); go('review'); }
+function viewPost(id) {
+  var posts=getData('posts',[]); var p=posts.find(function(x){ return x && x.id===id; }); if(!p) return;
+  var cat = p.category || p.type || '';
+  var iden = p.identity || p.role || '';
+  var contentText = p.content || p.description || '';
+  var author = p.author || p.contact || p.userId || '';
+  var body='<div style="margin-bottom:12px;"><div style="font-weight:600;font-size:16px;margin-bottom:8px;">'+esc(p.title)+'</div>';
+  body+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;color:var(--text-secondary);">';
+  body+='<span class="badge">分类：'+esc(cat)+'</span><span class="badge">身份：'+(iden==='supply'?'供应':'需求')+'</span>';
+  body+='<span class="badge">价格：'+(p.price||'-')+'</span><span class="badge">作者：'+esc(author)+'</span><span class="badge">联系方式：'+esc(p.contact||'')+'</span></div>';
+  body+='<div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:12px;font-size:14px;line-height:1.6;">'+esc(contentText)+'</div>';
+  if(p.images && p.images.length){ body+='<div style="display:flex;gap:8px;flex-wrap:wrap;">'; p.images.forEach(function(url){ body+='<img src="'+url+'" style="width:100px;height:100px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="previewImg(\''+url+'\')">'; }); body+='</div>'; }
+  if(p.rejectReason){ body+='<div style="margin-top:12px;padding:10px;background:#ffebee;border-radius:6px;color:var(--danger);font-size:13px;"><strong>驳回原因：</strong>'+esc(p.rejectReason)+'</div>'; }
+  body+='</div>';
+  openModal('内容详情',body,'<button class="btn" onclick="closeModal()">关闭</button>');
+}
+
+/* ========== 举报处理 ========== */
+function renderReports() {
+  var reports = getData('reports',[]); if(!Array.isArray(reports)) reports=[];
+  if(reportFilterStatus) reports = reports.filter(function(r){ return r && r.status===reportFilterStatus; });
+  var counts={pending:0,resolved:0,rejected:0};
+  getData('reports',[]).forEach(function(r){ if(r && r.status && counts[r.status]!==undefined) counts[r.status]++; });
+
+  var html='<div class="card"><div class="card-header"><h3>举报处理</h3></div>';
+  html+='<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">';
+  var allA = reportFilterStatus==='' ? 'background:var(--primary);color:#fff;border-color:var(--primary);' : '';
+  html+='<button class="btn btn-sm" onclick="setReportFilter(\'\')" style="'+allA+'">全部 ('+getData('reports',[]).length+')</button>';
+  var labs={pending:'待处理',resolved:'已确认',rejected:'误报'};
+  ['pending','resolved','rejected'].forEach(function(s){
+    var a = reportFilterStatus===s ? 'background:var(--primary);color:#fff;border-color:var(--primary);' : '';
+    html+='<button class="btn btn-sm" onclick="setReportFilter(\''+s+'\')" style="'+a+'">'+labs[s]+' ('+(counts[s]||0)+')</button>';
+  });
+  html+='</div>';
+
+  if(!reports.length){ html+='<div class="empty-state"><div class="icon">📭</div><div>暂无举报数据</div></div>'; }
+  else {
+    html+='<table class="data-table"><thead><tr><th>被举报内容</th><th>举报人</th><th>原因</th><th>时间</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+    reports.slice().reverse().forEach(function(r){
+      if(!r) return;
+      var reporter = r.reporterName || r.reporter || '';
+      var time = r.createdAt || r.createTime || '';
+      var sm={pending:'<span class="tag tag-pending">待处理</span>', resolved:'<span class="tag tag-resolved">已确认</span>', rejected:'<span class="tag tag-deleted">误报</span>'};
+      html+='<tr><td>'+esc(r.postTitle)+'<br><span style="font-size:11px;color:#999">'+(r.postId||'')+'</span></td>';
+      html+='<td>'+esc(reporter)+'<br><span style="font-size:11px;color:#999">'+(r.reporterRoom||'')+'</span></td>';
+      html+='<td>'+esc(r.reason)+'</td><td>'+fmt(time)+'</td><td>'+(sm[r.status]||r.status||'-')+'</td>';
+      html+='<td class="actions">';
+      if(r.status==='pending'){ html+='<button class="danger" onclick="confirmViol(\''+r.id+'\')">确认违规</button><button class="success" onclick="markMis(\''+r.id+'\')">误报恢复</button>'; }
+      html+='<button onclick="viewReport(\''+r.id+'\')">详情</button></td></tr>';
+    });
+    html+='</tbody></table>';
+  }
+  html+='</div>';
+  return html;
+}
+function setReportFilter(s){ reportFilterStatus=s; go('reports'); }
+function confirmViol(id){
+  if(!confirm('确认违规将删除对应帖子并标记举报为已确认，是否继续？')) return;
+  var reports=getData('reports',[]); var posts=getData('posts',[]);
+  var r=reports.find(function(x){ return x && x.id===id; });
+  if(r){ r.status='resolved'; r.handledAt=new Date().toISOString(); r.handler='管理员'; r.action='确认违规，删除帖子';
+    if(r.postId){ var p=posts.find(function(x){ return x && x.id===r.postId; }); if(p){ p.status='deleted'; p.updatedAt=new Date().toISOString(); } }
+    setData('reports',reports); setData('posts',posts); toast('已确认违规并删除帖子','success'); go('reports');
+  }
+}
+function markMis(id){
+  var reports=getData('reports',[]); var r=reports.find(function(x){ return x && x.id===id; });
+  if(r){ r.status='rejected'; r.handledAt=new Date().toISOString(); r.handler='管理员'; r.action='标记为误报'; setData('reports',reports); toast('已标记为误报','success'); go('reports'); }
+}
+function viewReport(id){
+  var reports=getData('reports',[]); var r=reports.find(function(x){ return x && x.id===id; }); if(!r) return;
+  var reporter = r.reporterName || r.reporter || '';
+  var time = r.createdAt || r.createTime || '';
+  var body='<div style="background:#f8f9fa;border-radius:8px;padding:16px;">';
+  body+='<div class="form-group"><label>举报编号</label><input type="text" value="'+r.id+'" readonly></div>';
+  body+='<div class="form-group"><label>被举报帖子</label><input type="text" value="'+esc(r.postTitle)+'" readonly></div>';
+  body+='<div class="form-group"><label>帖子ID</label><input type="text" value="'+(r.postId||'')+'" readonly></div>';
+  body+='<div class="form-row"><div class="form-group"><label>举报人</label><input type="text" value="'+esc(reporter)+'" readonly></div>';
+  body+='<div class="form-group"><label>房号</label><input type="text" value="'+esc(r.reporterRoom||'')+'" readonly></div></div>';
+  body+='<div class="form-group"><label>举报原因</label><input type="text" value="'+esc(r.reason)+'" readonly></div>';
+  body+='<div class="form-group"><label>详细说明</label><textarea readonly>'+esc(r.detail)+'</textarea></div>';
+  body+='<div class="form-group"><label>当前状态</label><input type="text" value="'+(r.status==='pending'?'待处理':(r.status==='resolved'?'已确认':'误报'))+'" readonly></div>';
+  if(r.handler){ body+='<div class="form-row"><div class="form-group"><label>处理人</label><input type="text" value="'+esc(r.handler)+'" readonly></div>';
+    body+='<div class="form-group"><label>处理时间</label><input type="text" value="'+fmt(r.handledAt)+'" readonly></div></div>';
+    body+='<div class="form-group"><label>处理动作</label><input type="text" value="'+esc(r.action||'')+'" readonly></div>'; }
+  body+='</div>';
+  openModal('举报详情',body,'<button class="btn" onclick="closeModal()">关闭</button>');
+}
+
+/* ========== 标签管理 ========== */
+function renderCategories(){
+  var cats=getData('categories',{}); if(!cats || typeof cats!=='object') cats={};
+  var html='<div class="card"><div class="card-header"><h3>标签管理</h3></div>';
+  ['rent','house','used'].forEach(function(type){
+    var labs={rent:'房屋租赁',house:'家政装修',used:'二手闲置'};
+    var label=labs[type]||type; var list=cats[type]||[]; if(!Array.isArray(list)) list=[];
+    html+='<div style="margin-bottom:24px;"><div style="font-weight:600;margin-bottom:10px;font-size:15px;">'+label+'</div>';
+    html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">';
+    list.forEach(function(tag,idx){
+      var name=(typeof tag==='string')?tag:(tag&&tag.name?tag.name:''); if(!name) return;
+      html+='<div style="display:flex;align-items:center;gap:4px;background:#f5f5f5;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:13px;">';
+      html+='<span>'+esc(name)+'</span>';
+      html+='<button onclick="editTag(\''+type+'\','+idx+')" style="background:none;border:none;cursor:pointer;color:var(--primary);font-size:12px;">✏️</button>';
+      html+='<button onclick="deleteTag(\''+type+'\','+idx+')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:12px;">✕</button></div>';
+    });
+    html+='</div>';
+    html+='<div style="display:flex;gap:8px;"><input type="text" id="newTag-'+type+'" placeholder="输入新标签名称" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;"><button class="btn btn-primary" onclick="addTag(\''+type+'\')">添加</button></div>';
+    html+='</div>';
+  });
+  html+='</div>';
+  return html;
+}
+function addTag(type){
+  var input=document.getElementById('newTag-'+type); if(!input) return;
+  var val=input.value.trim(); if(!val){ toast('请输入标签名称','error'); return; }
+  var cats=getData('categories',{}); if(!cats[type]) cats[type]=[];
+  cats[type].push({id:gid('tag'), name:val});
+  setData('categories',cats); toast('添加成功','success'); go('categories');
+}
+function deleteTag(type,idx){
+  if(!confirm('确定删除该标签？')) return;
+  var cats=getData('categories',{}); if(cats[type] && Array.isArray(cats[type])){ cats[type].splice(idx,1); setData('categories',cats); toast('已删除','success'); go('categories'); }
+}
+function editTag(type,idx){
+  var cats=getData('categories',{}); var list=cats[type]||[]; var item=list[idx];
+  var oldName=(typeof item==='string')?item:(item&&item.name?item.name:'');
+  openModal('编辑标签','<div class="form-group"><label>标签名称</label><input type="text" id="editTagName" value="'+esc(oldName)+'"></div>','<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="doEditTag(\''+type+'\','+idx+')">保存</button>');
+}
+function doEditTag(type,idx){
+  var val=document.getElementById('editTagName').value.trim(); if(!val) return;
+  var cats=getData('categories',{}); if(cats[type] && cats[type][idx]){
+    var item=cats[type][idx]; if(typeof item==='string') cats[type][idx]=val; else if(item) cats[type][idx].name=val;
+    setData('categories',cats); closeModal(); toast('修改成功','success'); go('categories');
+  }
+}
+
+/* ========== 敏感词库 ========== */
+function renderSensitive(){
+  var words=getData('sensitive_words',[]); if(!Array.isArray(words)) words=[];
+  var html='<div class="card"><div class="card-header"><h3>敏感词库</h3><button class="btn btn-primary" onclick="openAddWord()">添加敏感词</button></div>';
+  var cats={'交易违规':0,'违禁品':0,'通用违规':0};
+  words.forEach(function(w){ if(w && w.category && cats[w.category]!==undefined) cats[w.category]++; });
+  html+='<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">';
+  Object.keys(cats).forEach(function(k){ html+='<span class="badge" style="background:#fff;border:1px solid var(--border);">'+k+'：'+cats[k]+' 个</span>'; });
+  html+='</div>';
+  if(!words.length){ html+='<div class="empty-state"><div class="icon">🛡️</div><div>暂无敏感词</div></div>'; }
+  else {
+    html+='<table class="data-table"><thead><tr><th>敏感词</th><th>分类</th><th>添加时间</th><th>操作</th></tr></thead><tbody>';
+    words.forEach(function(w,idx){
+      if(!w) return;
+      html+='<tr><td>'+esc(w.word)+'</td><td>'+(w.category||'')+'</td><td>'+fmt(w.createdAt)+'</td>';
+      html+='<td class="actions"><button onclick="editWord('+idx+')">编辑</button><button class="danger" onclick="deleteWord('+idx+')">删除</button></td></tr>';
+    });
+    html+='</tbody></table>';
+  }
+  html+='</div>';
+  return html;
+}
+function openAddWord(){
+  openModal('添加敏感词','<div class="form-group"><label>敏感词</label><input type="text" id="swWord" placeholder="输入敏感词"></div><div class="form-group"><label>分类</label><select id="swCategory"><option value="交易违规">交易违规</option><option value="违禁品">违禁品</option><option value="通用违规">通用违规</option></select></div>','<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="doAddWord()">保存</button>');
+}
+function doAddWord(){
+  var word=document.getElementById('swWord').value.trim(); var category=document.getElementById('swCategory').value;
+  if(!word){ toast('请输入敏感词','error'); return; }
+  var words=getData('sensitive_words',[]); words.push({id:gid('sw'), word:word, category:category, createdAt:new Date().toISOString()});
+  setData('sensitive_words',words); closeModal(); toast('添加成功','success'); go('sensitive');
+}
+function editWord(idx){
+  var words=getData('sensitive_words',[]); var w=words[idx]; if(!w) return;
+  openModal('编辑敏感词','<div class="form-group"><label>敏感词</label><input type="text" id="swWordEdit" value="'+esc(w.word)+'"></div><div class="form-group"><label>分类</label><select id="swCategoryEdit"><option value="交易违规" '+(w.category==='交易违规'?'selected':'')+'>交易违规</option><option value="违禁品" '+(w.category==='违禁品'?'selected':'')+'>违禁品</option><option value="通用违规" '+(w.category==='通用违规'?'selected':'')+'>通用违规</option></select></div>','<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="doEditWord('+idx+')">保存</button>');
+}
+function doEditWord(idx){
+  var word=document.getElementById('swWordEdit').value.trim(); var category=document.getElementById('swCategoryEdit').value; if(!word) return;
+  var words=getData('sensitive_words',[]); if(words[idx]){ words[idx].word=word; words[idx].category=category; setData('sensitive_words',words); closeModal(); toast('修改成功','success'); go('sensitive'); }
+}
+function deleteWord(idx){
+  if(!confirm('确定删除该敏感词？')) return;
+  var words=getData('sensitive_words',[]); words.splice(idx,1); setData('sensitive_words',words); toast('已删除','success'); go('sensitive');
+}
+
+/* ========== 图片预览 ========== */
+function previewImg(url){
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;opacity:0;transition:opacity .2s;';
+  ov.innerHTML='<img src="'+url+'" style="max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:scale(0.95);transition:transform .2s;">';
+  document.body.appendChild(ov);
+  requestAnimationFrame(function(){ ov.style.opacity='1'; ov.querySelector('img').style.transform='scale(1)'; });
+  ov.onclick=function(){ ov.style.opacity='0'; ov.querySelector('img').style.transform='scale(0.95)'; setTimeout(function(){ov.remove();},200); };
+}
+
+/* ========== 启动 ========== */
+document.addEventListener('DOMContentLoaded', function(){
+  try {
+    ensureData();
+    renderSidebar();
+    var hash=location.hash; var m=hash.match(/module=([^&]+)/); var target=m?m[1]:'dashboard';
+    var valid=['dashboard','review','reports','categories','sensitive'];
+    go(valid.indexOf(target)>=0?target:'dashboard');
+  } catch(e) {
+    console.error(e);
+    var ca=document.getElementById('contentArea');
+    if(ca) ca.innerHTML='<div style="padding:40px;color:#c62828"><h3>初始化失败</h3><p>'+esc(e.message)+'</p></div>';
+  }
+});
+</script>
+</body>
+</html>
