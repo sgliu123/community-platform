@@ -335,7 +335,7 @@ function getWorkerBase() { return WORKER_BASE.replace(/\/$/, ''); }
 async function workerRead(filePath) {
   const base = getWorkerBase();
   if (!base) throw new Error('Worker地址未配置');
-  const res = await fetch(base + '/api/read/' + encodeURIComponent(filePath));
+  const res = await fetch(base + '/api/read/' + encodeURIComponent(filePath) + '?_=' + Date.now() + '&r=' + Math.random().toString(36).substr(2,5), {cache: 'no-store'});
   if (!res.ok) throw new Error('读取失败');
   const t = await res.text();
   return t ? JSON.parse(t) : [];
@@ -431,7 +431,15 @@ let _editImages = [];
 async function loadData() {
   showPageLoading(true);
   try {
-    services = await workerRead('services.json');
+    var data = await workerRead('services.json');
+    // 兼容两种格式：数组 或 { services: [...] }
+    if (Array.isArray(data)) {
+      services = data;
+    } else if (data && Array.isArray(data.services)) {
+      services = data.services;
+    } else {
+      services = [];
+    }
     if (!services || !services.length) services = JSON.parse(JSON.stringify(EMBEDDED_DATA));
   } catch (e) {
     console.error('Worker读取失败，使用嵌入式数据', e);

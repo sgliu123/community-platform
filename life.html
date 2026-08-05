@@ -167,7 +167,7 @@ function getWorkerBase(){ return WORKER_BASE.replace(/\/$/,''); }
 async function workerRead(filePath){
   const base=getWorkerBase();
   if(!base) throw new Error('Worker地址未配置');
-  const res=await fetch(base+'/api/read/'+encodeURIComponent(filePath)+'?_='+Date.now());
+  const res=await fetch(base+'/api/read/'+encodeURIComponent(filePath)+'?_='+Date.now()+'&r='+Math.random().toString(36).substr(2,5), {cache:'no-store'});
   if(!res.ok) throw new Error('读取失败');
   const t=await res.text();
   return t?JSON.parse(t):[];
@@ -312,16 +312,24 @@ function closeImagePreview() {
 async function loadData() {
   try {
     const data = await workerRead('services.json');
-    if (data && Array.isArray(data.services)) {
-      appData.services = data.services;
+    // 兼容两种格式：admin-life.html 直接存数组；旧格式是 { services: [...] }
+    if (Array.isArray(data)) {
+      appData.services = data;
+      console.log('[Life] Worker 读取成功（数组格式），共', data.length, '条');
       return;
     }
-  } catch(e) { console.log('Worker读取失败，回退到嵌入数据', e); }
+    if (data && Array.isArray(data.services)) {
+      appData.services = data.services;
+      console.log('[Life] Worker 读取成功（对象格式），共', data.services.length, '条');
+      return;
+    }
+    console.log('[Life] Worker 返回空数据，回退到嵌入数据');
+  } catch(e) { console.log('[Life] Worker 读取失败，回退到嵌入数据', e); }
   try {
     const b64 = document.getElementById("embedded-b64").textContent.trim();
     const ed = JSON.parse(decodeURIComponent(escape(atob(b64))));
     if (ed && Array.isArray(ed.services)) appData.services = ed.services;
-  } catch(e2) { console.error('嵌入数据解析失败', e2); appData.services = []; }
+  } catch(e2) { console.error('[Life] 嵌入数据解析失败', e2); appData.services = []; }
 }
 
 /* ===== 路由 ===== */
