@@ -295,9 +295,16 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
     <h2>🔐 管理员登录</h2>
     <p class="subtitle">春天阳光小区 · 管理后台</p>
     <div class="error" id="loginError"></div>
-    <input type="password" id="loginPassword" placeholder="请输入管理密码">
+    <select id="loginRole" style="width:100%;padding:12px 14px;margin-bottom:12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;">
+      <option value="">— 请选择身份 —</option>
+      <option value="admin-super">🔧 总维护人员</option>
+      <option value="admin-property">🏢 物管人员</option>
+      <option value="admin-committee">🏛️ 业委会成员</option>
+      <option value="admin-community">🏘️ 社区人员</option>
+    </select>
+    <input type="password" id="loginPassword" placeholder="请输入密码">
     <button id="loginBtn" onclick="doAdminLogin()">登录</button>
-    <p class="tip">默认密码：Sunlight2026<br>首次登录后请立即修改密码</p>
+    <p class="tip" id="loginTip">请选择身份并输入对应密码<br>如需修改密码请编辑代码顶部 ADMIN_ACCOUNTS</p>
   </div>
 </div>
 
@@ -310,7 +317,7 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
     <input type="text" id="adminName" placeholder="管理员名称（用于审计日志）">
     <input type="text" id="repoName" placeholder="仓库名（如 community-platform，可选）">
     <button onclick="saveToken()">保存并进入后台</button>
-    <p class="tip">Token 类型：classic，需勾选 repo 权限<br>Token 仅保存在本浏览器，不会上传</p>
+    <p class="tip">GitHub Token 已不再需要<br>系统已改用 Cloudflare Worker 进行数据持久化</p>
   </div>
 </div>
 
@@ -359,7 +366,12 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-const EMBEDDED_DATA = {"config":{"community":{"name":"春天阳光小区","siteTitle":"春天阳光小区 - 社区数字化平台","address":"阳光大道 100 号","totalUnits":1200,"builtYear":"2018","area":"5.2万平方米","propertyCompany":"阳光物业服务有限公司","committeePhone":"0571-88888888","propertyPhone":"0571-88888889","logo":"assets/logo.png","slogan":"共建和谐社区，共享美好生活","favicon":"assets/logo.png"},"settings":{"maxAnnouncements":200,"itemsPerPage":10,"allowGuestView":true,"defaultTheme":"T1","themeOptions":[{"id":"T1","name":"春晓绿","color":"#2E8B57","desc":"清新自然"},{"id":"T2","name":"天空蓝","color":"#1976D2","desc":"稳重专业"},{"id":"T3","name":"暖阳橙","color":"#E65100","desc":"温馨活力"},{"id":"T4","name":"中国红","color":"#C62828","desc":"庄重喜庆"},{"id":"T5","name":"优雅紫","color":"#6A1B9A","desc":"高端典雅"}]},"auth":{"passwordHash":"202d43fbed60e08c1b1df1b1434c0cca94e45b1704cf86e030ee17c68979610a","salt":"SunlightCommunity2026","maxAttempts":5,"lockoutMinutes":30,"lastChanged":"2026-07-25"},"admins":[{"id":"admin-1","name":"管理员A","role":"super","permissions":["all"]},{"id":"admin-2","name":"管理员B","role":"editor","permissions":["announcements","documents","activities","polls","residents"]},{"id":"admin-3","name":"管理员C","role":"editor","permissions":["announcements","activities"]},{"id":"admin-4","name":"管理员D","role":"editor","permissions":["polls","residents"]},{"id":"admin-5","name":"管理员E","role":"viewer","permissions":["view","audit-log"]}]},"announcements":[{"id":"ann-001","title":"【测试】关于小区电梯年度维保的通知","category":"物业通知","content":"<p>【测试数据】各位业主，为确保电梯安全运行，物业将于本月进行年度维保，具体安排如下...</p>","isPinned":true,"publishDate":"2026-07-20","author":"管理员A","views":156,"attachments":[]},{"id":"ann-002","title":"【测试】端午节放假及值班安排","category":"节日通知","content":"<p>【测试数据】端午节期间物业服务中心值班时间为：6月22日-24日 9:00-17:00...</p>","isPinned":false,"publishDate":"2026-07-15","author":"管理员B","views":89,"attachments":[]},{"id":"ann-003","title":"【测试】垃圾分类投放点调整说明","category":"社区公告","content":"<p>【测试数据】根据上级要求，小区垃圾分类投放点将做如下调整：1号楼北侧...</p>","isPinned":false,"publishDate":"2026-07-18","author":"管理员C","views":120,"attachments":[]},{"id":"ann-004","title":"【测试】停车场管理系统升级通知","category":"物业通知","content":"<p>【测试数据】为提升停车体验，停车场系统将于本周末升级，期间可能短暂影响...</p>","isPinned":false,"publishDate":"2026-07-19","author":"管理员B","views":76,"attachments":[]},{"id":"ann-005","title":"【测试】关于成立业主委员会筹备组的公告","category":"重要公告","content":"<p>【测试数据】根据《物业管理条例》，现成立业主委员会筹备组，欢迎热心业主报名...</p>","isPinned":true,"publishDate":"2026-07-10","author":"管理员A","views":234,"attachments":[]},{"id":"ann-006","title":"【测试】夏季绿化养护计划","category":"环境通知","content":"<p>【测试数据】为保持小区绿化景观，夏季养护计划如下：修剪草坪、病虫害防治...</p>","isPinned":false,"publishDate":"2026-07-12","author":"管理员C","views":45,"attachments":[]},{"id":"ann-007","title":"【测试】消防演练活动通知","category":"安全通知","content":"<p>【测试数据】定于本周六上午9:00开展消防演练，请业主配合，听到警报请勿惊慌...</p>","isPinned":false,"publishDate":"2026-07-22","author":"管理员D","views":98,"attachments":[]},{"id":"ann-008","title":"【测试】物业费收缴温馨提示","category":"物业通知","content":"<p>【测试数据】请各位业主及时缴纳本年度物业费，可通过微信/支付宝/银行转账...</p>","isPinned":false,"publishDate":"2026-07-23","author":"管理员B","views":67,"attachments":[]}],"documents":[{"id":"doc-001","title":"【测试】关于进一步加强社区治理工作的指导意见","source":"xx街道办事处","publishDate":"2026-07-15","fileUrl":"","description":"【测试数据】根据市城管局要求，各社区需加强治理工作，落实网格化管理...","category":"上级文件"},{"id":"doc-002","title":"【测试】2026年度老旧小区改造实施方案","source":"市住建局","publishDate":"2026-07-10","fileUrl":"","description":"【测试数据】本年度改造重点包括外墙翻新、管道更换、加装电梯等...","category":"上级文件"},{"id":"doc-003","title":"【测试】社区消防安全检查标准及要求","source":"区消防大队","publishDate":"2026-07-05","fileUrl":"","description":"【测试数据】各社区需按照以下标准开展消防安全自查，确保消防设施完好...","category":"上级文件"}],"activities":[{"id":"act-001","title":"【测试】端午节包粽子活动圆满结束","date":"2026-05-30","location":"小区中心广场","content":"<p>【测试数据】活动现场热闹非凡，共有80余位业主参与，大家亲手包粽子、做香囊...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"已结束"},{"id":"act-002","title":"【测试】暑期少儿绘画培训班开班啦","date":"2026-07-20","location":"社区活动室","content":"<p>【测试数据】暑期绘画班即日起接受报名，限20人，由专业美术老师授课...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"进行中"},{"id":"act-003","title":"【测试】社区健康义诊活动预告","date":"2026-08-05","location":"小区中心广场","content":"<p>【测试数据】特邀市三甲医院医生来小区开展义诊，提供免费血压血糖检测...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"预告"},{"id":"act-004","title":"【测试】业主羽毛球友谊赛精彩回顾","date":"2026-06-15","location":"小区羽毛球馆","content":"<p>【测试数据】本次比赛共有16支队伍参加，经过激烈角逐，最终A栋代表队夺冠...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"已结束"}],"polls":[{"id":"poll-001","caseNo":"2026-YJ-001","title":"【测试】关于增设儿童游乐设施的意见征集","type":"opinion","description":"【测试数据】为丰富小区儿童活动空间，拟在中心花园增设游乐设施，现征集业主意见...","tencentUrl":"https://wj.qq.com/s2/xxxx/xxxx","startDate":"2026-07-20","endDate":"2026-08-20","status":"进行中","progress":{"target":300,"current":156,"unit":"户"},"results":{"isPublished":false,"summary":"","detailUrl":""},"createdBy":"管理员A","createdAt":"2026-07-20T09:00:00Z"},{"id":"poll-002","caseNo":"2026-YJ-002","title":"【测试】小区停车位管理方案投票","type":"vote","description":"【测试数据】针对小区停车位紧张问题，现提供三种管理方案供业主投票选择...","tencentUrl":"https://wj.qq.com/s2/xxxx/xxxx2","startDate":"2026-06-01","endDate":"2026-06-15","status":"已结束","progress":{"target":300,"current":278,"unit":"户"},"results":{"isPublished":true,"summary":"方案A获得68%支持率（189户），方案B获得22%（61户），方案C获得10%（28户）","detailUrl":""},"createdBy":"管理员D","createdAt":"2026-06-01T09:00:00Z"}],"residents":[{"id":"r-001","roomNo":"1-1-101","name":"测试业主01","phoneSuffix":"0001","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-002","roomNo":"1-1-102","name":"测试业主02","phoneSuffix":"0002","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-003","roomNo":"1-1-103","name":"测试业主03","phoneSuffix":"0003","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-004","roomNo":"1-1-104","name":"测试业主04","phoneSuffix":"0004","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-005","roomNo":"1-1-105","name":"测试业主05","phoneSuffix":"0005","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-006","roomNo":"1-1-106","name":"测试业主06","phoneSuffix":"0006","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-007","roomNo":"1-1-107","name":"测试业主07","phoneSuffix":"0007","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-008","roomNo":"1-1-108","name":"测试业主08","phoneSuffix":"0008","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-009","roomNo":"1-1-109","name":"测试业主09","phoneSuffix":"0009","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-010","roomNo":"1-1-110","name":"测试业主10","phoneSuffix":"0010","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-011","roomNo":"1-2-101","name":"测试业主11","phoneSuffix":"0011","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-012","roomNo":"1-2-102","name":"测试业主12","phoneSuffix":"0012","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-013","roomNo":"1-2-103","name":"测试业主13","phoneSuffix":"0013","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-014","roomNo":"1-2-104","name":"测试业主14","phoneSuffix":"0014","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-015","roomNo":"1-2-105","name":"测试业主15","phoneSuffix":"0015","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-016","roomNo":"1-2-106","name":"测试业主16","phoneSuffix":"0016","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-017","roomNo":"1-2-107","name":"测试业主17","phoneSuffix":"0017","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-018","roomNo":"1-2-108","name":"测试业主18","phoneSuffix":"0018","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-019","roomNo":"1-2-109","name":"测试业主19","phoneSuffix":"0019","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-020","roomNo":"1-2-110","name":"测试业主20","phoneSuffix":"0020","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-021","roomNo":"1-3-101","name":"测试业主21","phoneSuffix":"0021","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-022","roomNo":"1-3-102","name":"测试业主22","phoneSuffix":"0022","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-023","roomNo":"1-3-103","name":"测试业主23","phoneSuffix":"0023","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-024","roomNo":"1-3-104","name":"测试业主24","phoneSuffix":"0024","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-025","roomNo":"1-3-105","name":"测试业主25","phoneSuffix":"0025","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-026","roomNo":"1-3-106","name":"测试业主26","phoneSuffix":"0026","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-027","roomNo":"1-3-107","name":"测试业主27","phoneSuffix":"0027","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-028","roomNo":"1-3-108","name":"测试业主28","phoneSuffix":"0028","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-029","roomNo":"1-3-109","name":"测试业主29","phoneSuffix":"0029","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-030","roomNo":"1-3-110","name":"测试业主30","phoneSuffix":"0030","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-031","roomNo":"1-4-101","name":"测试业主31","phoneSuffix":"0031","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-032","roomNo":"1-4-102","name":"测试业主32","phoneSuffix":"0032","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-033","roomNo":"1-4-103","name":"测试业主33","phoneSuffix":"0033","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-034","roomNo":"1-4-104","name":"测试业主34","phoneSuffix":"0034","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-035","roomNo":"1-4-105","name":"测试业主35","phoneSuffix":"0035","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-036","roomNo":"1-4-106","name":"测试业主36","phoneSuffix":"0036","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-037","roomNo":"1-4-107","name":"测试业主37","phoneSuffix":"0037","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-038","roomNo":"1-4-108","name":"测试业主38","phoneSuffix":"0038","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-039","roomNo":"1-4-109","name":"测试业主39","phoneSuffix":"0039","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-040","roomNo":"1-4-110","name":"测试业主40","phoneSuffix":"0040","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-041","roomNo":"1-5-101","name":"测试业主41","phoneSuffix":"0041","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-042","roomNo":"1-5-102","name":"测试业主42","phoneSuffix":"0042","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-043","roomNo":"1-5-103","name":"测试业主43","phoneSuffix":"0043","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-044","roomNo":"1-5-104","name":"测试业主44","phoneSuffix":"0044","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-045","roomNo":"1-5-105","name":"测试业主45","phoneSuffix":"0045","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-046","roomNo":"1-5-106","name":"测试业主46","phoneSuffix":"0046","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-047","roomNo":"1-5-107","name":"测试业主47","phoneSuffix":"0047","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-048","roomNo":"1-5-108","name":"测试业主48","phoneSuffix":"0048","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-049","roomNo":"1-5-109","name":"测试业主49","phoneSuffix":"0049","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-050","roomNo":"1-5-110","name":"测试业主50","phoneSuffix":"0050","status":"active","isTest":true,"registeredAt":"2026-07-01"}],"audit-log":[{"id":"log-001","timestamp":"2026-07-25T10:00:00Z","adminName":"系统初始化","adminId":"system","action":"init","target":"all","targetId":"","details":"系统预设数据初始化完成，认证方式：预设密码+SHA-256哈希","clientInfo":"System"}]};
+const EMBEDDED_DATA = {"config":{"community":{"name":"春天阳光小区","siteTitle":"春天阳光小区 - 社区数字化平台","address":"阳光大道 100 号","totalUnits":1200,"builtYear":"2018","area":"5.2万平方米","propertyCompany":"阳光物业服务有限公司","committeePhone":"0571-88888888","propertyPhone":"0571-88888889","logo":"assets/logo.png","slogan":"共建和谐社区，共享美好生活","favicon":"assets/logo.png"},"settings":{"maxAnnouncements":200,"itemsPerPage":10,"allowGuestView":true,"defaultTheme":"T1","themeOptions":[{"id":"T1","name":"春晓绿","color":"#2E8B57","desc":"清新自然"},{"id":"T2","name":"天空蓝","color":"#1976D2","desc":"稳重专业"},{"id":"T3","name":"暖阳橙","color":"#E65100","desc":"温馨活力"},{"id":"T4","name":"中国红","color":"#C62828","desc":"庄重喜庆"},{"id":"T5","name":"优雅紫","color":"#6A1B9A","desc":"高端典雅"}]},"auth":{"passwordHash":"","salt":"SunlightCommunity2026","maxAttempts":5,"lockoutMinutes":30,"lastChanged":"2026-07-25","note":"已废弃，请使用代码顶部 ADMIN_ACCOUNTS 配置密码"},"admins":[
+  {"id":"admin-super","name":"总维护人员","role":"super","permissions":["all"]},
+  {"id":"admin-property","name":"物管人员","role":"property","permissions":["announcements","documents","workorders","residents"]},
+  {"id":"admin-committee","name":"业委会成员","role":"committee","permissions":["polls","residents","complaints","audit"]},
+  {"id":"admin-community","name":"社区人员","role":"community","permissions":["announcements","activities","complaints"]}
+]},"announcements":[{"id":"ann-001","title":"【测试】关于小区电梯年度维保的通知","category":"物业通知","content":"<p>【测试数据】各位业主，为确保电梯安全运行，物业将于本月进行年度维保，具体安排如下...</p>","isPinned":true,"publishDate":"2026-07-20","author":"管理员A","views":156,"attachments":[]},{"id":"ann-002","title":"【测试】端午节放假及值班安排","category":"节日通知","content":"<p>【测试数据】端午节期间物业服务中心值班时间为：6月22日-24日 9:00-17:00...</p>","isPinned":false,"publishDate":"2026-07-15","author":"管理员B","views":89,"attachments":[]},{"id":"ann-003","title":"【测试】垃圾分类投放点调整说明","category":"社区公告","content":"<p>【测试数据】根据上级要求，小区垃圾分类投放点将做如下调整：1号楼北侧...</p>","isPinned":false,"publishDate":"2026-07-18","author":"管理员C","views":120,"attachments":[]},{"id":"ann-004","title":"【测试】停车场管理系统升级通知","category":"物业通知","content":"<p>【测试数据】为提升停车体验，停车场系统将于本周末升级，期间可能短暂影响...</p>","isPinned":false,"publishDate":"2026-07-19","author":"管理员B","views":76,"attachments":[]},{"id":"ann-005","title":"【测试】关于成立业主委员会筹备组的公告","category":"重要公告","content":"<p>【测试数据】根据《物业管理条例》，现成立业主委员会筹备组，欢迎热心业主报名...</p>","isPinned":true,"publishDate":"2026-07-10","author":"管理员A","views":234,"attachments":[]},{"id":"ann-006","title":"【测试】夏季绿化养护计划","category":"环境通知","content":"<p>【测试数据】为保持小区绿化景观，夏季养护计划如下：修剪草坪、病虫害防治...</p>","isPinned":false,"publishDate":"2026-07-12","author":"管理员C","views":45,"attachments":[]},{"id":"ann-007","title":"【测试】消防演练活动通知","category":"安全通知","content":"<p>【测试数据】定于本周六上午9:00开展消防演练，请业主配合，听到警报请勿惊慌...</p>","isPinned":false,"publishDate":"2026-07-22","author":"管理员D","views":98,"attachments":[]},{"id":"ann-008","title":"【测试】物业费收缴温馨提示","category":"物业通知","content":"<p>【测试数据】请各位业主及时缴纳本年度物业费，可通过微信/支付宝/银行转账...</p>","isPinned":false,"publishDate":"2026-07-23","author":"管理员B","views":67,"attachments":[]}],"documents":[{"id":"doc-001","title":"【测试】关于进一步加强社区治理工作的指导意见","source":"xx街道办事处","publishDate":"2026-07-15","fileUrl":"","description":"【测试数据】根据市城管局要求，各社区需加强治理工作，落实网格化管理...","category":"上级文件"},{"id":"doc-002","title":"【测试】2026年度老旧小区改造实施方案","source":"市住建局","publishDate":"2026-07-10","fileUrl":"","description":"【测试数据】本年度改造重点包括外墙翻新、管道更换、加装电梯等...","category":"上级文件"},{"id":"doc-003","title":"【测试】社区消防安全检查标准及要求","source":"区消防大队","publishDate":"2026-07-05","fileUrl":"","description":"【测试数据】各社区需按照以下标准开展消防安全自查，确保消防设施完好...","category":"上级文件"}],"activities":[{"id":"act-001","title":"【测试】端午节包粽子活动圆满结束","date":"2026-05-30","location":"小区中心广场","content":"<p>【测试数据】活动现场热闹非凡，共有80余位业主参与，大家亲手包粽子、做香囊...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"已结束"},{"id":"act-002","title":"【测试】暑期少儿绘画培训班开班啦","date":"2026-07-20","location":"社区活动室","content":"<p>【测试数据】暑期绘画班即日起接受报名，限20人，由专业美术老师授课...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"进行中"},{"id":"act-003","title":"【测试】社区健康义诊活动预告","date":"2026-08-05","location":"小区中心广场","content":"<p>【测试数据】特邀市三甲医院医生来小区开展义诊，提供免费血压血糖检测...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"预告"},{"id":"act-004","title":"【测试】业主羽毛球友谊赛精彩回顾","date":"2026-06-15","location":"小区羽毛球馆","content":"<p>【测试数据】本次比赛共有16支队伍参加，经过激烈角逐，最终A栋代表队夺冠...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"已结束"}],"polls":[{"id":"poll-001","caseNo":"2026-YJ-001","title":"【测试】关于增设儿童游乐设施的意见征集","type":"opinion","description":"【测试数据】为丰富小区儿童活动空间，拟在中心花园增设游乐设施，现征集业主意见...","tencentUrl":"https://wj.qq.com/s2/xxxx/xxxx","startDate":"2026-07-20","endDate":"2026-08-20","status":"进行中","progress":{"target":300,"current":156,"unit":"户"},"results":{"isPublished":false,"summary":"","detailUrl":""},"createdBy":"管理员A","createdAt":"2026-07-20T09:00:00Z"},{"id":"poll-002","caseNo":"2026-YJ-002","title":"【测试】小区停车位管理方案投票","type":"vote","description":"【测试数据】针对小区停车位紧张问题，现提供三种管理方案供业主投票选择...","tencentUrl":"https://wj.qq.com/s2/xxxx/xxxx2","startDate":"2026-06-01","endDate":"2026-06-15","status":"已结束","progress":{"target":300,"current":278,"unit":"户"},"results":{"isPublished":true,"summary":"方案A获得68%支持率（189户），方案B获得22%（61户），方案C获得10%（28户）","detailUrl":""},"createdBy":"管理员D","createdAt":"2026-06-01T09:00:00Z"}],"residents":[{"id":"r-001","roomNo":"1-1-101","name":"测试业主01","phoneSuffix":"0001","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-002","roomNo":"1-1-102","name":"测试业主02","phoneSuffix":"0002","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-003","roomNo":"1-1-103","name":"测试业主03","phoneSuffix":"0003","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-004","roomNo":"1-1-104","name":"测试业主04","phoneSuffix":"0004","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-005","roomNo":"1-1-105","name":"测试业主05","phoneSuffix":"0005","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-006","roomNo":"1-1-106","name":"测试业主06","phoneSuffix":"0006","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-007","roomNo":"1-1-107","name":"测试业主07","phoneSuffix":"0007","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-008","roomNo":"1-1-108","name":"测试业主08","phoneSuffix":"0008","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-009","roomNo":"1-1-109","name":"测试业主09","phoneSuffix":"0009","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-010","roomNo":"1-1-110","name":"测试业主10","phoneSuffix":"0010","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-011","roomNo":"1-2-101","name":"测试业主11","phoneSuffix":"0011","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-012","roomNo":"1-2-102","name":"测试业主12","phoneSuffix":"0012","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-013","roomNo":"1-2-103","name":"测试业主13","phoneSuffix":"0013","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-014","roomNo":"1-2-104","name":"测试业主14","phoneSuffix":"0014","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-015","roomNo":"1-2-105","name":"测试业主15","phoneSuffix":"0015","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-016","roomNo":"1-2-106","name":"测试业主16","phoneSuffix":"0016","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-017","roomNo":"1-2-107","name":"测试业主17","phoneSuffix":"0017","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-018","roomNo":"1-2-108","name":"测试业主18","phoneSuffix":"0018","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-019","roomNo":"1-2-109","name":"测试业主19","phoneSuffix":"0019","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-020","roomNo":"1-2-110","name":"测试业主20","phoneSuffix":"0020","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-021","roomNo":"1-3-101","name":"测试业主21","phoneSuffix":"0021","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-022","roomNo":"1-3-102","name":"测试业主22","phoneSuffix":"0022","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-023","roomNo":"1-3-103","name":"测试业主23","phoneSuffix":"0023","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-024","roomNo":"1-3-104","name":"测试业主24","phoneSuffix":"0024","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-025","roomNo":"1-3-105","name":"测试业主25","phoneSuffix":"0025","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-026","roomNo":"1-3-106","name":"测试业主26","phoneSuffix":"0026","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-027","roomNo":"1-3-107","name":"测试业主27","phoneSuffix":"0027","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-028","roomNo":"1-3-108","name":"测试业主28","phoneSuffix":"0028","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-029","roomNo":"1-3-109","name":"测试业主29","phoneSuffix":"0029","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-030","roomNo":"1-3-110","name":"测试业主30","phoneSuffix":"0030","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-031","roomNo":"1-4-101","name":"测试业主31","phoneSuffix":"0031","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-032","roomNo":"1-4-102","name":"测试业主32","phoneSuffix":"0032","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-033","roomNo":"1-4-103","name":"测试业主33","phoneSuffix":"0033","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-034","roomNo":"1-4-104","name":"测试业主34","phoneSuffix":"0034","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-035","roomNo":"1-4-105","name":"测试业主35","phoneSuffix":"0035","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-036","roomNo":"1-4-106","name":"测试业主36","phoneSuffix":"0036","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-037","roomNo":"1-4-107","name":"测试业主37","phoneSuffix":"0037","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-038","roomNo":"1-4-108","name":"测试业主38","phoneSuffix":"0038","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-039","roomNo":"1-4-109","name":"测试业主39","phoneSuffix":"0039","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-040","roomNo":"1-4-110","name":"测试业主40","phoneSuffix":"0040","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-041","roomNo":"1-5-101","name":"测试业主41","phoneSuffix":"0041","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-042","roomNo":"1-5-102","name":"测试业主42","phoneSuffix":"0042","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-043","roomNo":"1-5-103","name":"测试业主43","phoneSuffix":"0043","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-044","roomNo":"1-5-104","name":"测试业主44","phoneSuffix":"0044","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-045","roomNo":"1-5-105","name":"测试业主45","phoneSuffix":"0045","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-046","roomNo":"1-5-106","name":"测试业主46","phoneSuffix":"0046","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-047","roomNo":"1-5-107","name":"测试业主47","phoneSuffix":"0047","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-048","roomNo":"1-5-108","name":"测试业主48","phoneSuffix":"0048","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-049","roomNo":"1-5-109","name":"测试业主49","phoneSuffix":"0049","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-050","roomNo":"1-5-110","name":"测试业主50","phoneSuffix":"0050","status":"active","isTest":true,"registeredAt":"2026-07-01"}],"audit-log":[{"id":"log-001","timestamp":"2026-07-25T10:00:00Z","adminName":"系统初始化","adminId":"system","action":"init","target":"all","targetId":"","details":"系统预设数据初始化完成，认证方式：预设密码+SHA-256哈希","clientInfo":"System"}]};
 // Global error handlers to prevent blank pages
 window.onerror = function(msg, url, line, col, error) {
   console.error('Global error:', msg, 'at line', line);
@@ -375,6 +387,18 @@ function escapeHtml(text){
   div.textContent=text;
   return div.innerHTML;
 }
+/* ==================== 管理员账户配置（可直接修改） ====================
+   说明：以下密码为明文，方便直接修改。如需调整权限或密码，
+   直接编辑下方 ADMIN_ACCOUNTS 数组即可，无需理解其他代码逻辑。
+   四个角色：总维护人员、物管人员、业委会成员、社区人员。
+   ==================================================================== */
+const ADMIN_ACCOUNTS = [
+  { id: 'admin-super',      name: '总维护人员',   role: 'super',      password: 'Sunlight2026',  permissions: ['all'] },
+  { id: 'admin-property',   name: '物管人员',       role: 'property',   password: 'Property2026',  permissions: ['announcements','documents','workorders','residents'] },
+  { id: 'admin-committee',  name: '业委会成员',     role: 'committee',  password: 'Committee2026', permissions: ['polls','residents','complaints','audit'] },
+  { id: 'admin-community',  name: '社区人员',       role: 'community',  password: 'Community2026', permissions: ['announcements','activities','complaints'] }
+];
+
 let appData = {config:{},announcements:[],documents:[],activities:[],polls:[],residents:[],'audit-log':[],workorders:[],complaints:[]};
 
 // ===== Worker 网关配置（工单/投诉管理模块，不影响原有功能） =====
@@ -540,6 +564,15 @@ async function loadAllData() {
       if (item.attachments) item.attachments = item.attachments.filter(a => a.url && !a.url.startsWith('blob:'));
     });
   }
+
+  // 加载持久化的管理员密码配置（覆盖代码默认值）
+  if (appData.config && appData.config.adminAccounts && Array.isArray(appData.config.adminAccounts)) {
+    appData.config.adminAccounts.forEach(persisted => {
+      const acc = ADMIN_ACCOUNTS.find(a => a.id === persisted.id);
+      if (acc && persisted.password) acc.password = persisted.password;
+      if (acc && persisted.permissions) acc.permissions = persisted.permissions;
+    });
+  }
 }
 
 function updateFavicon() {
@@ -557,70 +590,69 @@ function checkLoginState() {
 }
 
 function autoSkipLogin() {
-  const admins = (appData.config && appData.config.admins) || [];
-  currentAdmin = admins[0] || { id: 'admin-1', name: '管理员', role: 'super', permissions: ['all'] };
-  adminSession = { adminId: currentAdmin.id, loginTime: new Date().toISOString() };
-  document.getElementById('loginPage').style.display = 'none';
+  // 先尝试从 sessionStorage 恢复登录状态
+  const savedSession = sessionStorage.getItem('adminSession');
+  if (savedSession) {
+    try {
+      const session = JSON.parse(savedSession);
+      const account = ADMIN_ACCOUNTS.find(a => a.id === session.adminId);
+      if (account && session.loginTime) {
+        // 会话有效期：8小时
+        const loginTime = new Date(session.loginTime).getTime();
+        if (Date.now() - loginTime < 8 * 3600 * 1000) {
+          currentAdmin = { id: account.id, name: account.name, role: account.role, permissions: account.permissions };
+          adminSession = session;
+          document.getElementById('loginPage').style.display = 'none';
+          document.getElementById('tokenPage').style.display = 'none';
+          showAdminLayout();
+          return;
+        }
+      }
+    } catch(e) {}
+    sessionStorage.removeItem('adminSession');
+  }
+  // 无有效会话，显示登录页
+  document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('tokenPage').style.display = 'none';
-  showAdminLayout();
+  document.getElementById('adminLayout').classList.remove('active');
 }
 
 async function doAdminLogin() {
-  autoSkipLogin(); return;
-  // 以下代码已废弃
-  const pwd = document.getElementById('loginPassword').value.trim();
+  const roleId = document.getElementById('loginRole').value;
+  const pwd = document.getElementById('loginPassword').value;
   const err = document.getElementById('loginError');
   const btn = document.getElementById('loginBtn');
+
+  err.style.display = 'none';
+  if (!roleId) { err.textContent = '请选择身份'; err.style.display = 'block'; return; }
   if (!pwd) { err.textContent = '请输入密码'; err.style.display = 'block'; return; }
+
+  const account = ADMIN_ACCOUNTS.find(a => a.id === roleId);
+  if (!account) { err.textContent = '身份配置错误，请联系总维护人员'; err.style.display = 'block'; return; }
+
   btn.disabled = true; btn.textContent = '验证中...';
-  const hash = await sha256(pwd + SALT);
-  const storedHash = appData.config && appData.config.auth && appData.config.auth.passwordHash;
-  if (hash !== storedHash) {
-    err.textContent = '密码错误'; err.style.display = 'block';
+
+  // 明文对比，方便直接修改代码中的密码
+  if (pwd !== account.password) {
+    err.textContent = '密码错误，请重新输入'; err.style.display = 'block';
     btn.disabled = false; btn.textContent = '登录';
     return;
   }
+
+  // 登录成功
+  currentAdmin = { id: account.id, name: account.name, role: account.role, permissions: account.permissions };
+  adminSession = { adminId: currentAdmin.id, loginTime: new Date().toISOString() };
+  sessionStorage.setItem('adminSession', JSON.stringify(adminSession));
+
   document.getElementById('loginPage').style.display = 'none';
-  if (!githubToken) {
-    document.getElementById('tokenPage').style.display = 'flex';
-  } else {
-    showAdminLayout();
-  }
+  document.getElementById('tokenPage').style.display = 'none';
+  showAdminLayout();
+  showToast('欢迎，' + account.name, 'success');
 }
 
 async function saveToken() {
-  autoSkipLogin(); return;
-  // 以下代码已废弃
-  const token = document.getElementById('githubToken').value.trim();
-  const name = document.getElementById('adminName').value.trim();
-  const err = document.getElementById('tokenError');
-  if (!token) { err.textContent = '请输入Token'; err.style.display = 'block'; return; }
-  if (!name) { err.textContent = '请输入管理员名称'; err.style.display = 'block'; return; }
-  showLoading(true);
-  try {
-    const r = await fetch('https://api.github.com/user', {
-      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
-    });
-    if (!r.ok) throw new Error('Token验证失败');
-    githubToken = token;
-    localStorage.setItem('githubToken', token);
-    const repoName = document.getElementById('repoName').value.trim();
-    if (repoName) localStorage.setItem('githubRepo', repoName);
-    const admins = appData.config && appData.config.admins || [];
-    let admin = admins.find(a => a.name === name);
-    if (!admin) admin = admins[0];
-    currentAdmin = admin;
-    adminSession = { adminId: admin.id, loginTime: new Date().toISOString() };
-    localStorage.setItem('adminSession', JSON.stringify(adminSession));
-    showLoading(false);
-    document.getElementById('tokenPage').style.display = 'none';
-    showAdminLayout();
-    showToast('登录成功', 'success');
-  } catch(e) {
-    showLoading(false);
-    err.textContent = 'Token验证失败：' + e.message;
-    err.style.display = 'block';
-  }
+  // GitHub Token 已不再需要（使用 Cloudflare Worker），直接跳过
+  autoSkipLogin();
 }
 
 function showAdminLayout() {
@@ -628,11 +660,21 @@ function showAdminLayout() {
   document.getElementById('tokenPage').style.display = 'none';
   document.getElementById('adminLayout').classList.add('active');
   if (!currentAdmin) {
-    const admins = (appData.config && appData.config.admins) || [];
-    currentAdmin = admins[0] || { id: 'admin-1', name: '管理员', role: 'super', permissions: ['all'] };
+    const saved = sessionStorage.getItem('adminSession');
+    if (saved) {
+      try {
+        const session = JSON.parse(saved);
+        const account = ADMIN_ACCOUNTS.find(a => a.id === session.adminId);
+        if (account) currentAdmin = { id: account.id, name: account.name, role: account.role, permissions: account.permissions };
+      } catch(e) {}
+    }
   }
-  document.getElementById('adminInfo').textContent = currentAdmin && currentAdmin.name || '管理员';
-  document.getElementById('adminRole').textContent = currentAdmin && currentAdmin.role === 'super' ? '超级管理员' : (currentAdmin && currentAdmin.role === 'editor' ? '编辑员' : '查看员');
+  if (!currentAdmin) {
+    logout(); return;
+  }
+  document.getElementById('adminInfo').textContent = currentAdmin.name || '管理员';
+  const roleMap = { super: '总维护人员', property: '物管人员', committee: '业委会成员', community: '社区人员' };
+  document.getElementById('adminRole').textContent = roleMap[currentAdmin.role] || currentAdmin.role;
   renderSidebar();
   const hash = location.hash;
   const match = hash.match(/module=([^&]+)/);
@@ -646,7 +688,10 @@ function showAdminLayout() {
 }
 
 function logout() {
-  if (confirm('确定要刷新页面吗？（当前已跳过登录）')) {
+  if (confirm('确定要退出登录吗？')) {
+    sessionStorage.removeItem('adminSession');
+    currentAdmin = null;
+    adminSession = null;
     location.reload();
   }
 }
@@ -658,33 +703,33 @@ async function sha256(str) {
 }
 
 function renderSidebar() {
-  if (!currentAdmin) {
-    const admins = (appData.config && appData.config.admins) || [];
-    currentAdmin = admins[0] || { id: 'admin-1', name: '管理员', role: 'super', permissions: ['all'] };
-  }
-  const perms = currentAdmin && currentAdmin.permissions || [];
-  const isSuper = currentAdmin && currentAdmin.role === 'super';
-  const isViewer = currentAdmin && currentAdmin.role === 'viewer';
+  if (!currentAdmin) return;
+  const perms = currentAdmin.permissions || [];
+  const isSuper = currentAdmin.role === 'super';
   const items = [
-    { id: 'dashboard', label: '仪表盘', icon: '📊', perm: 'view' },
-    { id: 'config', label: '社区配置', icon: '⚙️', perm: 'all', super: true },
-    { id: 'announcements', label: '公告管理', icon: '📢', perm: 'announcements' },
-    { id: 'documents', label: '文件管理', icon: '📄', perm: 'documents' },
-    { id: 'activities', label: '动态管理', icon: '🎉', perm: 'activities' },
-    { id: 'polls', label: '投票管理', icon: '🗳️', perm: 'polls' },
-    { id: 'residents', label: '业主管理', icon: '👥', perm: 'residents' },
-    { id: 'audit', label: '操作日志', icon: '📋', perm: 'audit-log' },
-    
-    { id: 'workorders', label: '工单管理', icon: '🔧', perm: 'all' },
-    { id: 'complaints', label: '投诉建议', icon: '📝', perm: 'all' },
-    { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', super: true }
+    { id: 'dashboard', label: '仪表盘', icon: '📊', perm: 'view', roles: ['super','property','committee','community'] },
+    { id: 'config', label: '社区配置', icon: '⚙️', perm: 'all', roles: ['super'] },
+    { id: 'announcements', label: '公告管理', icon: '📢', perm: 'announcements', roles: ['super','property','community'] },
+    { id: 'documents', label: '文件管理', icon: '📄', perm: 'documents', roles: ['super','property'] },
+    { id: 'activities', label: '动态管理', icon: '🎉', perm: 'activities', roles: ['super','community'] },
+    { id: 'polls', label: '投票管理', icon: '🗳️', perm: 'polls', roles: ['super','committee'] },
+    { id: 'residents', label: '业主管理', icon: '👥', perm: 'residents', roles: ['super','property','committee'] },
+    { id: 'audit', label: '操作日志', icon: '📋', perm: 'audit-log', roles: ['super','committee'] },
+    { id: 'workorders', label: '工单管理', icon: '🔧', perm: 'workorders', roles: ['super','property'] },
+    { id: 'complaints', label: '投诉建议', icon: '📝', perm: 'complaints', roles: ['super','committee','community'] },
+    { id: 'trade', label: '交易管理', icon: '🛒', perm: 'all', roles: ['super','property','committee','community'], external: 'trade-admin.html' },
+    { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', roles: ['super','property','committee','community'] }
   ];
   let html = '';
   items.forEach(item => {
-    const hasPerm = isSuper || isViewer || perms.indexOf(item.perm) >= 0 || perms.indexOf('all') >= 0;
-    if (!hasPerm) return;
-    if (item.super && !isSuper) return;
-    html += `<div class="nav-item ${item.id==='dashboard'?'active':''}" data-module="${item.id}" onclick="navigateTo('${item.id}')">`;
+    const hasPerm = isSuper || perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0;
+    const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
+    if (!hasPerm || !hasRole) return;
+    if (item.external) {
+      html += `<div class="nav-item" data-module="${item.id}" onclick="window.open('${item.external}','_blank')">`;
+    } else {
+      html += `<div class="nav-item ${item.id==='dashboard'?'active':''}" data-module="${item.id}" onclick="navigateTo('${item.id}')">`;
+    }
     html += '<span class="icon">' + item.icon + '</span><span>' + item.label + '</span></div>';
   });
   document.getElementById('sidebarNav').innerHTML = html;
@@ -859,18 +904,23 @@ function renderAuditLog() {
 }
 
 function renderSettings() {
-  return '<div class="card"><div class="card-header"><h3>🔐 修改管理密码</h3></div>' +
-    '<div class="form-group"><label>当前密码</label><input type="password" id="oldPassword"></div>' +
-    '<div class="form-group"><label>新密码（8位以上，含字母和数字）</label><input type="password" id="newPassword"></div>' +
-    '<div class="form-group"><label>确认新密码</label><input type="password" id="confirmPassword"></div>' +
-    '<button class="btn btn-primary" onclick="changePassword()">修改密码</button></div>' +
-    '<div class="card"><div class="card-header"><h3>🔑 GitHub Token</h3></div>' +
-    '<div class="form-group"><label>当前Token</label><input type="text" value="已跳过（开发模式）" disabled></div>' +
-    '<button class="btn" onclick="showTokenModal()">更换Token</button></div>' +
+  const roleMap = { super: '总维护人员', property: '物管人员', committee: '业委会成员', community: '社区人员' };
+  const account = ADMIN_ACCOUNTS.find(a => a.id === (currentAdmin && currentAdmin.id)) || {};
+  return '<div class="card"><div class="card-header"><h3>👤 当前身份</h3></div>' +
+    '<div class="form-group"><label>身份名称</label><input type="text" value="' + escapeHtml(currentAdmin && currentAdmin.name || '') + '" disabled style="background:#f5f5f5;"></div>' +
+    '<div class="form-group"><label>角色类型</label><input type="text" value="' + (roleMap[currentAdmin && currentAdmin.role] || currentAdmin.role || '') + '" disabled style="background:#f5f5f5;"></div>' +
+    '<div class="form-group"><label>权限列表</label><input type="text" value="' + escapeHtml((currentAdmin && currentAdmin.permissions || []).join(', ')) + '" disabled style="background:#f5f5f5;"></div>' +
+    '<div class="form-group"><label>管理员ID</label><input type="text" value="' + escapeHtml(currentAdmin && currentAdmin.id || '') + '" disabled style="background:#f5f5f5;"></div></div>' +
+    '<div class="card"><div class="card-header"><h3>🔐 修改我的密码</h3></div>' +
+    '<div class="form-group"><label>当前密码</label><input type="password" id="oldPassword" placeholder="输入当前密码"></div>' +
+    '<div class="form-group"><label>新密码（6位以上）</label><input type="password" id="newPassword" placeholder="输入新密码"></div>' +
+    '<div class="form-group"><label>确认新密码</label><input type="password" id="confirmPassword" placeholder="再次输入新密码"></div>' +
+    '<button class="btn btn-primary" onclick="changePassword()">修改密码</button>' +
+    '<p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">提示：修改后的密码会尝试持久化到 Worker。如未配置 Worker，刷新页面后将恢复代码顶部 ADMIN_ACCOUNTS 中的默认密码。</p></div>' +
     '<div class="card"><div class="card-header"><h3>🌐 Worker 网关地址</h3></div>' +
     '<div class="form-group"><label>Worker API 地址（留空则使用内存模式）</label><input type="text" id="workerBaseInput" value="' + (localStorage.getItem('workerBase') || '') + '" placeholder="https://community.firstblade.site 或留空"></div>' +
     '<button class="btn btn-primary" onclick="saveWorkerBase()">保存地址</button>' +
-    '<p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">留空表示开发模式（数据仅保存在浏览器内存中，刷新后丢失）。配置Worker地址后可实现数据持久化。</p></div>';
+    '<p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">留空表示开发模式（数据仅保存在浏览器内存中，刷新后丢失）。配置 Worker 地址后可实现数据持久化。</p></div>';
 
 }
 
@@ -1372,28 +1422,38 @@ async function changePassword() {
   const confirmPwd = document.getElementById('confirmPassword').value;
   if (!oldPwd || !newPwd || !confirmPwd) { showToast('请填写所有字段', 'error'); return; }
   if (newPwd !== confirmPwd) { showToast('两次输入的新密码不一致', 'error'); return; }
-  if (newPwd.length < 8 || !/[a-zA-Z]/.test(newPwd) || !/[0-9]/.test(newPwd)) { showToast('新密码需8位以上且同时包含字母和数字', 'error'); return; }
+  if (newPwd.length < 6) { showToast('新密码需6位以上', 'error'); return; }
+
+  const account = ADMIN_ACCOUNTS.find(a => a.id === (currentAdmin && currentAdmin.id));
+  if (!account) { showToast('账户配置异常', 'error'); return; }
+  if (oldPwd !== account.password) { showToast('当前密码错误', 'error'); return; }
+
+  // 更新内存中的密码
+  account.password = newPwd;
+
+  // 同步持久化到 config.adminAccounts（如 Worker 可用）
   if (!appData.config) appData.config = {};
-  if (!appData.config.auth) appData.config.auth = {};
-  const oldHash = await sha256(oldPwd + SALT);
-  const storedHash = appData.config.auth.passwordHash || await sha256('Sunlight2026' + SALT);
-  if (oldHash !== storedHash) { showToast('当前密码错误', 'error'); return; }
-  const newHash = await sha256(newPwd + SALT);
-  appData.config.auth.passwordHash = newHash;
-  appData.config.auth.lastChanged = new Date().toISOString().split('T')[0];
+  if (!appData.config.adminAccounts) appData.config.adminAccounts = [];
+  let persisted = appData.config.adminAccounts.find(a => a.id === account.id);
+  if (persisted) {
+    persisted.password = newPwd;
+  } else {
+    appData.config.adminAccounts.push({ id: account.id, password: newPwd, permissions: account.permissions });
+  }
+
   showLoading(true);
   try {
-    await saveDataFile('config', appData.config, '修改管理密码', 'password-change');
-    showToast('密码修改成功（开发模式下仅内存生效）', 'success');
+    await saveDataFile('config', appData.config, '管理员 ' + account.name + ' 修改密码', 'password-change');
+    showToast('密码修改成功', 'success');
   } catch(e) {
-    showToast('修改失败：' + e.message, 'error');
+    showToast('密码已更新（内存），但持久化失败：' + e.message, 'warning');
   } finally {
     showLoading(false);
   }
 }
 
 function showTokenModal() {
-  showToast('当前为开发模式，无需配置Token', 'info');
+  showToast('当前使用 Cloudflare Worker 模式，无需配置 GitHub Token', 'info');
 }
 
 
@@ -1405,7 +1465,7 @@ function saveWorkerBase() {
   showToast('Worker地址已保存，刷新页面后生效', 'success');
 }
 async function updateToken() {
-  showToast('当前为开发模式，无需配置Token', 'info');
+  showToast('当前使用 Cloudflare Worker 模式，无需配置 GitHub Token', 'info');
   closeModal();
 }
 
