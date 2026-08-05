@@ -312,24 +312,32 @@ function closeImagePreview() {
 async function loadData() {
   try {
     const data = await workerRead('services.json');
-    // 兼容两种格式：admin-life.html 直接存数组；旧格式是 { services: [...] }
     if (Array.isArray(data)) {
       appData.services = data;
       console.log('[Life] Worker 读取成功（数组格式），共', data.length, '条');
-      return;
-    }
-    if (data && Array.isArray(data.services)) {
+    } else if (data && Array.isArray(data.services)) {
       appData.services = data.services;
       console.log('[Life] Worker 读取成功（对象格式），共', data.services.length, '条');
-      return;
+    } else {
+      console.log('[Life] Worker 返回空数据，回退到嵌入数据');
     }
-    console.log('[Life] Worker 返回空数据，回退到嵌入数据');
   } catch(e) { console.log('[Life] Worker 读取失败，回退到嵌入数据', e); }
   try {
     const b64 = document.getElementById("embedded-b64").textContent.trim();
     const ed = JSON.parse(decodeURIComponent(escape(atob(b64))));
     if (ed && Array.isArray(ed.services)) appData.services = ed.services;
   } catch(e2) { console.error('[Life] 嵌入数据解析失败', e2); appData.services = []; }
+  // 数据迁移：旧字段 → 新字段
+  appData.services.forEach(function(s) {
+    if (s.type !== undefined && s.serviceType === undefined) s.serviceType = s.type;
+    if (s.contact !== undefined && s.contactName === undefined) s.contactName = s.contact;
+    if (s.phone !== undefined && s.contactPhone === undefined) s.contactPhone = s.phone;
+    if (s.hours !== undefined && s.businessHours === undefined) s.businessHours = s.hours;
+    if (s.scope !== undefined && s.serviceScope === undefined) s.serviceScope = s.scope;
+    if (s.menu !== undefined && s.menuItems === undefined) s.menuItems = s.menu;
+    var typeMap = { '订餐': 'food', '代购': 'shopping', '超市': 'supermarket' };
+    if (typeMap[s.serviceType]) s.serviceType = typeMap[s.serviceType];
+  });
 }
 
 /* ===== 路由 ===== */

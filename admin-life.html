@@ -307,6 +307,22 @@ tr:hover td { background:#fafafa; }
 </div>
 
 <script>
+
+function migrateRecord(s) {
+  if (!s) return s;
+  // 旧字段 → 新字段
+  if (s.type !== undefined && s.serviceType === undefined) s.serviceType = s.type;
+  if (s.contact !== undefined && s.contactName === undefined) s.contactName = s.contact;
+  if (s.phone !== undefined && s.contactPhone === undefined) s.contactPhone = s.phone;
+  if (s.hours !== undefined && s.businessHours === undefined) s.businessHours = s.hours;
+  if (s.scope !== undefined && s.serviceScope === undefined) s.serviceScope = s.scope;
+  if (s.menu !== undefined && s.menuItems === undefined) s.menuItems = s.menu;
+  // 类型标准化
+  var typeMap = { '订餐': 'food', '代购': 'shopping', '超市': 'supermarket' };
+  if (typeMap[s.serviceType]) s.serviceType = typeMap[s.serviceType];
+  return s;
+}
+
 function escapeHtml(text) {
   if (!text) return '';
   const div = document.createElement('div');
@@ -441,9 +457,11 @@ async function loadData() {
       services = [];
     }
     if (!services || !services.length) services = JSON.parse(JSON.stringify(EMBEDDED_DATA));
+    services = services.map(migrateRecord);
   } catch (e) {
     console.error('Worker读取失败，使用嵌入式数据', e);
     services = JSON.parse(JSON.stringify(EMBEDDED_DATA));
+    services = services.map(migrateRecord);
   }
   showPageLoading(false);
   renderList();
@@ -502,14 +520,17 @@ function openModal(id) {
   if (isEdit) {
     var s = services.find(function(x) { return x.id === id; });
     if (!s) return;
+    s = migrateRecord(JSON.parse(JSON.stringify(s)));
     document.getElementById('fName').value = s.name || '';
-    document.getElementById('fType').value = s.serviceType || 'food';
+    var st = s.serviceType || s.type || 'food';
+    var typeMapRev = { 'food': 'food', 'shopping': 'shopping', 'supermarket': 'supermarket', '订餐': 'food', '代购': 'shopping', '超市': 'supermarket' };
+    document.getElementById('fType').value = typeMapRev[st] || st || 'food';
     document.getElementById('fStatus').value = s.status || 'active';
-    document.getElementById('fContact').value = s.contactName || '';
-    document.getElementById('fPhone').value = s.contactPhone || '';
-    document.getElementById('fHours').value = s.businessHours || '';
-    document.getElementById('fScope').value = s.serviceScope || '';
-    document.getElementById('fMenu').value = (s.menuItems || []).join('\n');
+    document.getElementById('fContact').value = s.contactName || s.contact || '';
+    document.getElementById('fPhone').value = s.contactPhone || s.phone || '';
+    document.getElementById('fHours').value = s.businessHours || s.hours || '';
+    document.getElementById('fScope').value = s.serviceScope || s.scope || '';
+    document.getElementById('fMenu').value = (s.menuItems || s.menu || []).join('\n');
     _editImages = (s.images || []).slice();
   } else {
     document.getElementById('fName').value = '';
@@ -592,6 +613,13 @@ async function doSave() {
     images: _editImages.slice(),
     createdAt: id ? ((services.find(function(x) { return x.id === id; }) || {}).createdAt || new Date().toISOString()) : new Date().toISOString()
   };
+  // 清理旧字段，避免混淆
+  delete payload.type;
+  delete payload.contact;
+  delete payload.phone;
+  delete payload.hours;
+  delete payload.scope;
+  delete payload.menu;
 
   if (id) {
     var idx = services.findIndex(function(x) { return x.id === id; });
