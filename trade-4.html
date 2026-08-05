@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>社区交易集市</title>
+<style>
+:root {
+  --primary: #2E8B57; --primary-light: #3da76b; --primary-dark: #1f6b41;
+  --bg: #f5f7fa; --card: #fff; --text: #333; --text-secondary: #666;
+  --border: #e0e0e0; --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 12px; --header-h: 56px;
+}
+.theme-t2 { --primary: #1976D2; --primary-light: #42a5f5; --primary-dark: #0d47a1; }
+.theme-t3 { --primary: #E65100; --primary-light: #ff9800; --primary-dark: #bf360c; }
+.theme-t4 { --primary: #C62828; --primary-light: #ef5350; --primary-dark: #8e0000; }
+.theme-t5 { --primary: #6A1B9A; --primary-light: #ab47bc; --primary-dark: #4a148c; }
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.6; min-height:100vh; padding-bottom:80px; }
+a { text-decoration:none; color:var(--primary); }
+
+/* Header */
+.header { position:fixed; top:0; left:0; right:0; height:var(--header-h); background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:0 16px; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+.header-left { display:flex; align-items:center; gap:10px; }
+.header-back { width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:rgba(255,255,255,0.15); color:#fff; font-size:18px; cursor:pointer; border:none; }
+.header-back:hover { background:rgba(255,255,255,0.25); }
+.header-title { font-size:16px; font-weight:600; }
+.header-user { font-size:13px; opacity:0.9; max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Legal banner */
+.legal-banner { position:fixed; top:var(--header-h); left:0; right:0; background:#c62828; color:#fff; font-size:12px; padding:6px 16px; text-align:center; z-index:999; line-height:1.4; }
+
+/* Main */
+.main { padding-top:calc(var(--header-h) + 36px); max-width:800px; margin:0 auto; padding-left:16px; padding-right:16px; }
+
+/* Tabs */
+.tab-bar { display:flex; gap:8px; margin-bottom:16px; padding:4px; background:#fff; border-radius:var(--radius); box-shadow:var(--shadow); position:sticky; top:calc(var(--header-h) + 36px); z-index:100; }
+.tab-item { flex:1; text-align:center; padding:10px 4px; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; color:var(--text-secondary); transition:.2s; border:none; background:transparent; }
+.tab-item:hover { background:#f5f5f5; }
+.tab-item.active { background:var(--primary); color:#fff; }
+
+/* Filter bar */
+.filter-bar { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:16px; }
+.filter-row { display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
+.filter-row:last-child { margin-bottom:0; }
+.filter-input { flex:1; min-width:120px; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; outline:none; }
+.filter-input:focus { border-color:var(--primary); }
+.filter-select { padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; background:#fff; outline:none; min-width:110px; }
+.filter-select:focus { border-color:var(--primary); }
+.role-filter { display:flex; gap:6px; }
+.role-btn { padding:6px 14px; border:1px solid var(--border); border-radius:20px; font-size:13px; cursor:pointer; background:#fff; color:var(--text-secondary); transition:.2s; }
+.role-btn:hover { border-color:var(--primary); color:var(--primary); }
+.role-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+/* Cards */
+.card-list { display:flex; flex-direction:column; gap:14px; }
+.trade-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; cursor:pointer; transition:transform .2s, box-shadow .2s; display:flex; flex-direction:column; }
+.trade-card:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,0.12); }
+.card-image-wrap { width:100%; aspect-ratio:16/10; background:#f0f2f5; position:relative; overflow:hidden; }
+.card-image-wrap img { width:100%; height:100%; object-fit:cover; display:block; }
+.card-image-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#bbb; font-size:40px; }
+.card-body { padding:14px 16px; }
+.card-title-row { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:8px; }
+.card-title { font-size:16px; font-weight:600; line-height:1.4; flex:1; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.card-price { font-size:18px; font-weight:700; color:var(--primary); white-space:nowrap; flex-shrink:0; }
+.card-meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; font-size:13px; color:var(--text-secondary); }
+.card-meta span { display:flex; align-items:center; gap:4px; }
+.card-tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+.card-tag { font-size:11px; padding:2px 8px; border-radius:4px; font-weight:600; }
+.tag-supply { background:#e8f5e9; color:#2e7d32; }
+.tag-demand { background:#fff3e0; color:#e65100; }
+.tag-status { background:#e3f2fd; color:#1565c0; }
+.card-footer { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#999; margin-top:4px; padding-top:8px; border-top:1px solid #f0f0f0; }
+
+/* Empty state */
+.empty-state { text-align:center; padding:60px 20px; color:var(--text-secondary); }
+.empty-state .icon { font-size:48px; margin-bottom:12px; }
+.empty-state p { font-size:14px; }
+
+/* Floating button */
+.fab { position:fixed; bottom:24px; right:20px; z-index:200; }
+.fab-btn { width:56px; height:56px; border-radius:50%; background:var(--primary); color:#fff; border:none; font-size:28px; cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,0.25); display:flex; align-items:center; justify-content:center; transition:transform .2s, box-shadow .2s; }
+.fab-btn:hover { transform:scale(1.08); box-shadow:0 6px 24px rgba(0,0,0,0.3); }
+.fab-label { position:absolute; bottom:64px; right:0; background:rgba(0,0,0,0.75); color:#fff; font-size:12px; padding:4px 10px; border-radius:6px; white-space:nowrap; opacity:0; transition:opacity .2s; pointer-events:none; }
+.fab:hover .fab-label { opacity:1; }
+
+/* Footer */
+.footer { background:#fff; border-top:1px solid var(--border); padding:16px; text-align:center; font-size:12px; color:var(--text-secondary); margin-top:24px; }
+
+/* Theme switcher */
+.theme-switcher { position:fixed; bottom:24px; left:24px; z-index:100; }
+.theme-btn { width:44px; height:44px; border-radius:50%; background:var(--primary); color:#fff; border:none; font-size:18px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center; }
+.theme-panel { position:absolute; bottom:56px; left:0; background:#fff; border-radius:var(--radius); box-shadow:0 4px 20px rgba(0,0,0,0.15); padding:14px; display:none; width:200px; }
+.theme-panel.active { display:block; }
+.theme-panel h4 { font-size:13px; margin-bottom:10px; color:var(--text-secondary); }
+.theme-options { display:flex; flex-direction:column; gap:6px; }
+.theme-option { display:flex; align-items:center; gap:8px; padding:7px; border-radius:8px; cursor:pointer; transition:.2s; font-size:13px; }
+.theme-option:hover { background:#f5f5f5; }
+.theme-option .color-dot { width:18px; height:18px; border-radius:50%; flex-shrink:0; }
+.theme-option .check { margin-left:auto; color:var(--primary); font-weight:bold; display:none; }
+.theme-option.active .check { display:block; }
+
+/* Modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:3000; display:none; align-items:center; justify-content:center; padding:20px; }
+.modal-overlay.active { display:flex; }
+.modal-box { background:#fff; border-radius:var(--radius); width:100%; max-width:360px; padding:24px; box-shadow:0 12px 40px rgba(0,0,0,0.2); text-align:center; }
+.modal-box h3 { font-size:18px; margin-bottom:12px; }
+.modal-box p { font-size:14px; color:var(--text-secondary); margin-bottom:20px; }
+.modal-btn { width:100%; padding:12px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:15px; cursor:pointer; }
+.modal-btn:hover { background:var(--primary-dark); }
+
+/* ========== 发布页样式 ========== */
+.post-page { max-width:640px; margin:0 auto; }
+.post-step-bar { display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:24px; }
+.post-step { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-secondary); }
+.post-step .step-num { width:28px; height:28px; border-radius:50%; background:#e0e0e0; color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; }
+.post-step.active .step-num { background:var(--primary); }
+.post-step.active { color:var(--primary); font-weight:600; }
+.post-step .step-line { width:24px; height:2px; background:#e0e0e0; }
+
+.post-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:24px 20px; margin-bottom:16px; }
+.post-card h3 { font-size:16px; margin-bottom:16px; color:var(--text); }
+
+.role-select-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.role-select-item { border:2px solid var(--border); border-radius:var(--radius); padding:20px 12px; text-align:center; cursor:pointer; transition:.2s; background:#fff; }
+.role-select-item:hover { border-color:var(--primary-light); }
+.role-select-item.selected { border-color:var(--primary); background:rgba(46,139,87,0.04); }
+.role-select-item .role-icon { font-size:36px; margin-bottom:8px; }
+.role-select-item .role-title { font-size:15px; font-weight:600; margin-bottom:4px; }
+.role-select-item .role-desc { font-size:12px; color:var(--text-secondary); }
+
+.cat-select-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.cat-select-item { border:2px solid var(--border); border-radius:var(--radius); padding:16px 8px; text-align:center; cursor:pointer; transition:.2s; background:#fff; }
+.cat-select-item:hover { border-color:var(--primary-light); }
+.cat-select-item.selected { border-color:var(--primary); background:rgba(46,139,87,0.04); }
+.cat-select-item .cat-icon { font-size:28px; margin-bottom:6px; }
+.cat-select-item .cat-name { font-size:14px; font-weight:600; }
+
+.form-group { margin-bottom:16px; }
+.form-label { display:block; font-size:14px; font-weight:500; margin-bottom:6px; color:var(--text); }
+.form-label .required { color:#c62828; margin-left:2px; }
+.form-input, .form-select, .form-textarea { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; outline:none; background:#fff; }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color:var(--primary); }
+.form-textarea { min-height:80px; resize:vertical; font-family:inherit; }
+.form-row { display:flex; gap:12px; }
+.form-row .form-group { flex:1; }
+
+.checkbox-group { display:flex; flex-wrap:wrap; gap:8px; }
+.checkbox-item { display:flex; align-items:center; gap:4px; padding:6px 12px; border:1px solid var(--border); border-radius:20px; font-size:13px; cursor:pointer; background:#fff; transition:.2s; }
+.checkbox-item:hover { border-color:var(--primary-light); }
+.checkbox-item.checked { background:var(--primary); color:#fff; border-color:var(--primary); }
+.checkbox-item input { display:none; }
+
+.image-upload-area { border:2px dashed var(--border); border-radius:var(--radius); padding:20px; text-align:center; cursor:pointer; transition:.2s; }
+.image-upload-area:hover { border-color:var(--primary-light); }
+.image-upload-area .upload-icon { font-size:32px; color:var(--text-secondary); margin-bottom:6px; }
+.image-upload-area .upload-text { font-size:13px; color:var(--text-secondary); }
+.image-upload-area input { display:none; }
+
+.image-preview-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+.image-preview-item { position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden; background:#f0f2f5; }
+.image-preview-item img { width:100%; height:100%; object-fit:cover; }
+.image-preview-item .img-remove { position:absolute; top:4px; right:4px; width:22px; height:22px; background:rgba(0,0,0,0.6); color:#fff; border:none; border-radius:50%; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+.commitment-box { display:flex; align-items:flex-start; gap:10px; padding:14px; background:#fff3e0; border-radius:8px; border:1px solid #ffe0b2; }
+.commitment-box input[type="checkbox"] { width:18px; height:18px; margin-top:2px; accent-color:var(--primary); }
+.commitment-box label { font-size:13px; color:var(--text-secondary); line-height:1.5; cursor:pointer; }
+
+.btn-row { display:flex; gap:10px; margin-top:24px; }
+.btn-row button { flex:1; padding:12px; border-radius:8px; font-size:15px; cursor:pointer; border:none; transition:.2s; }
+.btn-prev { background:#f5f5f5; color:var(--text); }
+.btn-prev:hover { background:#e0e0e0; }
+.btn-next, .btn-submit { background:var(--primary); color:#fff; }
+.btn-next:hover, .btn-submit:hover { background:var(--primary-dark); }
+.btn-next:disabled, .btn-submit:disabled { background:#ccc; cursor:not-allowed; }
+
+.error-msg { color:#c62828; font-size:13px; margin-top:6px; display:none; }
+.error-msg.show { display:block; }
+
+@media (max-width:600px) {
+  .filter-row { gap:8px; }
+  .filter-input, .filter-select { min-width:100px; font-size:13px; padding:7px 10px; }
+  .card-title { font-size:15px; }
+  .card-price { font-size:16px; }
+  .cat-select-grid { grid-template-columns:1fr; }
+  .form-row { flex-direction:column; gap:0; }
+}
+
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.fade-in { animation:fadeIn .3s ease; }
+
+/* ========== 详情页样式 ========== */
+.detail-page { max-width:800px; margin:0 auto; }
+.detail-back-btn { display:flex; align-items:center; gap:6px; background:transparent; border:none; color:var(--primary); font-size:14px; cursor:pointer; padding:8px 0; margin-bottom:8px; }
+.detail-back-btn:hover { color:var(--primary-dark); }
+
+.detail-image-section { background:var(--card); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); margin-bottom:16px; }
+.detail-main-image { width:100%; aspect-ratio:16/10; background:#f0f2f5; position:relative; overflow:hidden; cursor:zoom-in; }
+.detail-main-image img { width:100%; height:100%; object-fit:cover; display:block; }
+.detail-main-image .no-img { width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#bbb; font-size:48px; }
+.detail-thumb-list { display:flex; gap:8px; padding:12px 16px; overflow-x:auto; }
+.detail-thumb { width:72px; height:54px; border-radius:6px; overflow:hidden; cursor:pointer; border:2px solid transparent; flex-shrink:0; background:#f0f2f5; }
+.detail-thumb img { width:100%; height:100%; object-fit:cover; }
+.detail-thumb.active { border-color:var(--primary); }
+
+.detail-info-section { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 16px; margin-bottom:16px; }
+.detail-title { font-size:20px; font-weight:700; line-height:1.4; margin-bottom:12px; }
+.detail-price-row { display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+.detail-price { font-size:28px; font-weight:800; color:#c62828; }
+.detail-role-tag { font-size:13px; padding:4px 12px; border-radius:20px; font-weight:600; }
+.detail-role-tag.supply { background:#e3f2fd; color:#1565c0; }
+.detail-role-tag.demand { background:#fff3e0; color:#e65100; }
+.detail-meta-row { display:flex; flex-wrap:wrap; gap:14px; font-size:14px; color:var(--text-secondary); margin-bottom:12px; }
+.detail-meta-row span { display:flex; align-items:center; gap:4px; }
+
+.detail-fields-section { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 16px; margin-bottom:16px; }
+.detail-section-title { font-size:15px; font-weight:600; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid #f0f0f0; }
+.detail-field-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:12px 16px; }
+.detail-field-item { display:flex; flex-direction:column; gap:2px; }
+.detail-field-label { font-size:12px; color:#999; }
+.detail-field-value { font-size:14px; font-weight:500; color:var(--text); }
+.detail-facility-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+.detail-facility-tag { font-size:12px; padding:3px 10px; background:#f5f5f5; border-radius:12px; color:var(--text-secondary); }
+
+.detail-desc-section { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 16px; margin-bottom:16px; }
+.detail-desc-text { font-size:14px; line-height:1.8; color:var(--text); white-space:pre-wrap; word-break:break-word; }
+
+.detail-tags-section { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:16px; }
+.detail-tags-list { display:flex; flex-wrap:wrap; gap:8px; }
+.detail-tag-item { font-size:12px; padding:4px 12px; background:#f5f5f5; border-radius:12px; color:var(--text-secondary); }
+
+/* 操作栏 */
+.detail-action-bar { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--border); padding:10px 16px; display:flex; gap:10px; z-index:200; box-shadow:0 -2px 8px rgba(0,0,0,0.06); max-width:800px; margin:0 auto; }
+.detail-action-btn { flex:1; padding:10px 6px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; border:none; display:flex; align-items:center; justify-content:center; gap:4px; transition:.2s; }
+.detail-action-btn.fav { background:#fff5f5; color:#c62828; border:1px solid #ffcdd2; }
+.detail-action-btn.fav:hover { background:#ffebee; }
+.detail-action-btn.fav.active { background:#c62828; color:#fff; border-color:#c62828; }
+.detail-action-btn.report { background:#fff3e0; color:#e65100; border:1px solid #ffe0b2; }
+.detail-action-btn.report:hover { background:#ffe0b2; }
+.detail-action-btn.msg { background:#e3f2fd; color:#1565c0; border:1px solid #bbdefb; }
+.detail-action-btn.msg:hover { background:#bbdefb; }
+.detail-action-btn.contact { background:var(--primary); color:#fff; border:1px solid var(--primary); }
+.detail-action-btn.contact:hover { background:var(--primary-dark); }
+
+/* 相似推荐 */
+.detail-similar-section { margin-bottom:80px; }
+.detail-similar-section .detail-section-title { margin-bottom:12px; }
+.similar-card-list { display:flex; flex-direction:column; gap:12px; }
+.similar-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; cursor:pointer; transition:transform .2s; display:flex; gap:12px; align-items:center; }
+.similar-card:hover { transform:translateY(-2px); }
+.similar-card-img { width:80px; height:60px; border-radius:8px; overflow:hidden; background:#f0f2f5; flex-shrink:0; }
+.similar-card-img img { width:100%; height:100%; object-fit:cover; }
+.similar-card-info { flex:1; min-width:0; }
+.similar-card-title { font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:4px; }
+.similar-card-price { font-size:15px; font-weight:700; color:var(--primary); }
+.similar-card-meta { font-size:12px; color:#999; margin-top:2px; }
+
+/* 全屏图片预览 */
+.fullscreen-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:4000; display:none; align-items:center; justify-content:center; }
+.fullscreen-overlay.active { display:flex; }
+.fullscreen-overlay img { max-width:100%; max-height:100%; object-fit:contain; }
+.fullscreen-close { position:absolute; top:16px; right:16px; width:40px; height:40px; background:rgba(255,255,255,0.15); border:none; border-radius:50%; color:#fff; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.fullscreen-close:hover { background:rgba(255,255,255,0.3); }
+
+/* 举报弹窗 */
+.report-modal .modal-box { max-width:380px; text-align:left; }
+.report-modal h3 { text-align:center; }
+.report-reason-list { display:flex; flex-direction:column; gap:8px; margin:16px 0; }
+.report-reason-item { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; cursor:pointer; transition:.2s; }
+.report-reason-item:hover { border-color:var(--primary-light); }
+.report-reason-item.selected { border-color:var(--primary); background:rgba(46,139,87,0.04); }
+.report-reason-item input { accent-color:var(--primary); }
+.report-textarea { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; min-height:70px; resize:vertical; font-family:inherit; margin-top:8px; }
+.report-textarea:focus { border-color:var(--primary); outline:none; }
+.report-btn-row { display:flex; gap:10px; margin-top:20px; }
+.report-btn-row button { flex:1; padding:10px; border-radius:8px; font-size:14px; cursor:pointer; border:none; }
+.report-btn-cancel { background:#f5f5f5; color:var(--text); }
+.report-btn-submit { background:var(--primary); color:#fff; }
+
+/* 联系方式弹窗 */
+.contact-modal .modal-box { max-width:340px; }
+.contact-warning { background:#fff3e0; border:1px solid #ffe0b2; border-radius:8px; padding:12px; font-size:13px; color:#e65100; margin-bottom:16px; text-align:left; line-height:1.6; }
+.contact-info-row { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+.contact-info-item { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#f5f7fa; border-radius:8px; font-size:14px; }
+.contact-info-item .label { color:#999; }
+.contact-info-item .value { font-weight:600; color:var(--text); }
+
+/* 底部免责声明 */
+.detail-legal-footer { background:#fff8e1; border-top:1px solid #ffe0b2; padding:12px 16px; text-align:center; font-size:12px; color:#e65100; line-height:1.5; margin-bottom:72px; border-radius:0 0 var(--radius) var(--radius); }
+
+/* 未找到 */
+.detail-not-found { text-align:center; padding:80px 20px; }
+.detail-not-found .icon { font-size:56px; margin-bottom:16px; }
+.detail-not-found p { font-size:16px; color:var(--text-secondary); }
+.detail-not-found .back-link { display:inline-block; margin-top:20px; color:var(--primary); font-size:14px; cursor:pointer; }
+
+@media (max-width:600px) {
+  .detail-field-grid { grid-template-columns:1fr; }
+  .detail-action-btn { font-size:12px; padding:9px 4px; }
+  .similar-card { padding:12px; }
+}
+
+
+/* ========== 留言系统 ========== */
+.message-section { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 16px; margin-bottom:16px; }
+.message-section-title { font-size:15px; font-weight:600; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; }
+.message-login-tip { text-align:center; padding:20px; color:var(--text-secondary); font-size:14px; }
+.message-login-tip a { color:var(--primary); cursor:pointer; text-decoration:underline; }
+.message-input-area { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+.message-input { flex:1; min-width:200px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; outline:none; }
+.message-input:focus { border-color:var(--primary); }
+.message-btn { padding:10px 16px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; white-space:nowrap; }
+.message-btn:hover { background:var(--primary-dark); }
+.message-btn-secondary { background:#f5f5f5; color:var(--text); }
+.message-btn-secondary:hover { background:#e0e0e0; }
+.message-btn:disabled { background:#ccc; cursor:not-allowed; }
+.message-list { display:flex; flex-direction:column; gap:12px; }
+.message-item { padding:12px; background:#f8f9fa; border-radius:8px; }
+.message-item.reply { margin-left:32px; background:#f0f2f5; border-left:3px solid var(--primary); }
+.message-header { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+.message-user { font-size:14px; font-weight:600; color:var(--text); }
+.message-room { font-size:12px; color:#999; background:#e8eaf6; padding:1px 6px; border-radius:4px; }
+.message-time { font-size:12px; color:#999; margin-left:auto; }
+.message-badge { font-size:11px; padding:2px 8px; border-radius:4px; background:var(--primary); color:#fff; margin-left:6px; }
+.message-content { font-size:14px; color:var(--text); line-height:1.6; word-break:break-word; }
+.message-actions { display:flex; gap:10px; margin-top:8px; }
+.message-action-link { font-size:12px; color:var(--primary); cursor:pointer; }
+.message-action-link:hover { text-decoration:underline; }
+.message-reply-form { margin-top:8px; display:none; }
+.message-reply-form.active { display:block; }
+.message-reply-form .message-input-area { margin-bottom:0; }
+
+/* 预约弹窗 */
+.appointment-modal .modal-box { max-width:340px; text-align:left; }
+.appointment-row { margin-bottom:12px; }
+.appointment-row label { display:block; font-size:13px; color:var(--text-secondary); margin-bottom:4px; }
+.appointment-row input, .appointment-row select { width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; outline:none; }
+.appointment-row input:focus, .appointment-row select:focus { border-color:var(--primary); }
+
+/* ========== 我的发布 ========== */
+.my-posts-page { max-width:800px; margin:0 auto; }
+.my-posts-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px; }
+.my-posts-header h2 { font-size:18px; }
+.my-posts-count { font-size:13px; color:var(--text-secondary); }
+.my-post-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:12px; display:flex; gap:14px; align-items:flex-start; }
+.my-post-card-img { width:80px; height:60px; border-radius:8px; overflow:hidden; background:#f0f2f5; flex-shrink:0; }
+.my-post-card-img img { width:100%; height:100%; object-fit:cover; }
+.my-post-card-info { flex:1; min-width:0; }
+.my-post-card-title { font-size:15px; font-weight:600; margin-bottom:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.my-post-card-meta { font-size:13px; color:var(--text-secondary); margin-bottom:8px; display:flex; gap:12px; flex-wrap:wrap; }
+.my-post-status { display:inline-block; font-size:11px; padding:3px 10px; border-radius:12px; font-weight:600; }
+.status-pending { background:#fff3e0; color:#e65100; }
+.status-approved { background:#e8f5e9; color:#2e7d32; }
+.status-rejected { background:#ffebee; color:#c62828; }
+.status-sold { background:#eceff1; color:#546e7a; }
+.status-hidden { background:#f3e5f5; color:#6a1b9a; }
+.my-post-warning { background:#ffebee; border:1px solid #ffcdd2; border-radius:6px; padding:8px 12px; font-size:12px; color:#c62828; margin-bottom:10px; }
+.my-post-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.my-post-btn { padding:6px 14px; border-radius:6px; font-size:13px; cursor:pointer; border:none; transition:.2s; }
+.my-post-btn-primary { background:var(--primary); color:#fff; }
+.my-post-btn-primary:hover { background:var(--primary-dark); }
+.my-post-btn-danger { background:#ffebee; color:#c62828; border:1px solid #ffcdd2; }
+.my-post-btn-danger:hover { background:#ffcdd2; }
+.my-post-btn-secondary { background:#f5f5f5; color:var(--text); }
+.my-post-btn-secondary:hover { background:#e0e0e0; }
+
+/* ========== 法律合规 ========== */
+.legal-page { max-width:800px; margin:0 auto; }
+.legal-page h2 { font-size:20px; font-weight:700; margin-bottom:20px; text-align:center; }
+.legal-section { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:24px 20px; margin-bottom:16px; }
+.legal-section h3 { font-size:16px; font-weight:600; margin-bottom:12px; color:var(--primary); }
+.legal-section p { font-size:14px; line-height:1.8; color:var(--text-secondary); margin-bottom:10px; text-align:justify; }
+.legal-section ol { padding-left:20px; margin-bottom:10px; }
+.legal-section li { font-size:14px; line-height:1.8; color:var(--text-secondary); margin-bottom:6px; }
+.legal-link { color:var(--primary); font-size:13px; cursor:pointer; text-decoration:underline; }
+.legal-link:hover { color:var(--primary-dark); }
+
+/* 首次发布倒计时弹窗 */
+.legal-countdown-modal .modal-box { max-width:420px; text-align:left; }
+.legal-countdown-content { max-height:300px; overflow-y:auto; font-size:13px; line-height:1.8; color:var(--text-secondary); margin-bottom:16px; padding-right:8px; }
+.legal-countdown-content h4 { font-size:14px; font-weight:600; color:var(--text); margin:12px 0 6px; }
+.legal-countdown-content p { margin-bottom:8px; }
+.legal-countdown-timer { text-align:center; font-size:14px; color:var(--primary); font-weight:600; margin-bottom:12px; }
+
+/* 我的发布悬浮按钮 */
+.fab-my-posts { position:fixed; bottom:96px; right:20px; z-index:200; }
+.fab-my-posts-btn { width:48px; height:48px; border-radius:50%; background:#fff; color:var(--primary); border:2px solid var(--primary); font-size:20px; cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; transition:transform .2s; }
+.fab-my-posts-btn:hover { transform:scale(1.08); }
+.fab-my-posts-label { position:absolute; bottom:56px; right:0; background:rgba(0,0,0,0.75); color:#fff; font-size:12px; padding:4px 10px; border-radius:6px; white-space:nowrap; opacity:0; transition:opacity .2s; pointer-events:none; }
+.fab-my-posts:hover .fab-my-posts-label { opacity:1; }
+
+@media (max-width:600px) {
+  .message-item.reply { margin-left:16px; }
+  .my-post-card { flex-direction:column; }
+  .my-post-card-img { width:100%; height:120px; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="header-back" onclick="goHome()" title="返回首页">←</button>
+    <div class="header-title">社区交易集市</div>
+  </div>
+  <div class="header-user" id="headerUser"></div>
+</header>
+
+<div class="legal-banner" id="legalBanner">
+  ⚠️ 本平台仅提供信息展示服务，不对交易真实性、安全性作任何担保，交易风险由双方自行承担。
+</div>
+
+<main class="main" id="main"></main>
+
+<div class="fab" id="fab">
+  <div class="fab-label">我要发布</div>
+  <button class="fab-btn" onclick="onPublishClick()">+</button>
+
+<div class="fab-my-posts" id="fabMyPosts" style="display:none;">
+  <div class="fab-my-posts-label">我的发布</div>
+  <button class="fab-my-posts-btn" onclick="goMyPosts()">📋</button>
+</div>
+
+
+<div class="theme-switcher">
+  <div class="theme-panel" id="themePanel">
+    <h4>🎨 选择主题</h4>
+    <div class="theme-options" id="themeOptions"></div>
+  </div>
+  <button class="theme-btn" onclick="toggleThemePanel()">🎨</button>
+</div>
+
+<div class="modal-overlay" id="loginModal">
+  <div class="modal-box">
+    <h3>🔒 需要登录</h3>
+    <p>发布信息需要先登录业主账号</p>
+    <button class="modal-btn" onclick="goLogin()">前往登录</button>
+    <button class="modal-btn" style="background:#888;margin-top:8px;" onclick="closeLoginModal()">取消</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="msgModal">
+  <div class="modal-box">
+    <h3 id="msgTitle">提示</h3>
+    <p id="msgBody"></p>
+    <button class="modal-btn" onclick="closeMsgModal()">确定</button>
+  </div>
+</div>
+
+
+<!-- 全屏图片预览 -->
+<div class="modal-overlay fullscreen-overlay" id="fullscreenOverlay" onclick="closeFullscreen()">
+  <button class="fullscreen-close" onclick="event.stopPropagation();closeFullscreen()">×</button>
+  <img id="fullscreenImg" src="" alt="">
+</div>
+
+<!-- 举报弹窗 -->
+<div class="modal-overlay report-modal" id="reportModal">
+  <div class="modal-box">
+    <h3>🚩 举报信息</h3>
+    <p style="font-size:13px;color:#999;margin-bottom:12px;">请选择举报原因</p>
+    <div class="report-reason-list" id="reportReasonList">
+      <label class="report-reason-item" onclick="selectReportReason(this,'虚假')">
+        <input type="radio" name="reportReason" value="虚假"> 虚假信息
+      </label>
+      <label class="report-reason-item" onclick="selectReportReason(this,'诈骗')">
+        <input type="radio" name="reportReason" value="诈骗"> 涉嫌诈骗
+      </label>
+      <label class="report-reason-item" onclick="selectReportReason(this,'已成交未下架')">
+        <input type="radio" name="reportReason" value="已成交未下架"> 已成交未下架
+      </label>
+      <label class="report-reason-item" onclick="selectReportReason(this,'其他')">
+        <input type="radio" name="reportReason" value="其他"> 其他原因
+      </label>
+    </div>
+    <textarea class="report-textarea" id="reportDetail" placeholder="补充说明（选填）"></textarea>
+    <div class="report-btn-row">
+      <button class="report-btn-cancel" onclick="closeReportModal()">取消</button>
+      <button class="report-btn-submit" onclick="submitReport()">提交举报</button>
+    </div>
+  </div>
+</div>
+
+<!-- 联系方式弹窗 -->
+<div class="modal-overlay contact-modal" id="contactModal">
+  <div class="modal-box">
+    <h3>📞 联系方式</h3>
+    <div class="contact-warning">
+      ⚠️ 平台不担保交易安全，线下交易请注意人身和财产安全。是否继续？
+    </div>
+    <div class="contact-info-row" id="contactInfoRow" style="display:none;">
+      <div class="contact-info-item"><span class="label">联系人</span><span class="value" id="contactName"></span></div>
+      <div class="contact-info-item"><span class="label">手机号</span><span class="value" id="contactPhone"></span></div>
+    </div>
+    <div class="report-btn-row">
+      <button class="report-btn-cancel" onclick="closeContactModal()">取消</button>
+      <button class="report-btn-submit" id="contactConfirmBtn" onclick="confirmContact()">确认查看</button>
+    </div>
+  </div>
+</div>
+
+<!-- 预约弹窗 -->
+<div class="modal-overlay appointment-modal" id="appointmentModal">
+  <div class="modal-box">
+    <h3>📅 发送预约</h3>
+    <div class="appointment-row">
+      <label>选择日期</label>
+      <input type="date" id="aptDate">
+    </div>
+    <div class="appointment-row">
+      <label>选择时间段</label>
+      <select id="aptTime">
+        <option value="">请选择</option>
+        <option value="上午 9:00-12:00">上午 9:00-12:00</option>
+        <option value="下午 14:00-17:00">下午 14:00-17:00</option>
+        <option value="晚上 18:00-20:00">晚上 18:00-20:00</option>
+      </select>
+    </div>
+    <div class="appointment-row">
+      <label>留言内容</label>
+      <input type="text" id="aptNote" placeholder="可选补充说明">
+    </div>
+    <div class="report-btn-row">
+      <button class="report-btn-cancel" onclick="closeAppointmentModal()">取消</button>
+      <button class="report-btn-submit" onclick="submitAppointment()">确认发送</button>
+    </div>
+  </div>
+</div>
+
+<!-- 首次发布法律倒计时弹窗 -->
+<div class="modal-overlay legal-countdown-modal" id="legalCountdownModal">
+  <div class="modal-box">
+    <h3>📜 平台规则与免责声明</h3>
+    <div class="legal-countdown-content">
+      <h4>一、信息发布免责声明</h4>
+      <p>本社区交易集市平台（以下简称"本平台"）仅作为信息展示与交流的第三方服务平台，为用户提供发布、浏览交易信息的技术支持。本平台不对用户发布信息的真实性、准确性、完整性、合法性作任何形式的明示或暗示担保。</p>
+      <p>用户应自行对交易对方的主体资格、交易标的权属状况、交易价格合理性等进行充分核实与判断。因信息不实或交易纠纷产生的任何损失，由交易双方自行承担，本平台不承担任何连带责任。</p>
+      <h4>二、交易风险提示</h4>
+      <p>线下交易存在人身财产安全风险，建议用户选择公共场所进行当面交易，并尽量邀请他人陪同。涉及大额资金往来时，请务必核实对方身份及标的物权属证明，建议使用正规第三方资金托管服务。</p>
+      <p>本平台严禁任何形式的诈骗、虚假宣传和违规交易行为。如发现可疑情况，请立即使用举报功能或向公安机关报案。</p>
+      <h4>三、禁止发布内容规则</h4>
+      <p>用户承诺不得发布以下类别的信息：国家法律法规禁止流通或限制交易的物品；淫秽色情、赌博、毒品及相关物品；枪支弹药、管制刀具等危险物品；假冒伪劣商品及侵犯知识产权的物品；涉及洗钱、传销、非法集资等违法金融活动的信息；以及其他违反公序良俗或社区管理规定的内容。</p>
+      <p>违反上述规则的用户，本平台有权采取下架信息、扣除信用分、限制发布权限直至永久封禁账号等措施，并保留向有关主管部门报告的权利。</p>
+    </div>
+    <div class="legal-countdown-timer" id="legalCountdownTimer">请认真阅读，10秒后可关闭</div>
+    <button class="modal-btn" id="legalAcceptBtn" disabled onclick="acceptLegal()">我已阅读并同意</button>
+  </div>
+</div>
+
+<footer class="footer">
+  <p>社区交易集市 · 信息仅供参考 · 交易请谨慎核实</p>
+</footer>
+
+<script>
+/* ===================== 配置 ===================== */
+const CATEGORIES = {
+  rent:   { name: '房屋租赁', icon: '🏠' },
+  house:  { name: '二手房',   icon: '🏡' },
+  used:   { name: '二手物品', icon: '📦' }
+};
+
+const THEMES = {
+  T1: { name: '春晓绿', color: '#2E8B57', cls: '' },
+  T2: { name: '天空蓝', color: '#1976D2', cls: 'theme-t2' },
+  T3: { name: '暖阳橙', color: '#E65100', cls: 'theme-t3' },
+  T4: { name: '中国红', color: '#C62828', cls: 'theme-t4' },
+  T5: { name: '优雅紫', color: '#6A1B9A', cls: 'theme-t5' }
+};
+
+const STORAGE_KEY = 'trade_posts';
+const LS_THEME    = 'communityTheme';
+const LS_AUTH     = 'residentAuth';
+const LS_SENSITIVE = 'trade_sensitive_words';
+const LS_LEGAL_ACCEPTED = 'trade_legal_accepted';
+
+/* ===================== 工具函数 ===================== */
+function $(id){ return document.getElementById(id); }
+function escapeHtml(t){ if(!t)return''; const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+function fmtDate(iso){ if(!iso)return''; const d=new Date(iso); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtPrice(n){ if(n===undefined||n===null||n==='')return'面议'; const num=Number(n); if(isNaN(num))return'面议'; if(num>=10000)return (num/10000).toFixed(1)+'万'; if(num>=1000)return (num/1000).toFixed(1)+'k'; return num.toString(); }
+function genId(){ return 'tp-'+Date.now()+'-'+Math.random().toString(36).substr(2,5); }
+function getAuth(){ try{ return JSON.parse(localStorage.getItem(LS_AUTH))||null; }catch(e){ return null; } }
+function getPosts(){ try{ const d=localStorage.getItem(STORAGE_KEY); return d?JSON.parse(d):null; }catch(e){ return null; } }
+function setPosts(arr){ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+
+function getSensitiveWords(){
+  try{
+    const raw = localStorage.getItem(LS_SENSITIVE);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return ['诈骗','洗钱','违禁品','毒品','枪支','假货','淫秽','博彩'];
+}
+
+function showMsg(title, body){
+  $('msgTitle').textContent = title;
+  $('msgBody').textContent = body;
+  $('msgModal').classList.add('active');
+}
+function closeMsgModal(){ $('msgModal').classList.remove('active'); }
+
+/* ===================== 模拟数据 ===================== */
+function seedData(){
+  const now = new Date().toISOString();
+  const posts = [];
+  const bases = [
+    { type:'rent', role:'supply', title:'1号楼精装两居室出租，家具家电齐全', price:3800, location:'1号楼3单元', tags:['精装修','拎包入住','近地铁'] },
+    { type:'rent', role:'supply', title:'阳光充足大主卧，独立卫生间', price:2200, location:'2号楼1单元', tags:['主卧独卫','朝南','可短租'] },
+    { type:'rent', role:'demand', title:'求租小区附近一居室，预算3000以内', price:3000, location:'小区周边', tags:['长租','安静','带车位'] },
+    { type:'rent', role:'demand', title:'求租两居室，一家三口居住', price:4000, location:'本小区', tags:['整租','有电梯','近学校'] },
+    { type:'house', role:'supply', title:'业主急售！89平南北通透两居', price:2680000, location:'3号楼5单元', tags:['满五唯一','精装修','随时看房'] },
+    { type:'house', role:'supply', title:'顶层复式，带露台花园', price:4200000, location:'5号楼顶层', tags:['复式','露台','稀缺户型'] },
+    { type:'house', role:'demand', title:'求购本小区小三居，预算350万', price:3500000, location:'本小区', tags:['三居室','有电梯','南北通透'] },
+    { type:'house', role:'demand', title:'求购底层带院房源，老人居住', price:2800000, location:'本小区', tags:['底层','带院','养老'] },
+    { type:'used', role:'supply', title:'九成新儿童自行车，16寸', price:180, location:'1号楼', tags:['九成新','自提'] },
+    { type:'used', role:'supply', title:'搬家出闲置：书架、桌椅、台灯', price:50, location:'2号楼', tags:['多件','可议价'] },
+    { type:'used', role:'demand', title:'求购二手跑步机，预算800以内', price:800, location:'本小区', tags:['健身器材','自提'] },
+    { type:'used', role:'demand', title:'求购婴儿推车，品牌不限', price:300, location:'本小区', tags:['母婴','九成新'] }
+  ];
+  bases.forEach((b,i)=>{
+    const t = new Date(Date.now() - (i*86400000*3) - Math.random()*86400000).toISOString();
+    posts.push({
+      id: genId(), type: b.type, role: b.role, title: b.title,
+      price: b.price, location: b.location,
+      images: b.type==='used'
+        ? ['https://picsum.photos/400/300?random=used'+i]
+        : ['https://picsum.photos/400/300?random='+b.type+i],
+      contact: b.role==='supply'?'张业主':'李业主',
+      phone: '138****'+String(1000+i).slice(-4),
+      status: 'approved', userId: 'user-'+i,
+      createTime: t, viewCount: Math.floor(Math.random()*500)+20,
+      reportCount: 0, messages: [], tags: b.tags,
+      description: b.title+'，详情请联系。',
+      extraData: {}
+    });
+  });
+  setPosts(posts);
+  return posts;
+}
+
+/* ===================== 主题 ===================== */
+let currentTheme = localStorage.getItem(LS_THEME) || 'T1';
+function applyTheme(id){
+  currentTheme = id;
+  document.body.className = THEMES[id].cls;
+  localStorage.setItem(LS_THEME, id);
+  renderThemePanel();
+}
+function renderThemePanel(){
+  $('themeOptions').innerHTML = Object.entries(THEMES).map(([k,v])=>{
+    const active = k===currentTheme ? 'active' : '';
+    return `<div class="theme-option ${active}" onclick="applyTheme('${k}')"><div class="color-dot" style="background:${v.color}"></div><span>${v.name}</span><span class="check">✓</span></div>`;
+  }).join('');
+}
+function toggleThemePanel(){ $('themePanel').classList.toggle('active'); }
+
+/* ===================== 路由 & 状态 ===================== */
+let posts = [];
+let currentType = 'rent';
+let currentRole = 'all';
+let searchKeyword = '';
+let minPrice = '';
+let maxPrice = '';
+let locationFilter = '';
+let sortBy = 'newest';
+
+function getRoute(){
+  const h = location.hash.replace('#/','').replace('#','');
+  const parts = h.split('/');
+  if(parts[1] === 'detail') return 'detail';
+  if(parts[1] === 'my-posts') return 'my-posts';
+  if(parts[1] === 'legal') return 'legal';
+  return parts[1] || 'rent';
+}
+
+function init(){
+  applyTheme(currentTheme);
+  const auth = getAuth();
+  $('headerUser').textContent = auth ? (auth.name || '业主') : '未登录';
+  posts = getPosts();
+  if(!posts || !posts.length) posts = seedData();
+  const r = getRoute();
+  if(r === 'post'){
+    renderPostPage();
+  } else if(r === 'detail'){
+    renderDetailPage();
+  } else if(r === 'my-posts'){
+    renderMyPosts();
+  } else if(r === 'legal'){
+    renderLegalPage();
+  } else {
+    currentType = CATEGORIES[r] ? r : 'rent';
+    render();
+  }
+}
+
+function render(){
+  const auth = getAuth();
+  $('headerUser').textContent = auth ? (auth.name || '业主') : '未登录';
+  $('fab').style.display = 'block';
+  const fabMyPosts = $('fabMyPosts');
+  if(fabMyPosts){
+    fabMyPosts.style.display = (auth && auth.roomNo) ? 'block' : 'none';
+  }
+  let h = '';
+  h += '<div class="tab-bar">';
+  Object.entries(CATEGORIES).forEach(([k,v])=>{
+    h += `<button class="tab-item ${k===currentType?'active':''}" onclick="switchTab('${k}')">${v.icon} ${v.name}</button>`;
+  });
+  h += '</div>';
+  h += '<div class="filter-bar">';
+  h += '<div class="filter-row">';
+  h += `<input class="filter-input" type="text" placeholder="🔍 搜索关键词" value="${escapeHtml(searchKeyword)}" oninput="onSearch(this.value)">`;
+  h += `<input class="filter-input" type="number" placeholder="最低价格" value="${escapeHtml(minPrice)}" oninput="onMinPrice(this.value)" style="flex:0.6;min-width:90px;">`;
+  h += `<span style="color:#999;font-size:14px;">-</span>`;
+  h += `<input class="filter-input" type="number" placeholder="最高价格" value="${escapeHtml(maxPrice)}" oninput="onMaxPrice(this.value)" style="flex:0.6;min-width:90px;">`;
+  h += `<input class="filter-input" type="text" placeholder="📍 区域" value="${escapeHtml(locationFilter)}" oninput="onLocation(this.value)" style="flex:0.8;min-width:100px;">`;
+  h += `<select class="filter-select" onchange="onSort(this.value)">`;
+  const sorts = { newest:'最新发布', priceAsc:'价格升序', priceDesc:'价格降序' };
+  Object.entries(sorts).forEach(([k,v])=>{ h += `<option value="${k}" ${k===sortBy?'selected':''}>${v}</option>`; });
+  h += '</select>';
+  h += '</div>';
+  h += '<div class="filter-row">';
+  h += '<div class="role-filter">';
+  h += `<button class="role-btn ${currentRole==='all'?'active':''}" onclick="onRole('all')">全部</button>`;
+  h += `<button class="role-btn ${currentRole==='supply'?'active':''}" onclick="onRole('supply')">供应</button>`;
+  h += `<button class="role-btn ${currentRole==='demand'?'active':''}" onclick="onRole('demand')">需求</button>`;
+  h += '</div>';
+  h += `<span style="margin-left:auto;font-size:13px;color:var(--text-secondary);">共 ${countFiltered()} 条</span>`;
+  h += '</div>';
+  h += '</div>';
+  const list = getFilteredList();
+  if(!list.length){
+    h += '<div class="empty-state fade-in"><div class="icon">📭</div><p>暂无符合条件的交易信息</p><p style="font-size:12px;margin-top:8px;">试试调整筛选条件，或稍后再来</p></div>';
+  } else {
+    h += '<div class="card-list">';
+    list.forEach(item=>{ h += renderCard(item); });
+    h += '</div>';
+  }
+  $('main').innerHTML = h;
+}
+
+function renderCard(item){
+  const cat = CATEGORIES[item.type] || { name:'', icon:'' };
+  const roleLabel = item.role==='supply' ? '供应' : '需求';
+  const roleCls   = item.role==='supply' ? 'tag-supply' : 'tag-demand';
+  const img = item.images && item.images[0] ? item.images[0] : '';
+  return `<div class="trade-card fade-in" onclick="goDetail('${item.id}')">
+    <div class="card-image-wrap">
+      ${img ? `<img src="${img}" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\'card-image-placeholder\'>${cat.icon}</div>'">` : `<div class="card-image-placeholder">${cat.icon}</div>`}
+    </div>
+    <div class="card-body">
+      <div class="card-title-row">
+        <div class="card-title">${escapeHtml(item.title)}</div>
+        <div class="card-price">${item.price===undefined||item.price===null||item.price===''?'面议':'¥'+fmtPrice(item.price)}</div>
+      </div>
+      <div class="card-meta">
+        <span>📍 ${escapeHtml(item.location||'')}</span>
+        <span>👤 ${escapeHtml(item.contact||'')}</span>
+      </div>
+      <div class="card-tags">
+        <span class="card-tag ${roleCls}">${roleLabel}</span>
+        <span class="card-tag tag-status">${escapeHtml(cat.name)}</span>
+        ${(item.tags||[]).map(t=>`<span class="card-tag" style="background:#f5f5f5;color:#666;">${escapeHtml(t)}</span>`).join('')}
+      </div>
+      <div class="card-footer">
+        <span>🕐 ${fmtDate(item.createTime)}</span>
+        <span>👁️ ${item.viewCount||0} 次浏览</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function getFilteredList(){
+  let list = posts.filter(p=> p.type===currentType && p.status==='approved');
+  if(currentRole!=='all') list = list.filter(p=>p.role===currentRole);
+  if(searchKeyword.trim()){
+    const kw = searchKeyword.trim().toLowerCase();
+    list = list.filter(p=> (p.title||'').toLowerCase().includes(kw) || (p.description||'').toLowerCase().includes(kw));
+  }
+  if(minPrice!==''){ const n=Number(minPrice); if(!isNaN(n)) list=list.filter(p=>{const pr=Number(p.price); return !isNaN(pr)&&pr>=n;}); }
+  if(maxPrice!==''){ const n=Number(maxPrice); if(!isNaN(n)) list=list.filter(p=>{const pr=Number(p.price); return !isNaN(pr)&&pr<=n;}); }
+  if(locationFilter.trim()){
+    const loc = locationFilter.trim().toLowerCase();
+    list = list.filter(p=> (p.location||'').toLowerCase().includes(loc));
+  }
+  if(sortBy==='newest') list.sort((a,b)=> new Date(b.createTime)-new Date(a.createTime));
+  else if(sortBy==='priceAsc') list.sort((a,b)=> (Number(a.price)||0)-(Number(b.price)||0));
+  else if(sortBy==='priceDesc') list.sort((a,b)=> (Number(b.price)||0)-(Number(a.price)||0));
+  return list;
+}
+
+function countFiltered(){ return getFilteredList().length; }
+
+/* ===================== 交互 ===================== */
+function switchTab(type){
+  currentType = type;
+  location.hash = '#/trade/'+type;
+  render();
+}
+function onSearch(v){ searchKeyword=v; render(); }
+function onMinPrice(v){ minPrice=v; render(); }
+function onMaxPrice(v){ maxPrice=v; render(); }
+function onLocation(v){ locationFilter=v; render(); }
+function onSort(v){ sortBy=v; render(); }
+function onRole(v){ currentRole=v; render(); }
+
+function goHome(){ window.location.href='index.html'; }
+function goLogin(){ window.location.href='index.html#/profile'; }
+function closeLoginModal(){ $('loginModal').classList.remove('active'); }
+
+function onPublishClick(){
+  const auth = getAuth();
+  if(!auth){ $('loginModal').classList.add('active'); return; }
+  if(!localStorage.getItem(LS_LEGAL_ACCEPTED)){
+    openLegalCountdownModal();
+    return;
+  }
+  goPublish();
+}
+
+function goPublish(){
+  location.hash = '#/trade/post';
+  renderPostPage();
+}
+
+function goDetail(id){
+  location.hash = '#/trade/detail/' + id;
+}
+
+/* ===================== 发布页 ===================== */
+let postState = { step: 1, role: '', type: '', images: [] };
+
+function resetPostState(){
+  postState = { step: 1, role: '', type: '', images: [], editId: null };
+}
+
+function renderPostPage(){
+  $('fab').style.display = 'none';
+  const step = postState.step;
+  const isEdit = !!postState.editId;
+  if(isEdit && step < 3){ postState.step = 3; renderPostPage(); return; }
+  let h = '<div class="post-page fade-in">';
+  h += '<div class="post-step-bar">';
+  h += `<div class="post-step ${step>=1?'active':''}"><div class="step-num">${isEdit?'✎':'1'}</div><span>${isEdit?'编辑模式':'选择身份'}</span></div>`;
+  h += `<div class="step-line"></div>`;
+  h += `<div class="post-step ${step>=2?'active':''}"><div class="step-num">${isEdit?'✎':'2'}</div><span>${isEdit?'编辑模式':'选择分类'}</span></div>`;
+  h += `<div class="step-line"></div>`;
+  h += `<div class="post-step ${step>=3?'active':''}"><div class="step-num">3</div><span>填写信息</span></div>`;
+  h += '</div>';
+  if(step === 1 && !isEdit){
+    h += '<div class="post-card">';
+    h += '<h3>请选择您的身份</h3>';
+    h += '<div class="role-select-grid">';
+    h += `<div class="role-select-item ${postState.role==='supply'?'selected':''}" onclick="selectRole('supply')">`;
+    h += '<div class="role-icon">📤</div><div class="role-title">我是供应方</div><div class="role-desc">出租 / 出售 / 卖物品</div></div>';
+    h += `<div class="role-select-item ${postState.role==='demand'?'selected':''}" onclick="selectRole('demand')">`;
+    h += '<div class="role-icon">📥</div><div class="role-title">我是需求方</div><div class="role-desc">求租 / 求购 / 收物品</div></div>';
+    h += '</div>';
+    h += '<div class="btn-row">';
+    h += '<button class="btn-prev" onclick="cancelPost()">取消</button>';
+    h += `<button class="btn-next" ${!postState.role?'disabled':''} onclick="nextStep()">下一步</button>`;
+    h += '</div></div>';
+  }
+  if(step === 2 && !isEdit){
+    h += '<div class="post-card">';
+    h += '<h3>请选择发布分类</h3>';
+    h += '<div class="cat-select-grid">';
+    Object.entries(CATEGORIES).forEach(([k,v])=>{
+      h += `<div class="cat-select-item ${postState.type===k?'selected':''}" onclick="selectType('${k}')">`;
+      h += `<div class="cat-icon">${v.icon}</div><div class="cat-name">${v.name}</div></div>`;
+    });
+    h += '</div>';
+    h += '<div class="btn-row">';
+    h += '<button class="btn-prev" onclick="prevStep()">上一步</button>';
+    h += `<button class="btn-next" ${!postState.type?'disabled':''} onclick="nextStep()">下一步</button>`;
+    h += '</div></div>';
+  }
+  if(step === 3){ h += renderFormByType(); }
+  if(step === 3){ h += '<div style="text-align:center;margin-top:16px;"><span class="legal-link" onclick="goLegal()">📜 发布前请阅读平台规则与免责声明</span></div>'; }
+  h += '</div>';
+  $('main').innerHTML = h;
+  if(isEdit && step === 3){ renderImagePreview(); }
+}
+
+function selectRole(role){ postState.role = role; renderPostPage(); }
+function selectType(type){ postState.type = type; renderPostPage(); }
+function prevStep(){ if(postState.step>1){ postState.step--; renderPostPage(); } }
+function nextStep(){ if(postState.step<3){ postState.step++; renderPostPage(); } }
+function cancelPost(){
+  const wasEdit = !!postState.editId;
+  resetPostState();
+  if(wasEdit){ location.hash = '#/trade/my-posts'; renderMyPosts(); }
+  else { location.hash = '#/trade/rent'; render(); }
+}
+
+function renderFormByType(){
+  const t = postState.type;
+  const isEdit = !!postState.editId;
+  let editPost = null;
+  if(isEdit){ editPost = posts.find(p => p.id === postState.editId); }
+  let h = '';
+  h += '<div class="post-card">';
+  h += `<h3>${isEdit?'编辑':'填写'}${CATEGORIES[t].name}信息</h3>`;
+  const titleVal = isEdit && editPost ? escapeHtml(editPost.title) : '';
+  h += '<div class="form-group">';
+  h += '<label class="form-label">标题<span class="required">*</span></label>';
+  h += `<input class="form-input" id="f_title" type="text" placeholder="请输入标题" maxlength="60" value="${titleVal}">`;
+  h += '<div class="error-msg" id="err_title">请填写标题</div>';
+  h += '</div>';
+  if(t === 'rent'){
+    const rentTypeVal = isEdit && editPost && editPost.extraData ? editPost.extraData.rentType : '';
+    const layoutVal = isEdit && editPost && editPost.extraData ? escapeHtml(editPost.extraData.layout || '') : '';
+    const areaVal = isEdit && editPost && editPost.extraData ? escapeHtml(editPost.extraData.area || '') : '';
+    const depositVal = isEdit && editPost && editPost.extraData ? escapeHtml(editPost.extraData.deposit || '') : '';
+    h += '<div class="form-row">';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">租赁类型<span class="required">*</span></label>';
+    h += `<select class="form-select" id="f_rentType"><option value="">请选择</option><option value="整租" ${rentTypeVal==='整租'?'selected':''}>整租</option><option value="合租" ${rentTypeVal==='合租'?'selected':''}>合租</option><option value="短租" ${rentTypeVal==='短租'?'selected':''}>短租</option></select>`;
+    h += '<div class="error-msg" id="err_rentType">请选择租赁类型</div>';
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">户型</label>';
+    h += `<input class="form-input" id="f_layout" type="text" placeholder="如：两室一厅" value="${layoutVal}">`;
+    h += '</div>';
+    h += '</div>';
+    h += '<div class="form-row">';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">面积 (㎡)</label>';
+    h += `<input class="form-input" id="f_area" type="number" placeholder="如：89" value="${areaVal}">`;
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">租金/月 (元)<span class="required">*</span></label>';
+    const priceVal = isEdit && editPost ? escapeHtml(String(editPost.price || '')) : '';
+    h += `<input class="form-input" id="f_price" type="number" placeholder="如：3500" value="${priceVal}">`;
+    h += '<div class="error-msg" id="err_price">请填写租金</div>';
+    h += '</div>';
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">押金 (元)</label>';
+    h += `<input class="form-input" id="f_deposit" type="number" placeholder="如：3500" value="${depositVal}">`;
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">位置<span class="required">*</span></label>';
+    const locVal = isEdit && editPost ? escapeHtml(editPost.location || '') : '';
+    h += `<input class="form-input" id="f_location" type="text" placeholder="如：1号楼3单元" value="${locVal}">`;
+    h += '<div class="error-msg" id="err_location">请填写位置</div>';
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">配套设施</label>';
+    const facs = ['WiFi','空调','热水器','洗衣机','冰箱','家具','电梯','停车位'];
+    const checkedFacs = isEdit && editPost && editPost.extraData ? (editPost.extraData.facilities||[]) : [];
+    h += '<div class="checkbox-group" id="f_facilities">';
+    facs.forEach(f=>{ const checked = checkedFacs.includes(f); h += `<label class="checkbox-item ${checked?'checked':''}" onclick="toggleCheckbox(this)"><input type="checkbox" value="${f}" ${checked?'checked':''}>${f}</label>`; });
+    h += '</div></div>';
+  }
+  if(t === 'house'){
+    const layoutVal = isEdit && editPost && editPost.extraData ? escapeHtml(editPost.extraData.layout || '') : '';
+    const areaVal = isEdit && editPost && editPost.extraData ? escapeHtml(editPost.extraData.area || '') : '';
+    const unitPriceVal = isEdit && editPost && editPost.extraData ? escapeHtml(editPost.extraData.unitPrice || '') : '';
+    const floorVal = isEdit && editPost && editPost.extraData ? escapeHtml(editPost.extraData.floor || '') : '';
+    const directionVal = isEdit && editPost && editPost.extraData ? editPost.extraData.direction : '';
+    const decorationVal = isEdit && editPost && editPost.extraData ? editPost.extraData.decoration : '';
+    h += '<div class="form-row">';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">户型<span class="required">*</span></label>';
+    h += `<input class="form-input" id="f_layout" type="text" placeholder="如：三室两厅" value="${layoutVal}">`;
+    h += '<div class="error-msg" id="err_layout">请填写户型</div>';
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">面积 (㎡)<span class="required">*</span></label>';
+    h += `<input class="form-input" id="f_area" type="number" placeholder="如：120" value="${areaVal}">`;
+    h += '<div class="error-msg" id="err_area">请填写面积</div>';
+    h += '</div>';
+    h += '</div>';
+    h += '<div class="form-row">';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">总价 (万元)<span class="required">*</span></label>';
+    const priceVal = isEdit && editPost ? escapeHtml(String(editPost.price || '')) : '';
+    h += `<input class="form-input" id="f_price" type="number" placeholder="如：350" value="${priceVal}">`;
+    h += '<div class="error-msg" id="err_price">请填写总价</div>';
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">单价 (元/㎡)</label>';
+    h += `<input class="form-input" id="f_unitPrice" type="number" placeholder="自动计算或手动填写" value="${unitPriceVal}">`;
+    h += '</div>';
+    h += '</div>';
+    h += '<div class="form-row">';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">楼层</label>';
+    h += `<input class="form-input" id="f_floor" type="text" placeholder="如：中层/共18层" value="${floorVal}">`;
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">朝向</label>';
+    h += `<select class="form-select" id="f_direction"><option value="">请选择</option><option value="南北" ${directionVal==='南北'?'selected':''}>南北</option><option value="南" ${directionVal==='南'?'selected':''}>南</option><option value="北" ${directionVal==='北'?'selected':''}>北</option><option value="东" ${directionVal==='东'?'selected':''}>东</option><option value="西" ${directionVal==='西'?'selected':''}>西</option><option value="东南" ${directionVal==='东南'?'selected':''}>东南</option><option value="西南" ${directionVal==='西南'?'selected':''}>西南</option><option value="东北" ${directionVal==='东北'?'selected':''}>东北</option><option value="西北" ${directionVal==='西北'?'selected':''}>西北</option></select>`;
+    h += '</div>';
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">装修情况<span class="required">*</span></label>';
+    h += `<select class="form-select" id="f_decoration"><option value="">请选择</option><option value="毛坯" ${decorationVal==='毛坯'?'selected':''}>毛坯</option><option value="简装" ${decorationVal==='简装'?'selected':''}>简装</option><option value="精装" ${decorationVal==='精装'?'selected':''}>精装</option><option value="豪装" ${decorationVal==='豪装'?'selected':''}>豪装</option></select>`;
+    h += '<div class="error-msg" id="err_decoration">请选择装修情况</div>';
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">位置<span class="required">*</span></label>';
+    const locVal = isEdit && editPost ? escapeHtml(editPost.location || '') : '';
+    h += `<input class="form-input" id="f_location" type="text" placeholder="如：3号楼5单元" value="${locVal}">`;
+    h += '<div class="error-msg" id="err_location">请填写位置</div>';
+    h += '</div>';
+  }
+  if(t === 'used'){
+    const itemCatVal = isEdit && editPost && editPost.extraData ? editPost.extraData.itemCat : '';
+    const conditionVal = isEdit && editPost && editPost.extraData ? editPost.extraData.condition : '';
+    const originalPriceVal = isEdit && editPost && editPost.extraData ? escapeHtml(editPost.extraData.originalPrice || '') : '';
+    h += '<div class="form-row">';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">物品分类<span class="required">*</span></label>';
+    h += `<select class="form-select" id="f_itemCat"><option value="">请选择</option><option value="数码" ${itemCatVal==='数码'?'selected':''}>数码</option><option value="书籍" ${itemCatVal==='书籍'?'selected':''}>书籍</option><option value="日用" ${itemCatVal==='日用'?'selected':''}>日用</option><option value="服饰" ${itemCatVal==='服饰'?'selected':''}>服饰</option><option value="其他" ${itemCatVal==='其他'?'selected':''}>其他</option></select>`;
+    h += '<div class="error-msg" id="err_itemCat">请选择物品分类</div>';
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">成色<span class="required">*</span></label>';
+    h += `<select class="form-select" id="f_condition"><option value="">请选择</option><option value="全新" ${conditionVal==='全新'?'selected':''}>全新</option><option value="九成新" ${conditionVal==='九成新'?'selected':''}>九成新</option><option value="八成新" ${conditionVal==='八成新'?'selected':''}>八成新</option><option value="七成新" ${conditionVal==='七成新'?'selected':''}>七成新</option><option value="旧物" ${conditionVal==='旧物'?'selected':''}>旧物</option></select>`;
+    h += '<div class="error-msg" id="err_condition">请选择成色</div>';
+    h += '</div>';
+    h += '</div>';
+    h += '<div class="form-row">';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">原价 (元)</label>';
+    h += `<input class="form-input" id="f_originalPrice" type="number" placeholder="如：2000" value="${originalPriceVal}">`;
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">现价 (元)<span class="required">*</span></label>';
+    const priceVal = isEdit && editPost ? escapeHtml(String(editPost.price || '')) : '';
+    h += `<input class="form-input" id="f_price" type="number" placeholder="如：800" value="${priceVal}">`;
+    h += '<div class="error-msg" id="err_price">请填写现价</div>';
+    h += '</div>';
+    h += '</div>';
+    h += '<div class="form-group">';
+    h += '<label class="form-label">位置<span class="required">*</span></label>';
+    const locVal = isEdit && editPost ? escapeHtml(editPost.location || '') : '';
+    h += `<input class="form-input" id="f_location" type="text" placeholder="如：1号楼" value="${locVal}">`;
+    h += '<div class="error-msg" id="err_location">请填写位置</div>';
+    h += '</div>';
+  }
+  const descVal = isEdit && editPost ? escapeHtml(editPost.description || '') : '';
+  h += '<div class="form-group">';
+  h += '<label class="form-label">详细描述</label>';
+  h += `<textarea class="form-textarea" id="f_description" placeholder="请补充描述详细信息...">${descVal}</textarea>`;
+  h += '</div>';
+  h += '<div class="form-group">';
+  h += '<label class="form-label">图片上传<span class="required">*</span> <span style="font-weight:400;color:#999;font-size:12px;">(至少1张，最多5张，单张≤500KB)</span></label>';
+  h += `<div class="image-upload-area" onclick="$('fileInput').click()">`;
+  h += '<div class="upload-icon">📷</div>';
+  h += '<div class="upload-text">点击上传图片</div>';
+  h += `<input type="file" id="fileInput" accept="image/*" multiple onchange="handleFileSelect(event)">`;
+  h += '</div>';
+  h += '<div class="image-preview-grid" id="imgPreview"></div>';
+  h += '<div class="error-msg" id="err_images">请至少上传1张图片</div>';
+  h += '</div>';
+  const contactVal = isEdit && editPost ? escapeHtml(editPost.contact || '') : '';
+  const phoneVal = isEdit && editPost ? escapeHtml(editPost.phone || '') : '';
+  h += '<div class="form-row">';
+  h += '<div class="form-group">';
+  h += '<label class="form-label">联系人<span class="required">*</span></label>';
+  h += `<input class="form-input" id="f_contact" type="text" placeholder="如：张先生" value="${contactVal}">`;
+  h += '<div class="error-msg" id="err_contact">请填写联系人</div>';
+  h += '</div>';
+  h += '<div class="form-group">';
+  h += '<label class="form-label">手机号<span class="required">*</span></label>';
+  h += `<input class="form-input" id="f_phone" type="tel" placeholder="11位手机号" maxlength="11" value="${phoneVal}">`;
+  h += '<div class="error-msg" id="err_phone">请输入正确的11位手机号</div>';
+  h += '</div>';
+  h += '</div>';
+  h += '<div class="form-group">';
+  h += '<label class="form-label">标签</label>';
+  let tags = [];
+  if(t === 'rent') tags = ['急租','可刀','近地铁','拎包入住','押一付一'];
+  if(t === 'house') tags = ['满五唯一','学区房','近地铁','随时看房'];
+  if(t === 'used') tags = ['可刀','自取','包邮','九成新'];
+  const checkedTags = isEdit && editPost ? (editPost.tags || []) : [];
+  h += '<div class="checkbox-group" id="f_tags">';
+  tags.forEach(tg=>{ const checked = checkedTags.includes(tg); h += `<label class="checkbox-item ${checked?'checked':''}" onclick="toggleCheckbox(this)"><input type="checkbox" value="${tg}" ${checked?'checked':''}>${tg}</label>`; });
+  h += '</div></div>';
+  h += '<div class="form-group">';
+  h += '<div class="commitment-box">';
+  h += '<input type="checkbox" id="f_commit">';
+  h += '<label for="f_commit">我承诺所填信息真实有效，虚假信息发布将扣除信用分并下架</label>';
+  h += '</div>';
+  h += '<div class="error-msg" id="err_commit">请勾选承诺</div>';
+  h += '</div>';
+  h += '<div class="btn-row">';
+  h += '<button class="btn-prev" onclick="cancelPost()">取消</button>';
+  h += `<button class="btn-submit" onclick="submitPost()">${isEdit?'保存修改':'提交发布'}</button>`;
+  h += '</div>';
+  h += '</div>';
+  return h;
+}
+
+function toggleCheckbox(el){
+  el.classList.toggle('checked');
+  const cb = el.querySelector('input');
+  if(cb) cb.checked = el.classList.contains('checked');
+}
+
+function handleFileSelect(e){
+  const files = Array.from(e.target.files);
+  const MAX_SIZE = 500 * 1024;
+  const MAX_COUNT = 5;
+  let added = 0;
+  files.forEach(file=>{
+    if(postState.images.length >= MAX_COUNT) return;
+    if(!file.type.startsWith('image/')) return;
+    if(file.size > MAX_SIZE){
+      showMsg('图片过大', `「${file.name}」超过500KB限制，请压缩后重试。`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      postState.images.push(ev.target.result);
+      renderImagePreview();
+    };
+    reader.readAsDataURL(file);
+    added++;
+  });
+  if(added > 0){
+    e.target.value = '';
+  }
+}
+
+function renderImagePreview(){
+  const container = $('imgPreview');
+  if(!container) return;
+  container.innerHTML = postState.images.map((src,i)=>{
+    return `<div class="image-preview-item"><img src="${src}"><button class="img-remove" onclick="removeImage(${i})">×</button></div>`;
+  }).join('');
+}
+
+function removeImage(idx){
+  postState.images.splice(idx, 1);
+  renderImagePreview();
+}
+
+function getCheckboxValues(containerId){
+  const container = document.getElementById(containerId);
+  if(!container) return [];
+  return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb=>cb.value);
+}
+
+function validatePhone(phone){
+  return /^1[3-9]\d{9}$/.test(phone);
+}
+
+function checkSensitive(text){
+  const words = getSensitiveWords();
+  const found = [];
+  if(!text) return found;
+  words.forEach(w=>{ if(text.includes(w)) found.push(w); });
+  return found;
+}
+
+function showFieldError(id, show){
+  const el = document.getElementById('err_'+id);
+  if(el) el.classList.toggle('show', show);
+}
+
+function submitPost(){
+  document.querySelectorAll('.error-msg').forEach(el=>el.classList.remove('show'));
+  const t = postState.type;
+  const isEdit = !!postState.editId;
+  let valid = true;
+  const title = $('f_title').value.trim();
+  if(!title){ showFieldError('title', true); valid = false; }
+  const location = $('f_location').value.trim();
+  if(!location){ showFieldError('location', true); valid = false; }
+  const price = $('f_price').value.trim();
+  if(!price){ showFieldError('price', true); valid = false; }
+  const contact = $('f_contact').value.trim();
+  if(!contact){ showFieldError('contact', true); valid = false; }
+  const phone = $('f_phone').value.trim();
+  if(!validatePhone(phone)){ showFieldError('phone', true); valid = false; }
+  if(postState.images.length < 1){ showFieldError('images', true); valid = false; }
+  if(!$('f_commit').checked && !isEdit){ showFieldError('commit', true); valid = false; }
+  if(t === 'rent'){ if(!$('f_rentType').value){ showFieldError('rentType', true); valid = false; } }
+  if(t === 'house'){ if(!$('f_layout').value.trim()){ showFieldError('layout', true); valid = false; } if(!$('f_area').value.trim()){ showFieldError('area', true); valid = false; } if(!$('f_decoration').value){ showFieldError('decoration', true); valid = false; } }
+  if(t === 'used'){ if(!$('f_itemCat').value){ showFieldError('itemCat', true); valid = false; } if(!$('f_condition').value){ showFieldError('condition', true); valid = false; } }
+  if(!valid) return;
+  const allText = title + ' ' + location + ' ' + contact + ' ' + ($('f_description').value||'');
+  const sens = checkSensitive(allText);
+  if(sens.length > 0){ showMsg('发布失败', `内容包含敏感词：${sens.join('、')}，请修改后重试。`); return; }
+  const extra = {};
+  if(t === 'rent'){ extra.rentType = $('f_rentType').value; extra.layout = $('f_layout').value.trim(); extra.area = $('f_area').value.trim(); extra.deposit = $('f_deposit').value.trim(); extra.facilities = getCheckboxValues('f_facilities'); }
+  if(t === 'house'){ extra.layout = $('f_layout').value.trim(); extra.area = $('f_area').value.trim(); extra.unitPrice = $('f_unitPrice').value.trim(); extra.floor = $('f_floor').value.trim(); extra.direction = $('f_direction').value; extra.decoration = $('f_decoration').value; }
+  if(t === 'used'){ extra.itemCat = $('f_itemCat').value; extra.originalPrice = $('f_originalPrice').value.trim(); extra.condition = $('f_condition').value; }
+  if(isEdit){
+    const idx = posts.findIndex(p => p.id === postState.editId);
+    if(idx === -1){ showMsg('错误', '找不到要编辑的内容'); return; }
+    const existing = posts[idx];
+    existing.title = title; existing.price = Number(price) || 0; existing.location = location;
+    existing.images = postState.images; existing.contact = contact; existing.phone = phone;
+    existing.tags = getCheckboxValues('f_tags'); existing.description = $('f_description').value.trim(); existing.extraData = extra;
+    setPosts(posts);
+    showMsg('保存成功', '您的信息已更新。');
+    const btn = $('msgModal').querySelector('.modal-btn');
+    const oldClick = btn.onclick;
+    btn.onclick = function(){ closeMsgModal(); btn.onclick = oldClick; resetPostState(); location.hash = '#/trade/my-posts'; renderMyPosts(); };
+    return;
+  }
+  const auth = getAuth();
+  const post = {
+    id: genId(), type: t, role: postState.role, title: title, price: Number(price) || 0,
+    location: location, images: postState.images, contact: contact, phone: phone,
+    status: 'pending', userId: auth && auth.roomNo ? auth.roomNo : (auth && auth.id ? auth.id : 'unknown'),
+    createTime: new Date().toISOString(), viewCount: 0, reportCount: 0, messages: [],
+    tags: getCheckboxValues('f_tags'), description: $('f_description').value.trim(), extraData: extra
+  };
+  posts.unshift(post); setPosts(posts);
+  showMsg('提交成功', '您的信息已提交，等待审核通过后将展示在列表中。');
+  const btn = $('msgModal').querySelector('.modal-btn');
+  const oldClick = btn.onclick;
+  btn.onclick = function(){ closeMsgModal(); btn.onclick = oldClick; resetPostState(); location.hash = '#/trade/rent'; render(); };
+}
+
+/* ===================== 初始化 ===================== */
+window.addEventListener('hashchange', ()=>{
+  const r = getRoute();
+  if(r === 'post'){
+    renderPostPage();
+  } else if(r === 'detail'){
+    renderDetailPage();
+  } else if(r === 'my-posts'){
+    renderMyPosts();
+  } else if(r === 'legal'){
+    renderLegalPage();
+  } else if(CATEGORIES[r]){
+    currentType = r;
+    render();
+  }
+});
+document.addEventListener('DOMContentLoaded', init);
+
+/* ===================== 详情页 ===================== */
+const LS_FAVORITES = 'trade_favorites';
+const LS_REPORTS   = 'trade_reports';
+let currentDetailId = null;
+let currentDetailPost = null;
+let contactRevealed = false;
+
+function getDetailIdFromHash(){
+  const h = location.hash;
+  const m = h.match(/#\/trade\/detail\/([^\/\s]+)/);
+  return m ? m[1] : null;
+}
+
+function isDetailRoute(){
+  return location.hash.includes('#/trade/detail/');
+}
+
+function goDetail(id){
+  location.hash = '#/trade/detail/' + id;
+}
+
+function renderDetailPage(){
+  const id = getDetailIdFromHash();
+  currentDetailId = id;
+  contactRevealed = false;
+  $('fab').style.display = 'none';
+  const post = posts.find(p => p.id === id);
+  if(!post || (post.status !== 'approved' && post.status !== 'sold')){
+    $('main').innerHTML = '<div class="detail-page fade-in"><div class="detail-not-found"><div class="icon">📭</div><p>该信息不存在或已下架</p><span class="back-link" onclick="goBackFromDetail()">← 返回列表</span></div></div>';
+    return;
+  }
+  currentDetailPost = post;
+  post.viewCount = (post.viewCount || 0) + 1;
+  setPosts(posts);
+  const cat = CATEGORIES[post.type] || { name:'', icon:'' };
+  const isSupply = post.role === 'supply';
+  let h = '<div class="detail-page fade-in">';
+  h += '<button class="detail-back-btn" onclick="goBackFromDetail()"><span>←</span> 返回列表</button>';
+  const imgs = post.images || [];
+  const mainImg = imgs[0] || '';
+  h += '<div class="detail-image-section">';
+  h += `<div class="detail-main-image" onclick="openFullscreen(0)">`;
+  if(mainImg){ h += `<img src="${mainImg}" id="detailMainImg" alt="">`; } else { h += `<div class="no-img">${cat.icon}</div>`; }
+  h += '</div>';
+  if(imgs.length > 1){
+    h += '<div class="detail-thumb-list">';
+    imgs.forEach((src, i) => { h += `<div class="detail-thumb ${i===0?'active':''}" onclick="switchDetailImage(${i},this)"><img src="${src}" alt=""></div>`; });
+    h += '</div>';
+  }
+  h += '</div>';
+  h += '<div class="detail-info-section">';
+  h += `<div class="detail-title">${escapeHtml(post.title)}</div>`;
+  h += '<div class="detail-price-row">';
+  h += `<div class="detail-price">${post.price===undefined||post.price===null||post.price===''?'面议':'¥'+fmtPrice(post.price)}</div>`;
+  h += `<span class="detail-role-tag ${isSupply?'supply':'demand'}">${isSupply?'供应方':'需求方'}</span>`;
+  h += `<span class="card-tag tag-status">${escapeHtml(cat.name)}</span>`;
+  h += '</div>';
+  h += '<div class="detail-meta-row">';
+  h += `<span>📍 ${escapeHtml(post.location||'')}</span>`;
+  h += `<span>🕐 ${fmtDate(post.createTime)}</span>`;
+  h += `<span>👁️ ${post.viewCount||0} 次浏览</span>`;
+  h += '</div>';
+  h += '</div>';
+  h += '<div class="detail-fields-section">';
+  h += '<div class="detail-section-title">📋 详细信息</div>';
+  h += '<div class="detail-field-grid">';
+  const extra = post.extraData || {};
+  if(post.type === 'rent'){
+    h += renderField('租赁类型', extra.rentType || '-');
+    h += renderField('户型', extra.layout || '-');
+    h += renderField('面积', extra.area ? extra.area + ' ㎡' : '-');
+    h += renderField('租金/月', post.price !== undefined && post.price !== null && post.price !== '' ? '¥' + fmtPrice(post.price) : '面议');
+    h += renderField('押金', extra.deposit ? '¥' + fmtPrice(extra.deposit) : '-');
+    if(extra.facilities && extra.facilities.length){
+      h += '</div>';
+      h += '<div style="margin-top:12px;"><div class="detail-field-label" style="margin-bottom:6px;">配套设施</div><div class="detail-facility-tags">';
+      extra.facilities.forEach(f => { h += `<span class="detail-facility-tag">${escapeHtml(f)}</span>`; });
+      h += '</div></div>';
+    } else { h += renderField('配套设施', '-'); h += '</div>'; }
+  } else if(post.type === 'house'){
+    h += renderField('户型', extra.layout || '-');
+    h += renderField('面积', extra.area ? extra.area + ' ㎡' : '-');
+    h += renderField('总价', post.price !== undefined && post.price !== null && post.price !== '' ? '¥' + fmtPrice(post.price) : '面议');
+    h += renderField('单价', extra.unitPrice ? '¥' + fmtPrice(extra.unitPrice) + '/㎡' : '-');
+    h += renderField('楼层', extra.floor || '-');
+    h += renderField('朝向', extra.direction || '-');
+    h += renderField('装修情况', extra.decoration || '-');
+    h += '</div>';
+  } else if(post.type === 'used'){
+    h += renderField('物品分类', extra.itemCat || '-');
+    h += renderField('成色', extra.condition || '-');
+    h += renderField('原价', extra.originalPrice ? '¥' + fmtPrice(extra.originalPrice) : '-');
+    h += renderField('现价', post.price !== undefined && post.price !== null && post.price !== '' ? '¥' + fmtPrice(post.price) : '面议');
+    h += '</div>';
+  } else { h += '</div>'; }
+  h += '</div>';
+  if(post.description){
+    h += '<div class="detail-desc-section">';
+    h += '<div class="detail-section-title">📝 详细描述</div>';
+    h += `<div class="detail-desc-text">${escapeHtml(post.description)}</div>`;
+    h += '</div>';
+  }
+  if(post.tags && post.tags.length){
+    h += '<div class="detail-tags-section">';
+    h += '<div class="detail-section-title">🏷️ 标签</div>';
+    h += '<div class="detail-tags-list">';
+    post.tags.forEach(t => { h += `<span class="detail-tag-item">${escapeHtml(t)}</span>`; });
+    h += '</div></div>';
+  }
+  h += renderMessagesSection(post);
+  h += '<div style="text-align:center;margin-bottom:12px;"><span class="legal-link" onclick="goLegal()">📜 平台规则与免责声明</span></div>';
+  const similar = getSimilarPosts(post);
+  if(similar.length){
+    h += '<div class="detail-similar-section">';
+    h += '<div class="detail-section-title">🔥 相似推荐</div>';
+    h += '<div class="similar-card-list">';
+    similar.forEach(s => {
+      const simImg = s.images && s.images[0] ? s.images[0] : '';
+      h += `<div class="similar-card" onclick="goDetail('${s.id}')">`;
+      h += `<div class="similar-card-img">${simImg?`<img src="${simImg}" loading="lazy">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:20px;">${CATEGORIES[s.type]?.icon||'📦'}</div>`}</div>`;
+      h += '<div class="similar-card-info">';
+      h += `<div class="similar-card-title">${escapeHtml(s.title)}</div>`;
+      h += `<div class="similar-card-price">${s.price===undefined||s.price===null||s.price===''?'面议':'¥'+fmtPrice(s.price)}</div>`;
+      h += `<div class="similar-card-meta">${escapeHtml(s.location||'')} · ${fmtDate(s.createTime)}</div>`;
+      h += '</div></div>';
+    });
+    h += '</div></div>';
+  }
+  h += '<div class="detail-legal-footer">⚠️ 本平台不对交易真实性、安全性作任何担保，交易风险由双方自行承担。</div>';
+  h += '</div>';
+  const isFav = checkIsFavorite(id);
+  h += '<div class="detail-action-bar">';
+  h += `<button class="detail-action-btn fav ${isFav?'active':''}" id="favBtn" onclick="toggleFavorite()">${isFav?'❤️ 已收藏':'🤍 收藏'}</button>`;
+  h += `<button class="detail-action-btn report" onclick="openReportModal()">🚩 举报</button>`;
+  h += `<button class="detail-action-btn msg" onclick="scrollToMessages()">💬 留言</button>`;
+  h += `<button class="detail-action-btn contact" onclick="openContactModal()">📞 联系方式</button>`;
+  h += '</div>';
+  $('main').innerHTML = h;
+}
+
+function scrollToMessages(){
+  const el = document.querySelector('.message-section');
+  if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderField(label, value){
+  return `<div class="detail-field-item"><div class="detail-field-label">${escapeHtml(label)}</div><div class="detail-field-value">${escapeHtml(value)}</div></div>`;
+}
+
+function goBackFromDetail(){
+  const type = currentDetailPost ? currentDetailPost.type : 'rent';
+  location.hash = '#/trade/' + type;
+}
+
+/* 图片切换与全屏 */
+function switchDetailImage(idx, el){
+  const post = currentDetailPost;
+  if(!post || !post.images || !post.images[idx]) return;
+  const main = $('detailMainImg');
+  if(main) main.src = post.images[idx];
+  document.querySelectorAll('.detail-thumb').forEach(t => t.classList.remove('active'));
+  if(el) el.classList.add('active');
+}
+
+function openFullscreen(idx){
+  const post = currentDetailPost;
+  if(!post || !post.images || !post.images[idx]) return;
+  $('fullscreenImg').src = post.images[idx];
+  $('fullscreenOverlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeFullscreen(){
+  $('fullscreenOverlay').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+/* 相似推荐 */
+function getSimilarPosts(currentPost){
+  return posts
+    .filter(p => p.id !== currentPost.id && p.type === currentPost.type && p.status === 'approved')
+    .sort((a,b) => new Date(b.createTime) - new Date(a.createTime))
+    .slice(0, 3);
+}
+
+/* 收藏 */
+function getFavorites(){
+  try{ const d = localStorage.getItem(LS_FAVORITES); return d ? JSON.parse(d) : []; }catch(e){ return []; }
+}
+function setFavorites(arr){ localStorage.setItem(LS_FAVORITES, JSON.stringify(arr)); }
+function checkIsFavorite(postId){
+  const auth = getAuth();
+  const uid = auth ? (auth.roomNo || auth.id || 'guest') : 'guest';
+  return getFavorites().some(f => f.postId === postId && f.userId === uid);
+}
+function toggleFavorite(){
+  const auth = getAuth();
+  const uid = auth ? (auth.roomNo || auth.id || 'guest') : 'guest';
+  const favs = getFavorites();
+  const idx = favs.findIndex(f => f.postId === currentDetailId && f.userId === uid);
+  const btn = $('favBtn');
+  if(idx >= 0){
+    favs.splice(idx, 1);
+    if(btn){ btn.classList.remove('active'); btn.innerHTML = '🤍 收藏'; }
+  } else {
+    favs.push({ userId: uid, postId: currentDetailId, createTime: new Date().toISOString() });
+    if(btn){ btn.classList.add('active'); btn.innerHTML = '❤️ 已收藏'; }
+  }
+  setFavorites(favs);
+}
+
+/* 举报 */
+let selectedReportReason = '';
+function openReportModal(){
+  selectedReportReason = '';
+  $('reportDetail').value = '';
+  document.querySelectorAll('.report-reason-item').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('input[name="reportReason"]').forEach(el => el.checked = false);
+  $('reportModal').classList.add('active');
+}
+function closeReportModal(){ $('reportModal').classList.remove('active'); }
+function selectReportReason(el, reason){
+  selectedReportReason = reason;
+  document.querySelectorAll('.report-reason-item').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  el.querySelector('input').checked = true;
+}
+function getReports(){
+  try{ const d = localStorage.getItem(LS_REPORTS); return d ? JSON.parse(d) : []; }catch(e){ return []; }
+}
+function setReports(arr){ localStorage.setItem(LS_REPORTS, JSON.stringify(arr)); }
+function submitReport(){
+  if(!selectedReportReason){ showMsg('请选择原因', '请选择一项举报原因'); return; }
+  const auth = getAuth();
+  const reporter = auth ? (auth.name || auth.roomNo || auth.id || '匿名') : '匿名';
+  const reports = getReports();
+  reports.push({
+    id: 'rep-' + Date.now(),
+    postId: currentDetailId,
+    reporter: reporter,
+    reason: selectedReportReason,
+    detail: $('reportDetail').value.trim(),
+    createTime: new Date().toISOString(),
+    status: 'pending'
+  });
+  setReports(reports);
+
+  // reportCount+1 并隐藏
+  const post = posts.find(p => p.id === currentDetailId);
+  if(post){
+    post.reportCount = (post.reportCount || 0) + 1;
+    post.status = 'hidden'; // 前端临时隐藏
+    setPosts(posts);
+  }
+
+  closeReportModal();
+  showMsg('举报已提交', '感谢您的反馈，我们会尽快核实处理。该内容已临时隐藏。');
+  // 返回列表
+  const btn = $('msgModal').querySelector('.modal-btn');
+  const oldClick = btn.onclick;
+  btn.onclick = function(){
+    closeMsgModal();
+    btn.onclick = oldClick;
+    goBackFromDetail();
+  };
+}
+
+/* 联系方式 */
+function openContactModal(){
+  contactRevealed = false;
+  $('contactInfoRow').style.display = 'none';
+  $('contactConfirmBtn').style.display = 'block';
+  $('contactConfirmBtn').textContent = '确认查看';
+  $('contactName').textContent = '';
+  $('contactPhone').textContent = '';
+  $('contactModal').classList.add('active');
+}
+function closeContactModal(){ $('contactModal').classList.remove('active'); }
+function confirmContact(){
+  const post = currentDetailPost;
+  if(!post) return;
+  contactRevealed = true;
+  $('contactName').textContent = post.contact || '-';
+  $('contactPhone').textContent = post.phone || '-';
+  $('contactInfoRow').style.display = 'flex';
+  $('contactConfirmBtn').style.display = 'none';
+}
+
+/* 留言预留 */
+/* 留言预留 */
+function goMessages(){
+  showMsg('留言功能', '留言板功能即将上线，敬请期待！');
+}
+
+/* ===================== 留言系统 ===================== */
+function renderMessagesSection(post){
+  const auth = getAuth();
+  let h = '<div class="message-section">';
+  h += '<div class="message-section-title"><span>💬 留言交流</span><span style="font-size:13px;color:#999;">' + (post.messages ? post.messages.length : 0) + ' 条留言</span></div>';
+  if(!auth){ h += '<div class="message-login-tip">请 <a onclick="goLogin()">登录</a> 后留言</div>'; }
+  else {
+    h += '<div class="message-input-area">';
+    h += '<input class="message-input" id="msgInput" type="text" placeholder="输入留言内容..." maxlength="300">';
+    h += '<button class="message-btn" onclick="sendMessage()">发送留言</button>';
+    h += '<button class="message-btn message-btn-secondary" onclick="openAppointmentModal()">📅 发送预约</button>';
+    h += '</div>';
+  }
+  h += '<div class="message-list" id="messageList">';
+  if(post.messages && post.messages.length){
+    const topMessages = post.messages.filter(m => !m.replyTo);
+    topMessages.forEach(msg => { h += renderMessageItem(msg, post.messages); });
+  } else { h += '<div style="text-align:center;padding:20px;color:#999;font-size:13px;">暂无留言，快来抢沙发吧~</div>'; }
+  h += '</div>';
+  h += '</div>';
+  return h;
+}
+
+function renderMessageItem(msg, allMessages, isReply){
+  const auth = getAuth();
+  const isApt = msg.isAppointment;
+  const replyMessages = allMessages.filter(m => m.replyTo === msg.id);
+  let h = `<div class="message-item ${isReply?'reply':''}" id="msg-${msg.id}">`;
+  h += '<div class="message-header">';
+  h += `<span class="message-user">${escapeHtml(msg.fromUser || '匿名')}</span>`;
+  if(msg.fromRoom){ h += `<span class="message-room">${escapeHtml(msg.fromRoom)}室</span>`; }
+  if(isApt){ h += '<span class="message-badge">预约</span>'; }
+  const d = new Date(msg.createTime);
+  const timeStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  h += `<span class="message-time">${timeStr}</span>`;
+  h += '</div>';
+  h += `<div class="message-content">${escapeHtml(msg.content)}</div>`;
+  if(auth && !isReply){
+    h += '<div class="message-actions">';
+    h += `<span class="message-action-link" onclick="toggleReplyForm('${msg.id}')">回复</span>`;
+    h += '</div>';
+    h += `<div class="message-reply-form" id="replyForm-${msg.id}">`;
+    h += '<div class="message-input-area">';
+    h += `<input class="message-input" id="replyInput-${msg.id}" type="text" placeholder="回复 ${escapeHtml(msg.fromUser || '匿名')}..." maxlength="300">`;
+    h += `<button class="message-btn" onclick="sendReply('${msg.id}')">发送回复</button>`;
+    h += '</div></div>';
+  }
+  h += '</div>';
+  replyMessages.forEach(rmsg => { h += renderMessageItem(rmsg, allMessages, true); });
+  return h;
+}
+
+function toggleReplyForm(msgId){
+  const form = $('replyForm-' + msgId);
+  if(form) form.classList.toggle('active');
+}
+
+function sendMessage(){
+  const input = $('msgInput');
+  if(!input) return;
+  const content = input.value.trim();
+  if(!content){ showMsg('提示', '请输入留言内容'); return; }
+  addMessage(content);
+  input.value = '';
+}
+
+function sendReply(replyToId){
+  const input = $('replyInput-' + replyToId);
+  if(!input) return;
+  const content = input.value.trim();
+  if(!content){ showMsg('提示', '请输入回复内容'); return; }
+  addMessage(content, replyToId);
+  input.value = '';
+  toggleReplyForm(replyToId);
+}
+
+function addMessage(content, replyTo){
+  const auth = getAuth();
+  if(!auth) return;
+  const post = posts.find(p => p.id === currentDetailId);
+  if(!post) return;
+  if(!post.messages) post.messages = [];
+  post.messages.push({
+    id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2,5),
+    fromUser: auth.name || auth.roomNo || '业主', fromRoom: auth.roomNo || '',
+    content: content, createTime: new Date().toISOString(),
+    isAppointment: false, replyTo: replyTo || null
+  });
+  setPosts(posts);
+  renderDetailPage();
+}
+
+function openAppointmentModal(){
+  $('aptDate').value = ''; $('aptTime').value = ''; $('aptNote').value = '';
+  $('appointmentModal').classList.add('active');
+}
+function closeAppointmentModal(){ $('appointmentModal').classList.remove('active'); }
+function submitAppointment(){
+  const date = $('aptDate').value; const time = $('aptTime').value; const note = $('aptNote').value.trim();
+  if(!date){ showMsg('提示', '请选择预约日期'); return; }
+  if(!time){ showMsg('提示', '请选择时间段'); return; }
+  const content = `【预约】${date} ${time}${note ? ' | ' + note : ''}`;
+  addMessage(content); closeAppointmentModal();
+}
+
+/* ===================== 我的发布管理 ===================== */
+function goMyPosts(){ location.hash = '#/trade/my-posts'; }
+
+function renderMyPosts(){
+  $('fab').style.display = 'none';
+  const auth = getAuth();
+  if(!auth){
+    $('main').innerHTML = '<div class="my-posts-page fade-in"><div class="empty-state" style="padding:60px 20px;"><div class="icon" style="font-size:48px;">🔒</div><p style="font-size:14px;color:var(--text-secondary);">请先登录后查看我的发布</p></div></div>';
+    return;
+  }
+  const uid = auth.roomNo || auth.id || '';
+  const myPosts = posts.filter(p => p.userId === uid).sort((a,b) => new Date(b.createTime) - new Date(a.createTime));
+  let h = '<div class="my-posts-page fade-in">';
+  h += '<div class="my-posts-header">';
+  h += '<h2>📋 我的发布</h2>';
+  h += `<span class="my-posts-count">共 ${myPosts.length} 条</span>`;
+  h += '</div>';
+  if(!myPosts.length){
+    h += '<div class="empty-state" style="padding:60px 20px;"><div class="icon" style="font-size:48px;">📭</div><p style="font-size:14px;color:var(--text-secondary);">您还没有发布过信息</p><p style="font-size:12px;margin-top:8px;color:#999;">点击右下角"+"按钮开始发布</p></div>';
+  } else { myPosts.forEach(post => { h += renderMyPostCard(post); }); }
+  h += '</div>';
+  $('main').innerHTML = h;
+}
+
+function renderMyPostCard(post){
+  const cat = CATEGORIES[post.type] || { name:'', icon:'' };
+  const statusMap = {
+    pending: { label:'审核中', cls:'status-pending' },
+    approved: { label:'已通过', cls:'status-approved' },
+    rejected: { label:'已驳回', cls:'status-rejected' },
+    sold: { label:'已成交', cls:'status-sold' },
+    hidden: { label:'已隐藏', cls:'status-hidden' }
+  };
+  const st = statusMap[post.status] || statusMap.pending;
+  const img = post.images && post.images[0] ? post.images[0] : '';
+  let h = '<div class="my-post-card fade-in">';
+  if(post.reportCount > 0){ h += '<div style="width:100%;margin-bottom:10px;"><div class="my-post-warning">⚠️ 该内容被举报，请核实</div></div>'; }
+  h += `<div class="my-post-card-img">${img?`<img src="${img}" loading="lazy">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:24px;">${cat.icon}</div>`}</div>`;
+  h += '<div class="my-post-card-info">';
+  h += `<div class="my-post-card-title">${escapeHtml(post.title)}</div>`;
+  h += '<div class="my-post-card-meta">';
+  h += `<span>${cat.name}</span>`;
+  h += `<span>${post.price===undefined||post.price===null||post.price===''?'面议':'¥'+fmtPrice(post.price)}</span>`;
+  h += `<span class="my-post-status ${st.cls}">${st.label}</span>`;
+  h += `<span>🕐 ${fmtDate(post.createTime)}</span>`;
+  h += '</div>';
+  h += '<div class="my-post-actions">';
+  h += `<button class="my-post-btn my-post-btn-primary" onclick="editPost('${post.id}')">编辑</button>`;
+  h += `<button class="my-post-btn my-post-btn-danger" onclick="deletePost('${post.id}')">删除</button>`;
+  if(post.status === 'approved'){ h += `<button class="my-post-btn my-post-btn-secondary" onclick="markSold('${post.id}')">标记已成交</button>`; }
+  if(post.status === 'rejected'){ h += `<button class="my-post-btn my-post-btn-secondary" onclick="resubmitPost('${post.id}')">重新提交</button>`; }
+  h += '</div>';
+  h += '</div></div>';
+  return h;
+}
+
+function editPost(postId){
+  const post = posts.find(p => p.id === postId);
+  if(!post) return;
+  postState = { step: 3, role: post.role, type: post.type, images: post.images ? [...post.images] : [], editId: postId };
+  location.hash = '#/trade/post'; renderPostPage();
+}
+function deletePost(postId){
+  if(!confirm('确定要删除这条发布吗？此操作不可恢复。')) return;
+  posts = posts.filter(p => p.id !== postId); setPosts(posts); renderMyPosts();
+}
+function markSold(postId){
+  const post = posts.find(p => p.id === postId);
+  if(post){ post.status = 'sold'; setPosts(posts); renderMyPosts(); }
+}
+function resubmitPost(postId){
+  const post = posts.find(p => p.id === postId);
+  if(post){ post.status = 'pending'; setPosts(posts); renderMyPosts(); }
+}
+
+/* ===================== 法律合规中心 ===================== */
+function goLegal(){ location.hash = '#/trade/legal'; }
+
+function renderLegalPage(){
+  $('fab').style.display = 'none';
+  let h = '<div class="legal-page fade-in">';
+  h += '<h2>📜 平台规则与免责声明</h2>';
+  h += '<div class="legal-section">';
+  h += '<h3>一、信息发布免责声明</h3>';
+  h += '<p>本社区交易集市平台（以下简称"本平台"）仅作为信息展示与交流的第三方服务平台，为用户提供发布、浏览交易信息的技术支持。本平台不对用户发布信息的真实性、准确性、完整性、合法性作任何形式的明示或暗示担保。</p>';
+  h += '<p>用户应自行对交易对方的主体资格、交易标的权属状况、交易价格合理性等进行充分核实与判断。因信息不实或交易纠纷产生的任何损失，由交易双方自行承担，本平台不承担任何连带责任。</p>';
+  h += '<p>用户通过本平台获取的信息仅供参考，不构成任何投资、交易或其他决策建议。用户基于本平台信息作出的任何决定，均由用户自行承担全部后果。</p>';
+  h += '</div>';
+  h += '<div class="legal-section">';
+  h += '<h3>二、交易风险提示</h3>';
+  h += '<p>线下交易存在人身财产安全风险，建议用户选择公共场所进行当面交易，并尽量邀请他人陪同。涉及大额资金往来时，请务必核实对方身份及标的物权属证明，建议使用正规第三方资金托管服务。</p>';
+  h += '<p>本平台严禁任何形式的诈骗、虚假宣传和违规交易行为。如发现可疑情况，请立即使用举报功能或向公安机关报案。平台将对被多次举报的账号采取限制措施。</p>';
+  h += '<ol><li>请勿在未核实对方身份前支付定金或全款；</li><li>房屋交易请务必查验房产证、身份证等有效证件；</li><li>二手物品交易建议当面验货后再付款；</li><li>保留聊天记录、转账凭证等证据材料。</li></ol>';
+  h += '</div>';
+  h += '<div class="legal-section">';
+  h += '<h3>三、禁止发布内容规则</h3>';
+  h += '<p>用户承诺不得发布以下类别的信息：国家法律法规禁止流通或限制交易的物品；淫秽色情、赌博、毒品及相关物品；枪支弹药、管制刀具等危险物品；假冒伪劣商品及侵犯知识产权的物品；涉及洗钱、传销、非法集资等违法金融活动的信息；以及其他违反公序良俗或社区管理规定的内容。</p>';
+  h += '<p>违反上述规则的用户，本平台有权采取下架信息、扣除信用分、限制发布权限直至永久封禁账号等措施，并保留向有关主管部门报告的权利。</p>';
+  h += '<ol><li>禁止发布虚假、误导性信息；</li><li>禁止冒用他人身份发布信息；</li><li>禁止发布重复、刷屏信息；</li><li>禁止在信息中植入恶意链接或代码；</li><li>禁止利用平台进行商业推广或广告 spam。</li></ol>';
+  h += '</div>';
+  h += '<div style="text-align:center;margin-top:24px;"><button class="modal-btn" onclick="goBackFromLegal()" style="max-width:200px;">返回</button></div>';
+  h += '</div>';
+  $('main').innerHTML = h;
+}
+function goBackFromLegal(){ history.back(); }
+
+/* ===================== 首次发布法律倒计时 ===================== */
+let legalCountdownInterval = null;
+let legalCountdownSeconds = 10;
+
+function openLegalCountdownModal(){
+  $('legalCountdownModal').classList.add('active');
+  legalCountdownSeconds = 10;
+  const btn = $('legalAcceptBtn');
+  const timer = $('legalCountdownTimer');
+  btn.disabled = true; btn.textContent = '我已阅读并同意';
+  if(legalCountdownInterval) clearInterval(legalCountdownInterval);
+  legalCountdownInterval = setInterval(() => {
+    legalCountdownSeconds--;
+    if(legalCountdownSeconds > 0){ timer.textContent = `请认真阅读，${legalCountdownSeconds}秒后可关闭`; }
+    else { timer.textContent = '您可以点击同意继续'; btn.disabled = false; clearInterval(legalCountdownInterval); legalCountdownInterval = null; }
+  }, 1000);
+  timer.textContent = `请认真阅读，${legalCountdownSeconds}秒后可关闭`;
+}
+function closeLegalCountdownModal(){
+  $('legalCountdownModal').classList.remove('active');
+  if(legalCountdownInterval){ clearInterval(legalCountdownInterval); legalCountdownInterval = null; }
+}
+function acceptLegal(){
+  localStorage.setItem(LS_LEGAL_ACCEPTED, 'true');
+  closeLegalCountdownModal();
+  goPublish();
+}
+
+</script>
+</body>
+</html>
