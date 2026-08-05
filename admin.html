@@ -717,6 +717,7 @@ function renderSidebar() {
     { id: 'audit', label: '操作日志', icon: '📋', perm: 'audit-log', roles: ['super','committee'] },
     { id: 'workorders', label: '工单管理', icon: '🔧', perm: 'workorders', roles: ['super','property'] },
     { id: 'complaints', label: '投诉建议', icon: '📝', perm: 'complaints', roles: ['super','committee','community'] },
+    { id: 'life', label: '生活服务', icon: '🍽️', perm: 'all', roles: ['super','property','committee','community'], external: 'admin-life.html' },
     { id: 'trade', label: '交易管理', icon: '🛒', perm: 'all', roles: ['super','property','committee','community'], external: 'trade-admin.html' },
     { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', roles: ['super','property','committee','community'] }
   ];
@@ -740,7 +741,7 @@ function navigateTo(module) {
     currentModule = module;
     location.hash = 'module=' + module;
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === module));
-    const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', audit: '操作日志', workorders: '工单管理', complaints: '投诉建议', settings: '系统设置' };
+    const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', audit: '操作日志', workorders: '工单管理', complaints: '投诉建议', life: '生活服务', settings: '系统设置' };
     var pt = document.getElementById('pageTitle');
     if (pt) pt.textContent = titles[module] || module;
     var sb = document.getElementById('saveBtn');

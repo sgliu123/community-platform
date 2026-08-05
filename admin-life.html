@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生活服务管理</title>
+<style>
+:root {
+  --primary: #2E8B57; --primary-light: #3da76b; --primary-dark: #1f6b41;
+  --bg: #f5f7fa; --card: #fff; --text: #333; --text-secondary: #666;
+  --border: #e0e0e0; --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 12px; --header-h: 56px; --sidebar-w: 220px;
+}
+.theme-t2 { --primary: #1976D2; --primary-light: #42a5f5; --primary-dark: #0d47a1; }
+.theme-t3 { --primary: #E65100; --primary-light: #ff9800; --primary-dark: #bf360c; }
+.theme-t4 { --primary: #C62828; --primary-light: #ef5350; --primary-dark: #8e0000; }
+.theme-t5 { --primary: #6A1B9A; --primary-light: #ab47bc; --primary-dark: #4a148c; }
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+a { text-decoration:none; color:var(--primary); }
+
+.layout { display:flex; min-height:100vh; }
+
+.sidebar {
+  width:var(--sidebar-w); background:#1a1a2e; color:#fff;
+  position:fixed; inset:0 auto 0 0; z-index:100;
+  display:flex; flex-direction:column; padding:16px 0;
+  overflow-y:auto;
+}
+.sidebar-logo {
+  padding:0 20px 20px; font-size:18px; font-weight:600;
+  border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:12px;
+  display:flex; align-items:center; gap:10px;
+}
+.sidebar-logo .icon { font-size:22px; }
+.sidebar-nav { flex:1; }
+.sidebar-nav a {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 20px; color:rgba(255,255,255,0.75);
+  font-size:14px; transition:.2s; border-left:3px solid transparent;
+}
+.sidebar-nav a:hover { background:rgba(255,255,255,0.06); color:#fff; }
+.sidebar-nav a.active { background:rgba(255,255,255,0.08); color:#fff; border-left-color:var(--primary); }
+.sidebar-nav a .nav-icon { font-size:16px; width:22px; text-align:center; }
+.sidebar-footer {
+  padding:16px 20px 0; border-top:1px solid rgba(255,255,255,0.1);
+  font-size:12px; color:rgba(255,255,255,0.4); text-align:center;
+}
+
+.main-content { flex:1; margin-left:var(--sidebar-w); min-height:100vh; }
+.topbar {
+  height:var(--header-h); background:var(--card); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 24px; position:sticky; top:0; z-index:50;
+}
+.topbar h1 { font-size:18px; font-weight:600; }
+.topbar-actions { display:flex; gap:10px; align-items:center; }
+
+.container { padding:24px; max-width:1200px; }
+
+.card {
+  background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:20px; margin-bottom:20px;
+}
+
+.btn {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 18px; border-radius:8px; font-size:13px; font-weight:500;
+  cursor:pointer; border:none; transition:.2s;
+}
+.btn-primary { background:var(--primary); color:#fff; }
+.btn-primary:hover { background:var(--primary-dark); }
+.btn-secondary { background:#f0f2f5; color:var(--text); }
+.btn-secondary:hover { background:#e4e6e9; }
+.btn-danger { background:#c62828; color:#fff; }
+.btn-danger:hover { background:#8e0000; }
+.btn-sm { padding:5px 12px; font-size:12px; }
+
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:14px; }
+th, td { padding:12px 14px; text-align:left; border-bottom:1px solid var(--border); }
+th { background:#fafbfc; font-weight:600; color:var(--text-secondary); font-size:13px; }
+tr:hover td { background:#fafafa; }
+
+.tag {
+  display:inline-block; padding:3px 10px; border-radius:20px;
+  font-size:12px; font-weight:600;
+}
+.tag-active { background:#e8f5e9; color:#2e7d32; }
+.tag-pending { background:#fff3e0; color:#e65100; }
+.tag-closed { background:#eceff1; color:#546e7a; }
+.tag-type-dc { background:#e3f2fd; color:#1565c0; }
+.tag-type-dg { background:#f3e5f5; color:#6a1b9a; }
+.tag-type-cs { background:#e0f7fa; color:#00838f; }
+
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000;
+  display:none; align-items:center; justify-content:center;
+  padding:20px;
+}
+.modal-overlay.active { display:flex; }
+.modal-box {
+  background:#fff; border-radius:var(--radius); width:100%; max-width:560px;
+  max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.2);
+  animation:modalIn .25s ease;
+}
+@keyframes modalIn { from { opacity:0; transform:scale(0.95) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }
+.modal-header {
+  padding:18px 24px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.modal-header h3 { font-size:17px; }
+.modal-close {
+  width:32px; height:32px; border:none; background:#f0f2f5;
+  border-radius:50%; cursor:pointer; font-size:16px; display:flex;
+  align-items:center; justify-content:center;
+}
+.modal-close:hover { background:#e4e6e9; }
+.modal-body { padding:20px 24px; }
+.form-group { margin-bottom:16px; }
+.form-group label {
+  display:block; font-size:13px; font-weight:500; margin-bottom:6px; color:var(--text-secondary);
+}
+.form-group input, .form-group select, .form-group textarea {
+  width:100%; padding:10px 12px; border:1px solid var(--border);
+  border-radius:8px; font-size:14px; font-family:inherit;
+}
+.form-group textarea { resize:vertical; min-height:80px; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(46,139,87,0.1);
+}
+.modal-footer {
+  padding:14px 24px 20px; display:flex; gap:10px; justify-content:flex-end;
+}
+
+.img-preview-grid {
+  display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;
+}
+.img-preview-item {
+  width:72px; height:72px; border-radius:6px; overflow:hidden;
+  border:1px solid var(--border); position:relative; flex-shrink:0;
+}
+.img-preview-item img { width:100%; height:100%; object-fit:cover; display:block; }
+.img-preview-item .img-remove {
+  position:absolute; top:2px; right:2px; width:18px; height:18px;
+  background:rgba(200,0,0,0.8); color:#fff; border:none; border-radius:50%;
+  font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+
+.empty { text-align:center; padding:40px; color:var(--text-secondary); font-size:14px; }
+
+.theme-switcher { position:fixed; bottom:24px; right:24px; z-index:100; }
+.theme-btn {
+  width:44px; height:44px; border-radius:50%; background:var(--primary); color:#fff;
+  border:none; font-size:18px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2);
+  display:flex; align-items:center; justify-content:center;
+}
+.theme-panel {
+  position:absolute; bottom:56px; right:0; background:#fff; border-radius:var(--radius);
+  box-shadow:0 4px 20px rgba(0,0,0,0.15); padding:14px; display:none; width:200px;
+}
+.theme-panel.active { display:block; }
+.theme-panel h4 { font-size:13px; margin-bottom:10px; color:var(--text-secondary); }
+.theme-options { display:flex; flex-direction:column; gap:6px; }
+.theme-option {
+  display:flex; align-items:center; gap:8px; padding:7px 8px;
+  border-radius:6px; cursor:pointer; font-size:13px;
+}
+.theme-option:hover { background:#f5f5f5; }
+.theme-option .dot { width:16px; height:16px; border-radius:50%; flex-shrink:0; }
+.theme-option .check { margin-left:auto; color:var(--primary); font-weight:bold; display:none; }
+.theme-option.active .check { display:block; }
+
+@media (max-width:768px) {
+  .sidebar { transform:translateX(-100%); transition:.3s; }
+  .sidebar.open { transform:translateX(0); }
+  .main-content { margin-left:0; }
+  .topbar { padding:0 16px; }
+  .container { padding:16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo"><span class="icon">&#127968;</span>社区管理平台</div>
+    <nav class="sidebar-nav">
+      <a href="admin.html"><span class="nav-icon">&#127968;</span>首页</a>
+      <a href="admin.html#announcements"><span class="nav-icon">&#128226;</span>公告管理</a>
+      <a href="admin.html#documents"><span class="nav-icon">&#128196;</span>文件管理</a>
+      <a href="admin.html#activities"><span class="nav-icon">&#127881;</span>动态管理</a>
+      <a href="admin.html#polls"><span class="nav-icon">&#128499;</span>投票管理</a>
+      <a href="admin.html#residents"><span class="nav-icon">&#128101;</span>居民管理</a>
+      <a href="admin.html#workorders"><span class="nav-icon">&#128295;</span>工单管理</a>
+      <a href="admin.html#complaints"><span class="nav-icon">&#128221;</span>投诉管理</a>
+      <a href="admin-life.html" class="active"><span class="nav-icon">&#127835;</span>生活服务</a>
+    </nav>
+    <div class="sidebar-footer">社区数字化平台<br>v2026.08</div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <h1>&#127835; 生活服务管理</h1>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary" onclick="downloadJSON()">&#11015; 下载 JSON</button>
+        <button class="btn btn-primary" onclick="openModal()">&#10133; 新增商家</button>
+      </div>
+    </div>
+    <div class="container">
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>类型</th>
+                <th>联系人</th>
+                <th>电话</th>
+                <th>状态</th>
+                <th>创建时间</th>
+                <th style="width:120px;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="listBody"></tbody>
+          </table>
+        </div>
+        <div id="listEmpty" class="empty" style="display:none;">暂无商家数据</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modalTitle">新增商家</h3>
+      <button class="modal-close" onclick="closeModal()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group">
+        <label>名称</label>
+        <input type="text" id="fName" placeholder="商家名称">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label>类型</label>
+          <select id="fType">
+            <option value="&#35746;&#39184;">&#35746;&#39184;</option>
+            <option value="&#20195;&#36141;">&#20195;&#36141;</option>
+            <option value="&#36229;&#24066;">&#36229;&#24066;</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>状态</label>
+          <select id="fStatus">
+            <option value="active">&#19978;&#26550;</option>
+            <option value="pending">&#24453;&#23457;&#26680;</option>
+            <option value="closed">&#24050;&#20851;&#38381;</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label>联系人</label>
+          <input type="text" id="fContact" placeholder="联系人姓名">
+        </div>
+        <div class="form-group">
+          <label>电话</label>
+          <input type="tel" id="fPhone" placeholder="联系电话">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>营业时间</label>
+        <input type="text" id="fHours" placeholder="如：09:00 - 21:00">
+      </div>
+      <div class="form-group">
+        <label>服务范围</label>
+        <textarea id="fScope" placeholder="描述服务覆盖范围"></textarea>
+      </div>
+      <div class="form-group">
+        <label>菜单项（每行一个）</label>
+        <textarea id="fMenu" rows="4" placeholder="&#32418;&#28903;&#32905;&#10;&#30058;&#33540;&#28818;&#34507;&#10;..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>图片（可多选，自动压缩）</label>
+        <input type="file" id="fImages" accept="image/*" multiple style="display:none" onchange="handleImages(this)">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('fImages').click()">&#128206; 选择图片</button>
+        <div class="img-preview-grid" id="imgPreviewGrid"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="doSave()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="theme-switcher">
+  <div class="theme-panel" id="themePanel">
+    <h4>&#127912; 选择主题</h4>
+    <div class="theme-options" id="themeOptions"></div>
+  </div>
+  <button class="theme-btn" onclick="toggleThemePanel()">&#127912;</button>
+</div>
+
+<script>
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function showPageLoading(show) {
+  let el = document.getElementById('pageLoading');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'pageLoading';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(255,255,255,0.85);z-index:3000;display:none;align-items:center;justify-content:center;';
+    el.innerHTML = '<div style="width:40px;height:40px;border:3px solid #e0e0e0;border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;"></div>';
+    document.body.appendChild(el);
+  }
+  el.style.display = show ? 'flex' : 'none';
+}
+
+const WORKER_BASE = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
+function getWorkerBase() { return WORKER_BASE.replace(/\/$/, ''); }
+async function workerRead(filePath) {
+  const base = getWorkerBase();
+  if (!base) throw new Error('Worker地址未配置');
+  const res = await fetch(base + '/api/read/' + encodeURIComponent(filePath));
+  if (!res.ok) throw new Error('读取失败');
+  const t = await res.text();
+  return t ? JSON.parse(t) : [];
+}
+async function workerWrite(filePath, data, message) {
+  const base = getWorkerBase();
+  if (!base) throw new Error('Worker地址未配置');
+  const res = await fetch(base + '/api/write/' + encodeURIComponent(filePath), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: JSON.stringify(data, null, 2), message })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error || '保存失败'); }
+}
+
+function compressImage(file, options) {
+  options = options || {};
+  var maxWidth = options.maxWidth || 800;
+  var maxHeight = options.maxHeight || 800;
+  var quality = options.quality || 0.4;
+  var maxSize = options.maxSize || 50 * 1024;
+  return new Promise(function(resolve, reject) {
+    if (!file || !file.type.match(/image.*/)) { resolve(file); return; }
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function() {
+      URL.revokeObjectURL(url);
+      var width = img.width, height = img.height;
+      if (width > maxWidth || height > maxHeight) {
+        var ratio = Math.min(maxWidth / width, maxHeight / height);
+        width = Math.floor(width * ratio);
+        height = Math.floor(height * ratio);
+      }
+      var canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      function toBlob(q, cb) { canvas.toBlob(function(blob) { cb(blob); }, 'image/jpeg', q); }
+      function tryCompress(q) {
+        toBlob(q, function(blob) {
+          if (!blob) { reject(new Error('压缩失败')); return; }
+          if (blob.size > maxSize && q > 0.3) { tryCompress(Math.max(q - 0.15, 0.3)); }
+          else {
+            var newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+            resolve(new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() }));
+          }
+        });
+      }
+      tryCompress(quality);
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); reject(new Error('图片读取失败')); };
+    img.src = url;
+  });
+}
+
+const themes = {
+  T1: { name: "春晓绿", color: "#2E8B57", cls: "" },
+  T2: { name: "天空蓝", color: "#1976D2", cls: "theme-t2" },
+  T3: { name: "暖阳橙", color: "#E65100", cls: "theme-t3" },
+  T4: { name: "中国红", color: "#C62828", cls: "theme-t4" },
+  T5: { name: "优雅紫", color: "#6A1B9A", cls: "theme-t5" }
+};
+let currentTheme = localStorage.getItem("communityTheme") || "T1";
+function applyTheme(id) {
+  currentTheme = id;
+  document.body.className = themes[id].cls;
+  localStorage.setItem("communityTheme", id);
+  renderThemePanel();
+}
+function renderThemePanel() {
+  const el = document.getElementById("themeOptions");
+  if (!el) return;
+  el.innerHTML = Object.entries(themes).map(function(kv) {
+    var k = kv[0], v = kv[1];
+    var active = k === currentTheme ? "active" : "";
+    return '<div class="theme-option ' + active + '" onclick="applyTheme(\'' + k + '\')"><div class="dot" style="background:' + v.color + '"></div><span>' + v.name + '</span><span class="check">&#10003;</span></div>';
+  }).join("");
+}
+function toggleThemePanel() {
+  document.getElementById("themePanel").classList.toggle("active");
+}
+
+const EMBEDDED_DATA = [
+  { id: "svc-001", name: "张记家常菜", type: "订餐", contact: "张师傅", phone: "13800138001", hours: "10:00 - 22:00", scope: "本小区及周边3公里", menu: ["红烧肉","番茄炒蛋","清蒸鱼","地三鲜"], images: [], status: "active", createdAt: "2026-07-01T08:00:00Z" },
+  { id: "svc-002", name: "小李代购", type: "代购", contact: "李姐", phone: "13900139002", hours: "09:00 - 20:00", scope: "山姆、盒马、Costco", menu: [], images: [], status: "active", createdAt: "2026-07-05T10:30:00Z" },
+  { id: "svc-003", name: "便民超市", type: "超市", contact: "王老板", phone: "13700137003", hours: "07:00 - 23:00", scope: "日用百货、生鲜蔬果", menu: [], images: [], status: "pending", createdAt: "2026-07-10T14:00:00Z" },
+  { id: "svc-004", name: "老陈快餐", type: "订餐", contact: "陈师傅", phone: "13600136004", hours: "11:00 - 21:00", scope: "仅本小区配送", menu: ["宫保鸡丁","麻婆豆腐","酸辣汤"], images: [], status: "closed", createdAt: "2026-06-20T09:00:00Z" }
+];
+
+let services = [];
+let _editImages = [];
+
+async function loadData() {
+  showPageLoading(true);
+  try {
+    services = await workerRead('services.json');
+    if (!services || !services.length) services = JSON.parse(JSON.stringify(EMBEDDED_DATA));
+  } catch (e) {
+    console.error('Worker读取失败，使用嵌入式数据', e);
+    services = JSON.parse(JSON.stringify(EMBEDDED_DATA));
+  }
+  showPageLoading(false);
+  renderList();
+}
+
+async function saveData() {
+  showPageLoading(true);
+  try {
+    await workerWrite('services.json', services, '更新生活服务商家数据');
+  } catch (e) {
+    console.error('Worker保存失败', e);
+    alert('保存到服务器失败，数据仅保留在本地内存中。\n建议点击「下载 JSON」手动备份。');
+  }
+  showPageLoading(false);
+  renderList();
+}
+
+function renderList() {
+  var tbody = document.getElementById('listBody');
+  var empty = document.getElementById('listEmpty');
+  if (!services.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  var typeTagClass = { "订餐": "tag-type-dc", "代购": "tag-type-dg", "超市": "tag-type-cs" };
+  var statusTagClass = { "active": "tag-active", "pending": "tag-pending", "closed": "tag-closed" };
+  var statusText = { "active": "上架", "pending": "待审核", "closed": "已关闭" };
+  tbody.innerHTML = services.map(function(s) {
+    var tcls = typeTagClass[s.type] || 'tag-type-dc';
+    var scls = statusTagClass[s.status] || 'tag-closed';
+    var stxt = statusText[s.status] || s.status;
+    return '<tr>' +
+      '<td><strong>' + escapeHtml(s.name) + '</strong></td>' +
+      '<td><span class="tag ' + tcls + '">' + s.type + '</span></td>' +
+      '<td>' + escapeHtml(s.contact) + '</td>' +
+      '<td>' + escapeHtml(s.phone) + '</td>' +
+      '<td><span class="tag ' + scls + '">' + stxt + '</span></td>' +
+      '<td>' + formatDate(s.createdAt) + '</td>' +
+      '<td>' +
+        '<button class="btn btn-secondary btn-sm" onclick="openModal(\'' + s.id + '\')">编辑</button>' +
+        '<button class="btn btn-danger btn-sm" style="margin-left:6px;" onclick="doDelete(\'' + s.id + '\')">删除</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function openModal(id) {
+  var modal = document.getElementById('editModal');
+  var isEdit = !!id;
+  document.getElementById('modalTitle').textContent = isEdit ? '编辑商家' : '新增商家';
+  document.getElementById('editId').value = id || '';
+  _editImages = [];
+
+  if (isEdit) {
+    var s = services.find(function(x) { return x.id === id; });
+    if (!s) return;
+    document.getElementById('fName').value = s.name || '';
+    document.getElementById('fType').value = s.type || '订餐';
+    document.getElementById('fStatus').value = s.status || 'active';
+    document.getElementById('fContact').value = s.contact || '';
+    document.getElementById('fPhone').value = s.phone || '';
+    document.getElementById('fHours').value = s.hours || '';
+    document.getElementById('fScope').value = s.scope || '';
+    document.getElementById('fMenu').value = (s.menu || []).join('\n');
+    _editImages = (s.images || []).slice();
+  } else {
+    document.getElementById('fName').value = '';
+    document.getElementById('fType').value = '订餐';
+    document.getElementById('fStatus').value = 'active';
+    document.getElementById('fContact').value = '';
+    document.getElementById('fPhone').value = '';
+    document.getElementById('fHours').value = '';
+    document.getElementById('fScope').value = '';
+    document.getElementById('fMenu').value = '';
+  }
+  renderImagePreview();
+  modal.classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.remove('active');
+  _editImages = [];
+}
+
+function renderImagePreview() {
+  var grid = document.getElementById('imgPreviewGrid');
+  if (!_editImages.length) { grid.innerHTML = ''; return; }
+  grid.innerHTML = _editImages.map(function(url, idx) {
+    return '<div class="img-preview-item">' +
+      '<img src="' + url + '" onerror="this.style.display=\'none\'">' +
+      '<button class="img-remove" onclick="removeImage(' + idx + ')">&#10005;</button>' +
+    '</div>';
+  }).join('');
+}
+
+function removeImage(idx) {
+  _editImages.splice(idx, 1);
+  renderImagePreview();
+}
+
+async function handleImages(input) {
+  var files = Array.from(input.files);
+  if (!files.length) return;
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    try {
+      var compressed = await compressImage(f, { maxWidth: 640, maxHeight: 640, quality: 0.25, maxSize: 30 * 1024 });
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        _editImages.push(e.target.result);
+        renderImagePreview();
+      };
+      reader.readAsDataURL(compressed);
+    } catch (e) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        _editImages.push(e.target.result);
+        renderImagePreview();
+      };
+      reader.readAsDataURL(f);
+    }
+  }
+  input.value = '';
+}
+
+async function doSave() {
+  var id = document.getElementById('editId').value;
+  var name = document.getElementById('fName').value.trim();
+  var type = document.getElementById('fType').value;
+  var status = document.getElementById('fStatus').value;
+  var contact = document.getElementById('fContact').value.trim();
+  var phone = document.getElementById('fPhone').value.trim();
+  var hours = document.getElementById('fHours').value.trim();
+  var scope = document.getElementById('fScope').value.trim();
+  var menuRaw = document.getElementById('fMenu').value;
+  var menu = menuRaw.split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+
+  if (!name) { alert('请填写名称'); return; }
+
+  var payload = {
+    id: id || ('svc-' + Date.now() + '-' + Math.random().toString(36).substr(2,4)),
+    name: name, type: type, status: status, contact: contact, phone: phone,
+    hours: hours, scope: scope, menu: menu,
+    images: _editImages.slice(),
+    createdAt: id ? (services.find(function(x) { return x.id === id; })?.createdAt || new Date().toISOString()) : new Date().toISOString()
+  };
+
+  if (id) {
+    var idx = services.findIndex(function(x) { return x.id === id; });
+    if (idx >= 0) services[idx] = payload;
+  } else {
+    services.push(payload);
+  }
+
+  await saveData();
+  closeModal();
+}
+
+async function doDelete(id) {
+  var s = services.find(function(x) { return x.id === id; });
+  if (!s) return;
+  if (!confirm('确定要删除「' + s.name + '」吗？此操作不可撤销。')) return;
+  services = services.filter(function(x) { return x.id !== id; });
+  await saveData();
+}
+
+function downloadJSON() {
+  var blob = new Blob([JSON.stringify(services, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'services-备份.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  applyTheme(currentTheme);
+  renderThemePanel();
+  loadData();
+});
+</script>
+</body>
+</html>

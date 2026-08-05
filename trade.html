@@ -1049,7 +1049,7 @@ function renderFormByType(){
   h += `<textarea class="form-textarea" id="f_description" placeholder="请补充描述详细信息...">${descVal}</textarea>`;
   h += '</div>';
   h += '<div class="form-group">';
-  h += '<label class="form-label">图片上传<span class="required">*</span> <span style="font-weight:400;color:#999;font-size:12px;">(至少1张，最多5张，单张≤500KB)</span></label>';
+  h += '<label class="form-label">图片上传<span class="required">*</span> <span style="font-weight:400;color:#999;font-size:12px;">(至少1张，最多5张，大图自动压缩)</span></label>';
   h += `<div class="image-upload-area" onclick="$('fileInput').click()">`;
   h += '<div class="upload-icon">📷</div>';
   h += '<div class="upload-text">点击上传图片</div>';
@@ -1105,27 +1105,55 @@ function toggleCheckbox(el){
 
 function handleFileSelect(e){
   const files = Array.from(e.target.files);
-  const MAX_SIZE = 500 * 1024;
   const MAX_COUNT = 5;
-  let added = 0;
   files.forEach(file=>{
     if(postState.images.length >= MAX_COUNT) return;
     if(!file.type.startsWith('image/')) return;
-    if(file.size > MAX_SIZE){
-      showMsg('图片过大', `「${file.name}」超过500KB限制，请压缩后重试。`);
-      return;
-    }
     const reader = new FileReader();
     reader.onload = function(ev){
-      postState.images.push(ev.target.result);
+      // 先秒速显示原图占位
+      const originalDataUrl = ev.target.result;
+      postState.images.push(originalDataUrl);
       renderImagePreview();
+      // 后台大强度压缩替换
+      compressImage(originalDataUrl, function(compressedDataUrl){
+        const idx = postState.images.indexOf(originalDataUrl);
+        if(idx !== -1){
+          postState.images[idx] = compressedDataUrl;
+          renderImagePreview();
+        }
+      });
     };
     reader.readAsDataURL(file);
-    added++;
   });
-  if(added > 0){
-    e.target.value = '';
-  }
+  e.target.value = '';
+}
+
+function compressImage(dataUrl, callback){
+  const img = new Image();
+  img.onload = function(){
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    let w = img.width, h = img.height;
+    const MAX_DIM = 1024;
+    if(w > MAX_DIM || h > MAX_DIM){
+      if(w > h){ h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
+      else { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
+    }
+    canvas.width = w;
+    canvas.height = h;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    try {
+      const compressed = canvas.toDataURL('image/jpeg', 0.35);
+      callback(compressed);
+    } catch(err) {
+      callback(dataUrl);
+    }
+  };
+  img.onerror = function(){ callback(dataUrl); };
+  img.src = dataUrl;
 }
 
 function renderImagePreview(){
@@ -1165,86 +1193,87 @@ function showFieldError(id, show){
 }
 
 function submitPost(){
-  document.querySelectorAll('.error-msg').forEach(el=>el.classList.remove('show'));
-  const t = postState.type;
-  const isEdit = !!postState.editId;
-  let valid = true;
-  let firstErrorField = null;
+  try {
+    document.querySelectorAll('.error-msg').forEach(el=>el.classList.remove('show'));
+    const t = postState.type;
+    const isEdit = !!postState.editId;
+    let valid = true;
+    let firstErrorField = null;
 
-  const title = $('f_title').value.trim();
-  if(!title){ showFieldError('title', true); valid = false; if(!firstErrorField) firstErrorField = 'f_title'; }
+    const title = $('f_title').value.trim();
+    if(!title){ showFieldError('title', true); valid = false; if(!firstErrorField) firstErrorField = 'f_title'; }
 
-  const location = $('f_location').value.trim();
-  if(!location){ showFieldError('location', true); valid = false; if(!firstErrorField) firstErrorField = 'f_location'; }
+    const location = $('f_location').value.trim();
+    if(!location){ showFieldError('location', true); valid = false; if(!firstErrorField) firstErrorField = 'f_location'; }
 
-  const price = $('f_price').value.trim();
-  if(!price){ showFieldError('price', true); valid = false; if(!firstErrorField) firstErrorField = 'f_price'; }
+    const price = $('f_price').value.trim();
+    if(!price){ showFieldError('price', true); valid = false; if(!firstErrorField) firstErrorField = 'f_price'; }
 
-  const contact = $('f_contact').value.trim();
-  if(!contact){ showFieldError('contact', true); valid = false; if(!firstErrorField) firstErrorField = 'f_contact'; }
+    const contact = $('f_contact').value.trim();
+    if(!contact){ showFieldError('contact', true); valid = false; if(!firstErrorField) firstErrorField = 'f_contact'; }
 
-  const phone = $('f_phone').value.trim();
-  if(!validatePhone(phone)){ showFieldError('phone', true); valid = false; if(!firstErrorField) firstErrorField = 'f_phone'; }
+    const phone = $('f_phone').value.trim();
+    if(!validatePhone(phone)){ showFieldError('phone', true); valid = false; if(!firstErrorField) firstErrorField = 'f_phone'; }
 
-  if(postState.images.length < 1){ showFieldError('images', true); valid = false; if(!firstErrorField) firstErrorField = 'imgPreview'; }
+    if(postState.images.length < 1){ showFieldError('images', true); valid = false; if(!firstErrorField) firstErrorField = 'imgPreview'; }
 
-  if(!$('f_commit').checked && !isEdit){ showFieldError('commit', true); valid = false; if(!firstErrorField) firstErrorField = 'f_commit'; }
+    if(!$('f_commit').checked && !isEdit){ showFieldError('commit', true); valid = false; if(!firstErrorField) firstErrorField = 'f_commit'; }
 
-  if(t === 'rent'){ if(!$('f_rentType').value){ showFieldError('rentType', true); valid = false; if(!firstErrorField) firstErrorField = 'f_rentType'; } }
-  if(t === 'house'){ if(!$('f_layout').value.trim()){ showFieldError('layout', true); valid = false; if(!firstErrorField) firstErrorField = 'f_layout'; } if(!$('f_area').value.trim()){ showFieldError('area', true); valid = false; if(!firstErrorField) firstErrorField = 'f_area'; } if(!$('f_decoration').value){ showFieldError('decoration', true); valid = false; if(!firstErrorField) firstErrorField = 'f_decoration'; } }
-  if(t === 'used'){ if(!$('f_itemCat').value){ showFieldError('itemCat', true); valid = false; if(!firstErrorField) firstErrorField = 'f_itemCat'; } if(!$('f_condition').value){ showFieldError('condition', true); valid = false; if(!firstErrorField) firstErrorField = 'f_condition'; } }
+    if(t === 'rent'){ if(!$('f_rentType').value){ showFieldError('rentType', true); valid = false; if(!firstErrorField) firstErrorField = 'f_rentType'; } }
+    if(t === 'house'){ if(!$('f_layout').value.trim()){ showFieldError('layout', true); valid = false; if(!firstErrorField) firstErrorField = 'f_layout'; } if(!$('f_area').value.trim()){ showFieldError('area', true); valid = false; if(!firstErrorField) firstErrorField = 'f_area'; } if(!$('f_decoration').value){ showFieldError('decoration', true); valid = false; if(!firstErrorField) firstErrorField = 'f_decoration'; } }
+    if(t === 'used'){ if(!$('f_itemCat').value){ showFieldError('itemCat', true); valid = false; if(!firstErrorField) firstErrorField = 'f_itemCat'; } if(!$('f_condition').value){ showFieldError('condition', true); valid = false; if(!firstErrorField) firstErrorField = 'f_condition'; } }
 
-  if(!valid){
-    if(firstErrorField){
-      const el = $(firstErrorField);
-      if(el){
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'){
-          el.focus();
-        }
+    if(!valid){
+      if(firstErrorField){
+        const el = $(firstErrorField);
+        if(el){ el.scrollIntoView({ behavior: 'smooth', block: 'center' }); if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') el.focus(); }
       }
+      showMsg('表单填写不完整', '请检查标有 * 的必填项，确保已上传至少 1 张图片，并勾选承诺。');
+      return;
     }
-    showMsg('表单填写不完整', '请检查标有 * 的必填项，确保已上传至少 1 张图片，并勾选承诺。');
-    return;
-  }
 
-  const allText = title + ' ' + location + ' ' + contact + ' ' + ($('f_description').value||'');
-  const sens = checkSensitive(allText);
-  if(sens.length > 0){ showMsg('发布失败', `内容包含敏感词：${sens.join('、')}，请修改后重试。`); return; }
+    const allText = title + ' ' + location + ' ' + contact + ' ' + (($('f_description') && $('f_description').value)||'');
+    const sens = checkSensitive(allText);
+    if(sens.length > 0){ showMsg('发布失败', `内容包含敏感词：${sens.join('、')}，请修改后重试。`); return; }
 
-  const extra = {};
-  if(t === 'rent'){ extra.rentType = $('f_rentType').value; extra.layout = $('f_layout').value.trim(); extra.area = $('f_area').value.trim(); extra.deposit = $('f_deposit').value.trim(); extra.facilities = getCheckboxValues('f_facilities'); }
-  if(t === 'house'){ extra.layout = $('f_layout').value.trim(); extra.area = $('f_area').value.trim(); extra.unitPrice = $('f_unitPrice').value.trim(); extra.floor = $('f_floor').value.trim(); extra.direction = $('f_direction').value; extra.decoration = $('f_decoration').value; }
-  if(t === 'used'){ extra.itemCat = $('f_itemCat').value; extra.originalPrice = $('f_originalPrice').value.trim(); extra.condition = $('f_condition').value; }
+    const extra = {};
+    if(t === 'rent'){ extra.rentType = $('f_rentType').value; extra.layout = $('f_layout').value.trim(); extra.area = $('f_area').value.trim(); extra.deposit = $('f_deposit').value.trim(); extra.facilities = getCheckboxValues('f_facilities'); }
+    if(t === 'house'){ extra.layout = $('f_layout').value.trim(); extra.area = $('f_area').value.trim(); extra.unitPrice = $('f_unitPrice').value.trim(); extra.floor = $('f_floor').value.trim(); extra.direction = $('f_direction').value; extra.decoration = $('f_decoration').value; }
+    if(t === 'used'){ extra.itemCat = $('f_itemCat').value; extra.originalPrice = $('f_originalPrice').value.trim(); extra.condition = $('f_condition').value; }
 
-  if(isEdit){
-    const idx = posts.findIndex(p => p.id === postState.editId);
-    if(idx === -1){ showMsg('错误', '找不到要编辑的内容'); return; }
-    const existing = posts[idx];
-    existing.title = title; existing.price = Number(price) || 0; existing.location = location;
-    existing.images = postState.images; existing.contact = contact; existing.phone = phone;
-    existing.tags = getCheckboxValues('f_tags'); existing.description = $('f_description').value.trim(); existing.extraData = extra;
-    setPosts(posts);
-    showMsg('保存成功', '您的信息已更新。');
+    if(isEdit){
+      const idx = posts.findIndex(p => p.id === postState.editId);
+      if(idx === -1){ showMsg('错误', '找不到要编辑的内容'); return; }
+      const existing = posts[idx];
+      existing.title = title; existing.price = Number(price) || 0; existing.location = location;
+      existing.images = postState.images; existing.contact = contact; existing.phone = phone;
+      existing.tags = getCheckboxValues('f_tags'); existing.description = ($('f_description') && $('f_description').value.trim()) || ''; existing.extraData = extra;
+      try { setPosts(posts); } catch(e) { showMsg('保存失败', '本地存储空间不足，请减少图片数量或尺寸后重试。'); return; }
+      showMsg('保存成功', '您的信息已更新。');
+      const btn = $('msgModal').querySelector('.modal-btn');
+      const oldClick = btn.onclick;
+      btn.onclick = function(){ closeMsgModal(); btn.onclick = oldClick; resetPostState(); location.hash = '#/trade/my-posts'; renderMyPosts(); };
+      return;
+    }
+
+    const auth = getAuth();
+    const post = {
+      id: genId(), type: t, role: postState.role, title: title, price: Number(price) || 0,
+      location: location, images: postState.images, contact: contact, phone: phone,
+      status: 'pending', userId: auth && auth.roomNo ? auth.roomNo : (auth && auth.id ? auth.id : 'unknown'),
+      createTime: new Date().toISOString(), viewCount: 0, reportCount: 0, messages: [],
+      tags: getCheckboxValues('f_tags'), description: ($('f_description') && $('f_description').value.trim()) || '', extraData: extra
+    };
+    posts.unshift(post);
+    try { setPosts(posts); } catch(e) { showMsg('保存失败', '本地存储空间不足，请减少图片数量或尺寸后重试。'); return; }
+    showMsg('提交成功', '您的信息已提交，等待审核通过后将展示在列表中。');
     const btn = $('msgModal').querySelector('.modal-btn');
     const oldClick = btn.onclick;
-    btn.onclick = function(){ closeMsgModal(); btn.onclick = oldClick; resetPostState(); location.hash = '#/trade/my-posts'; renderMyPosts(); };
-    return;
+    btn.onclick = function(){ closeMsgModal(); btn.onclick = oldClick; resetPostState(); location.hash = '#/trade/rent'; render(); };
+  } catch(err) {
+    showMsg('系统错误', '提交时发生错误：' + err.message);
+    console.error(err);
   }
-
-  const auth = getAuth();
-  const post = {
-    id: genId(), type: t, role: postState.role, title: title, price: Number(price) || 0,
-    location: location, images: postState.images, contact: contact, phone: phone,
-    status: 'pending', userId: auth && auth.roomNo ? auth.roomNo : (auth && auth.id ? auth.id : 'unknown'),
-    createTime: new Date().toISOString(), viewCount: 0, reportCount: 0, messages: [],
-    tags: getCheckboxValues('f_tags'), description: $('f_description').value.trim(), extraData: extra
-  };
-  posts.unshift(post); setPosts(posts);
-  showMsg('提交成功', '您的信息已提交，等待审核通过后将展示在列表中。');
-  const btn = $('msgModal').querySelector('.modal-btn');
-  const oldClick = btn.onclick;
-  btn.onclick = function(){ closeMsgModal(); btn.onclick = oldClick; resetPostState(); location.hash = '#/trade/rent'; render(); };
 }
 
 /* ===================== 初始化 ===================== */
