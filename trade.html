@@ -606,7 +606,9 @@ async function getPosts(){
   try{ const d=localStorage.getItem(STORAGE_KEY); return d?JSON.parse(d):null; }catch(e){ return null; }
 }
 async function setPosts(arr){
-  /* [FIX] 始终同步本地，确保后台能读取 */
+  /* [FIX] 始终同步本地，确保后台能读取；给数据加 updatedAt */
+  const now = new Date().toISOString();
+  arr.forEach(p => { if(p) p.updatedAt = now; });
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); } catch(e){}
   try{ await workerWrite(TRADE_DATA_FILE, arr, '更新交易数据'); }
   catch(e){ console.error('Worker保存失败，已回退本地', e); throw e; }
@@ -656,9 +658,11 @@ function seedData(){
       contact: b.role==='supply'?'张业主':'李业主',
       phone: '138****'+String(1000+i).slice(-4),
       status: 'approved', userId: 'user-'+i,
-      createTime: t, viewCount: Math.floor(Math.random()*500)+20,
+      createTime: t, createdAt: t, updatedAt: t,
+      viewCount: Math.floor(Math.random()*500)+20,
       reportCount: 0, messages: [], tags: b.tags,
       description: b.title+'，详情请联系。',
+      content: b.title+'，详情请联系。',
       extraData: {}
     });
   });
@@ -718,7 +722,7 @@ async function init(){
     console.error('[Trade] Worker 读取失败:', e);
   }
 
-  /* [FIX] 合并云端与本地数据，按 id 去重，以最新时间为准 */
+  /* [FIX] 合并云端与本地数据，按 id 去重，以 updatedAt 为准 */
   let localPosts = [];
   try {
     const localData = localStorage.getItem(STORAGE_KEY);
@@ -726,15 +730,17 @@ async function init(){
   } catch(e){ localPosts = []; }
 
   const postMap = new Map();
-  if(Array.isArray(cloudPosts)) cloudPosts.forEach(p => { if(p && p.id) postMap.set(p.id, p); });
-  if(Array.isArray(localPosts)) localPosts.forEach(p => {
+  /* 先放本地数据 */
+  if(Array.isArray(localPosts)) localPosts.forEach(p => { if(p && p.id) postMap.set(p.id, p); });
+  /* 合并云端：仅当云端版本更新时才覆盖 */
+  if(Array.isArray(cloudPosts)) cloudPosts.forEach(p => {
     if(!p || !p.id) return;
     if(!postMap.has(p.id)){
       postMap.set(p.id, p);
     } else {
-      const existing = postMap.get(p.id);
-      const t1 = new Date(existing.createTime || existing.createdAt || 0).getTime();
-      const t2 = new Date(p.createTime || p.createdAt || 0).getTime();
+      const localVer = postMap.get(p.id);
+      const t1 = new Date(localVer.updatedAt || localVer.createTime || localVer.createdAt || 0).getTime();
+      const t2 = new Date(p.updatedAt || p.createTime || p.createdAt || 0).getTime();
       if(t2 > t1) postMap.set(p.id, p);
     }
   });
