@@ -303,7 +303,7 @@ a { text-decoration:none; color:var(--primary); }
 
 
 /* ========== 留言系统 ========== */
-.message-section { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 16px; margin-bottom:16px; }
+.message-section { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 16px; margin-bottom:16px; border:2px solid var(--primary-light); }
 .message-section-title { font-size:15px; font-weight:600; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; }
 .message-login-tip { text-align:center; padding:20px; color:var(--text-secondary); font-size:14px; }
 .message-login-tip a { color:var(--primary); cursor:pointer; text-decoration:underline; }
@@ -907,10 +907,6 @@ function closeLoginModal(){ $('loginModal').classList.remove('active'); }
 function onPublishClick(){
   const auth = getAuth();
   if(!auth){ $('loginModal').classList.add('active'); return; }
-  if(!localStorage.getItem(LS_LEGAL_ACCEPTED)){
-    openLegalCountdownModal();
-    return;
-  }
   goPublish();
 }
 
@@ -934,14 +930,12 @@ function renderPostPage(){
   $('fab').style.display = 'none';
   const step = postState.step;
   const isEdit = !!postState.editId;
-  if(isEdit && step < 3){ postState.step = 3; renderPostPage(); return; }
+  if(isEdit && step < 2){ postState.step = 2; renderPostPage(); return; }
   let h = '<div class="post-page fade-in">';
   h += '<div class="post-step-bar">';
-  h += `<div class="post-step ${step>=1?'active':''}"><div class="step-num">${isEdit?'✎':'1'}</div><span>${isEdit?'编辑模式':'选择身份'}</span></div>`;
+  h += `<div class="post-step ${step>=1?'active':''}"><div class="step-num">${isEdit?'✎':'1'}</div><span>${isEdit?'编辑模式':'选择类型'}</span></div>`;
   h += `<div class="step-line"></div>`;
-  h += `<div class="post-step ${step>=2?'active':''}"><div class="step-num">${isEdit?'✎':'2'}</div><span>${isEdit?'编辑模式':'选择分类'}</span></div>`;
-  h += `<div class="step-line"></div>`;
-  h += `<div class="post-step ${step>=3?'active':''}"><div class="step-num">3</div><span>填写信息</span></div>`;
+  h += `<div class="post-step ${step>=2?'active':''}"><div class="step-num">${isEdit?'✎':'2'}</div><span>填写信息</span></div>`;
   h += '</div>';
   if(step === 1 && !isEdit){
     h += '<div class="post-card">';
@@ -952,14 +946,7 @@ function renderPostPage(){
     h += `<div class="role-select-item ${postState.role==='demand'?'selected':''}" onclick="selectRole('demand')">`;
     h += '<div class="role-icon">📥</div><div class="role-title">我是需求方</div><div class="role-desc">求租 / 求购 / 收物品</div></div>';
     h += '</div>';
-    h += '<div class="btn-row">';
-    h += '<button class="btn-prev" onclick="cancelPost()">取消</button>';
-    h += `<button class="btn-next" ${!postState.role?'disabled':''} onclick="nextStep()">下一步</button>`;
-    h += '</div></div>';
-  }
-  if(step === 2 && !isEdit){
-    h += '<div class="post-card">';
-    h += '<h3>请选择发布分类</h3>';
+    h += '<h3 style="margin-top:20px;">请选择发布分类</h3>';
     h += '<div class="cat-select-grid">';
     Object.entries(CATEGORIES).forEach(([k,v])=>{
       h += `<div class="cat-select-item ${postState.type===k?'selected':''}" onclick="selectType('${k}')">`;
@@ -967,21 +954,21 @@ function renderPostPage(){
     });
     h += '</div>';
     h += '<div class="btn-row">';
-    h += '<button class="btn-prev" onclick="prevStep()">上一步</button>';
-    h += `<button class="btn-next" ${!postState.type?'disabled':''} onclick="nextStep()">下一步</button>`;
+    h += '<button class="btn-prev" onclick="cancelPost()">取消</button>';
+    h += `<button class="btn-next" ${(!postState.role||!postState.type)?'disabled':''} onclick="nextStep()">下一步</button>`;
     h += '</div></div>';
   }
-  if(step === 3){ h += renderFormByType(); }
-  if(step === 3){ h += '<div style="text-align:center;margin-top:16px;"><span class="legal-link" onclick="goLegal()">📜 发布前请阅读平台规则与免责声明</span></div>'; }
+  if(step === 2){ h += renderFormByType(); }
+  if(step === 2){ h += '<div style="text-align:center;margin-top:16px;"><span class="legal-link" onclick="goLegal()">📜 发布前请阅读平台规则与免责声明</span></div>'; }
   h += '</div>';
   $('main').innerHTML = h;
-  if(isEdit && step === 3){ renderImagePreview(); }
+  if(isEdit && step === 2){ renderImagePreview(); }
 }
 
 function selectRole(role){ postState.role = role; renderPostPage(); }
 function selectType(type){ postState.type = type; renderPostPage(); }
 function prevStep(){ if(postState.step>1){ postState.step--; renderPostPage(); } }
-function nextStep(){ if(postState.step<3){ postState.step++; renderPostPage(); } }
+function nextStep(){ if(postState.step<2){ postState.step++; renderPostPage(); } }
 function cancelPost(){
   const wasEdit = !!postState.editId;
   resetPostState();
@@ -1293,7 +1280,7 @@ async function submitPost(){
   isSubmitting = true;
   const submitBtn = document.querySelector('.btn-submit');
   const isEdit = !!postState.editId;
-  if(submitBtn){ submitBtn.disabled = true; submitBtn.textContent = isEdit ? '保存中...' : '提交中...'; }
+  if(submitBtn){ submitBtn.disabled = true; submitBtn.textContent = isEdit ? '保存中...' : '提交中...'; submitBtn.style.opacity = '0.7'; }
 
   try {
     document.querySelectorAll('.error-msg').forEach(el=>el.classList.remove('show'));
@@ -1351,9 +1338,7 @@ async function submitPost(){
       existing.tags = getCheckboxValues('f_tags'); existing.description = ($('f_description') && $('f_description').value.trim()) || ''; existing.extraData = extra;
       await setPosts(posts);
       showMsg('保存成功', '您的信息已更新。');
-      const btn = $('msgModal').querySelector('.modal-btn');
-      const oldClick = btn.onclick;
-      btn.onclick = function(){ closeMsgModal(); btn.onclick = oldClick; resetPostState(); location.hash = '#/trade/my-posts'; renderMyPosts(); };
+      setTimeout(()=>{ closeMsgModal(); resetPostState(); location.hash = '#/trade/my-posts'; renderMyPosts(); }, 1200);
       return;
     }
 
@@ -1372,16 +1357,14 @@ async function submitPost(){
     };
     posts.unshift(post);
     await setPosts(posts);
-    showMsg('提交成功', '您的信息已提交，等待审核通过后将展示在列表中。');
-    const btn = $('msgModal').querySelector('.modal-btn');
-    const oldClick = btn.onclick;
-    btn.onclick = function(){ closeMsgModal(); btn.onclick = oldClick; resetPostState(); location.hash = '#/trade/rent'; render(); };
+    showMsg('✅ 提交成功', '您的信息已提交，等待审核通过后将展示在列表中。2秒后自动返回...');
+    setTimeout(()=>{ closeMsgModal(); resetPostState(); location.hash = '#/trade/rent'; render(); }, 2000);
   } catch(err) {
     showMsg('保存失败', '网络异常或服务器错误，请稍后重试。');
     console.error(err);
   } finally {
     isSubmitting = false;
-    if(submitBtn){ submitBtn.disabled = false; submitBtn.textContent = isEdit ? '保存修改' : '提交发布'; }
+    if(submitBtn){ submitBtn.disabled = false; submitBtn.textContent = isEdit ? '保存修改' : '提交发布'; submitBtn.style.opacity = '1'; }
   }
 }
 
@@ -1389,6 +1372,7 @@ async function submitPost(){
 window.addEventListener('hashchange', ()=>{
   const r = getRoute();
   if(r === 'post'){
+    if(postState.step === 3 && !postState.editId) postState.step = 1;
     renderPostPage();
   } else if(r === 'detail'){
     renderDetailPage();
@@ -1465,6 +1449,10 @@ async function renderDetailPage(){
   h += `<span>🕐 ${fmtDate(post.createTime)}</span>`;
   h += `<span>👁️ ${post.viewCount||0} 次浏览</span>`;
   h += '</div>';
+  h += '<div class="detail-meta-row" style="margin-top:8px;padding-top:10px;border-top:1px dashed #eee;">';
+  h += `<span>👤 联系人：${escapeHtml(post.contact||'-')}</span>`;
+  h += `<span>📞 电话：${escapeHtml(post.phone||'-')}</span>`;
+  h += '</div>';
   h += '</div>';
   h += '<div class="detail-fields-section">';
   h += '<div class="detail-section-title">📋 详细信息</div>';
@@ -1538,7 +1526,7 @@ async function renderDetailPage(){
   h += `<button class="detail-action-btn fav ${isFav?'active':''}" id="favBtn" onclick="toggleFavorite()">${isFav?'❤️ 已收藏':'🤍 收藏'}</button>`;
   h += `<button class="detail-action-btn report" onclick="openReportModal()">🚩 举报</button>`;
   h += `<button class="detail-action-btn msg" onclick="scrollToMessages()">💬 留言</button>`;
-  h += `<button class="detail-action-btn contact" onclick="openContactModal()">📞 联系方式</button>`;
+  h += `<button class="detail-action-btn contact" onclick="copyPhone()">📋 复制电话</button>`;
   h += '</div>';
   $('main').innerHTML = h;
 }
@@ -1692,6 +1680,13 @@ function confirmContact(){
 }
 
 /* 留言预留 */
+function copyPhone(){
+  const post = currentDetailPost;
+  if(!post || !post.phone){ showMsg('提示', '暂无联系电话'); return; }
+  if(navigator.clipboard){ navigator.clipboard.writeText(post.phone).then(()=> showMsg('已复制', '电话号码已复制到剪贴板')); }
+  else { showMsg('联系电话', post.phone); }
+}
+
 /* 留言预留 */
 function goMessages(){
   showMsg('留言功能', '留言板功能即将上线，敬请期待！');
@@ -1700,14 +1695,14 @@ function goMessages(){
 /* ===================== 留言系统 ===================== */
 function renderMessagesSection(post){
   const auth = getAuth();
-  let h = '<div class="message-section">';
+  let h = '<div class="message-section" id="messageSection">';
   h += '<div class="message-section-title"><span>💬 留言交流</span><span style="font-size:13px;color:#999;">' + (post.messages ? post.messages.length : 0) + ' 条留言</span></div>';
   if(!auth){ h += '<div class="message-login-tip">请 <a onclick="goLogin()">登录</a> 后留言</div>'; }
   else {
     h += '<div class="message-input-area">';
-    h += '<input class="message-input" id="msgInput" type="text" placeholder="输入留言内容..." maxlength="300">';
+    h += '<input class="message-input" id="msgInput" type="text" placeholder="输入留言内容，与发布者交流..." maxlength="300">';
     h += '<button class="message-btn" onclick="sendMessage()">发送留言</button>';
-    h += '<button class="message-btn message-btn-secondary" onclick="openAppointmentModal()">📅 发送预约</button>';
+    h += '<button class="message-btn message-btn-secondary" onclick="openAppointmentModal()">📅 预约看货</button>';
     h += '</div>';
   }
   h += '<div class="message-list" id="messageList">';
@@ -1864,7 +1859,7 @@ function renderMyPostCard(post){
 function editPost(postId){
   const post = posts.find(p => p.id === postId);
   if(!post) return;
-  postState = { step: 3, role: post.role, type: post.type, images: post.images ? [...post.images] : [], editId: postId };
+  postState = { step: 2, role: post.role, type: post.type, images: post.images ? [...post.images] : [], editId: postId };
   location.hash = '#/trade/post'; renderPostPage();
 }
 async function deletePost(postId){

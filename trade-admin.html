@@ -392,7 +392,7 @@ function renderReview() {
   if(!posts.length) {
     html += '<div class="empty-state"><div class="icon">📭</div><div>暂无数据</div></div>';
   } else {
-    html += '<table class="data-table"><thead><tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>标题</th><th>分类</th><th>身份</th><th>价格</th><th>状态</th><th>作者</th><th>时间</th><th>操作</th></tr></thead><tbody>';
+    html += '<table class="data-table"><thead><tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>标题</th><th>分类</th><th>身份</th><th>价格</th><th>状态</th><th>作者/电话</th><th>时间/位置</th><th>操作</th></tr></thead><tbody>';
     posts.forEach(function(p) {
       if(!p) return;
       /* [FIX] 兼容前后台字段 */
@@ -406,8 +406,8 @@ function renderReview() {
       html += '<td>'+thumb+' '+esc(p.title)+'</td>';
       html += '<td>'+esc(cat)+'</td><td>'+(iden==='supply'?'供应':'需求')+'</td>';
       html += '<td>'+(p.price||'-')+'</td><td>'+(sm[p.status]||p.status||'-')+'</td>';
-      html += '<td>'+esc(author)+'<br><span style="font-size:11px;color:#999">'+(p.contact||'')+'</span></td>';
-      html += '<td>'+fmt(time)+'</td>';
+      html += '<td>'+esc(author)+'<br><span style="font-size:11px;color:#999">'+(p.phone||'')+'</span></td>';
+      html += '<td>'+fmt(time)+'<br><span style="font-size:11px;color:#999">'+(p.location||'')+'</span></td>';
       html += '<td class="actions">';
       if(p.status !== 'approved') html += '<button class="success" onclick="approvePost(\''+p.id+'\')">通过</button>';
       if(p.status !== 'rejected') html += '<button class="danger" onclick="rejectPrompt(\''+p.id+'\')">驳回</button>';
