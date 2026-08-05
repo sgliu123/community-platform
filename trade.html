@@ -660,7 +660,6 @@ function seedData(){
       extraData: {}
     });
   });
-  setPosts(posts);
   return posts;
 }
 
@@ -703,8 +702,37 @@ async function init(){
   applyTheme(currentTheme);
   const auth = getAuth();
   $('headerUser').textContent = auth ? (auth.name || '业主') : '未登录';
-  posts = await getPosts();
-  if(!posts || !posts.length){ posts = seedData(); try{ await setPosts(posts); }catch(e){} }
+
+  // 显示加载中
+  if($('main')) $('main').innerHTML = '<div class="empty-state fade-in"><div class="icon">⏳</div><p>正在同步云端数据...</p></div>';
+
+  let cloudPosts = null;
+  let loadError = null;
+  try {
+    cloudPosts = await getPosts();
+    console.log('[Trade] Worker 读取成功:', cloudPosts ? cloudPosts.length : 0, '条');
+  } catch(e) {
+    loadError = e;
+    console.error('[Trade] Worker 读取失败:', e);
+  }
+
+  if(cloudPosts && Array.isArray(cloudPosts) && cloudPosts.length > 0){
+    posts = cloudPosts;
+  } else {
+    // 回退本地
+    try {
+      const localData = localStorage.getItem(STORAGE_KEY);
+      if(localData){ posts = JSON.parse(localData); console.log('[Trade] 回退本地数据:', posts.length, '条'); }
+    } catch(e){ posts = []; }
+
+    // 如果本地也没有，才用模拟数据，且只存本地不覆盖云端
+    if(!posts || !posts.length){
+      posts = seedData();
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch(e){}
+      console.log('[Trade] 使用模拟数据');
+    }
+  }
+
   const r = getRoute();
   if(r === 'post'){
     renderPostPage();
@@ -757,12 +785,17 @@ function render(){
   h += '</div>';
   const list = getFilteredList();
   if(!list.length){
-    h += '<div class="empty-state fade-in"><div class="icon">📭</div><p>暂无符合条件的交易信息</p><p style="font-size:12px;margin-top:8px;">试试调整筛选条件，或稍后再来</p></div>';
+    h += '<div class="empty-state fade-in"><div class="icon">📭</div><p>暂无符合条件的交易信息</p><p style="font-size:12px;margin-top:8px;">试试调整筛选条件，或点击右下角刷新按钮同步数据</p></div>';
   } else {
     h += '<div class="card-list">';
     list.forEach(item=>{ h += renderCard(item); });
     h += '</div>';
   }
+  // 数据状态栏
+  h += '<div style="text-align:center;padding:16px 0;font-size:12px;color:#999;">';
+  h += '<span>云端共 ' + (posts ? posts.length : 0) + ' 条</span> ';
+  h += '<span style="cursor:pointer;color:var(--primary);text-decoration:underline;" onclick="refreshData()">🔄 刷新数据</span>';
+  h += '</div>';
   $('main').innerHTML = h;
 }
 
@@ -798,7 +831,9 @@ function renderCard(item){
 }
 
 function getFilteredList(){
-  let list = posts.filter(p=> p.type===currentType && p.status==='approved');
+  // 兼容后台可能使用的不同状态值：approved / active / 已通过
+  const validStatuses = ['approved','active','已通过','published','online'];
+  let list = posts.filter(p=> p.type===currentType && validStatuses.includes(p.status));
   if(currentRole!=='all') list = list.filter(p=>p.role===currentRole);
   if(searchKeyword.trim()){
     const kw = searchKeyword.trim().toLowerCase();
@@ -1804,6 +1839,24 @@ async function resubmitPost(postId){
 }
 
 /* ===================== 法律合规中心 ===================== */
+async function refreshData(){
+  showMsg('同步中', '正在从云端同步最新数据...');
+  try {
+    const cloudPosts = await getPosts();
+    if(cloudPosts && Array.isArray(cloudPosts)){
+      posts = cloudPosts;
+      // 同时更新本地缓存
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch(e){}
+      showMsg('同步成功', '已更新 ' + posts.length + ' 条数据');
+      render();
+    } else {
+      showMsg('同步失败', '云端数据为空或格式错误');
+    }
+  } catch(e) {
+    showMsg('同步失败', '无法连接云端: ' + e.message);
+  }
+}
+
 function goLegal(){ location.hash = '#/trade/legal'; }
 
 function renderLegalPage(){
