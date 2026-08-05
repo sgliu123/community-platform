@@ -575,6 +575,24 @@ const LS_AUTH     = 'residentAuth';
 const LS_SENSITIVE = 'trade_sensitive_words';
 const LS_LEGAL_ACCEPTED = 'trade_legal_accepted';
 
+/* ===================== Worker 云端存储 ===================== */
+const WORKER_BASE = (localStorage.getItem('workerBase') || 'https://community.firstblade.site').replace(/\/$/, '');
+const TRADE_DATA_FILE = 'trade_posts.json';
+
+async function workerRead(filePath) {
+  const res = await fetch(WORKER_BASE + '/api/read/' + encodeURIComponent(filePath));
+  if (!res.ok) throw new Error('读取失败');
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+async function workerWrite(filePath, data, message) {
+  const res = await fetch(WORKER_BASE + '/api/write/' + encodeURIComponent(filePath), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: JSON.stringify(data, null, 2), message })
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error || '保存失败'); }
+}
+
 /* ===================== 工具函数 ===================== */
 function $(id){ return document.getElementById(id); }
 function escapeHtml(t){ if(!t)return''; const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
@@ -582,8 +600,15 @@ function fmtDate(iso){ if(!iso)return''; const d=new Date(iso); return d.getFull
 function fmtPrice(n){ if(n===undefined||n===null||n==='')return'面议'; const num=Number(n); if(isNaN(num))return'面议'; if(num>=10000)return (num/10000).toFixed(1)+'万'; if(num>=1000)return (num/1000).toFixed(1)+'k'; return num.toString(); }
 function genId(){ return 'tp-'+Date.now()+'-'+Math.random().toString(36).substr(2,5); }
 function getAuth(){ try{ return JSON.parse(localStorage.getItem(LS_AUTH))||null; }catch(e){ return null; } }
-function getPosts(){ try{ const d=localStorage.getItem(STORAGE_KEY); return d?JSON.parse(d):null; }catch(e){ return null; } }
-function setPosts(arr){ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+async function getPosts(){
+  try{ return await workerRead(TRADE_DATA_FILE); }
+  catch(e){ console.error('Worker读取失败，回退本地', e); }
+  try{ const d=localStorage.getItem(STORAGE_KEY); return d?JSON.parse(d):null; }catch(e){ return null; }
+}
+async function setPosts(arr){
+  try{ await workerWrite(TRADE_DATA_FILE, arr, '更新交易数据'); }
+  catch(e){ console.error('Worker保存失败，回退本地', e); localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); throw e; }
+}
 
 function getSensitiveWords(){
   try{
@@ -674,12 +699,12 @@ function getRoute(){
   return parts[1] || 'rent';
 }
 
-function init(){
+async function init(){
   applyTheme(currentTheme);
   const auth = getAuth();
   $('headerUser').textContent = auth ? (auth.name || '业主') : '未登录';
-  posts = getPosts();
-  if(!posts || !posts.length) posts = seedData();
+  posts = await getPosts();
+  if(!posts || !posts.length){ posts = seedData(); try{ await setPosts(posts); }catch(e){} }
   const r = getRoute();
   if(r === 'post'){
     renderPostPage();
@@ -1192,11 +1217,18 @@ function showFieldError(id, show){
   if(el) el.classList.toggle('show', show);
 }
 
-function submitPost(){
+let isSubmitting = false;
+
+async function submitPost(){
+  if(isSubmitting) return;
+  isSubmitting = true;
+  const submitBtn = document.querySelector('.btn-submit');
+  const isEdit = !!postState.editId;
+  if(submitBtn){ submitBtn.disabled = true; submitBtn.textContent = isEdit ? '保存中...' : '提交中...'; }
+
   try {
     document.querySelectorAll('.error-msg').forEach(el=>el.classList.remove('show'));
     const t = postState.type;
-    const isEdit = !!postState.editId;
     let valid = true;
     let firstErrorField = null;
 
@@ -1248,7 +1280,7 @@ function submitPost(){
       existing.title = title; existing.price = Number(price) || 0; existing.location = location;
       existing.images = postState.images; existing.contact = contact; existing.phone = phone;
       existing.tags = getCheckboxValues('f_tags'); existing.description = ($('f_description') && $('f_description').value.trim()) || ''; existing.extraData = extra;
-      try { setPosts(posts); } catch(e) { showMsg('保存失败', '本地存储空间不足，请减少图片数量或尺寸后重试。'); return; }
+      await setPosts(posts);
       showMsg('保存成功', '您的信息已更新。');
       const btn = $('msgModal').querySelector('.modal-btn');
       const oldClick = btn.onclick;
@@ -1265,14 +1297,17 @@ function submitPost(){
       tags: getCheckboxValues('f_tags'), description: ($('f_description') && $('f_description').value.trim()) || '', extraData: extra
     };
     posts.unshift(post);
-    try { setPosts(posts); } catch(e) { showMsg('保存失败', '本地存储空间不足，请减少图片数量或尺寸后重试。'); return; }
+    await setPosts(posts);
     showMsg('提交成功', '您的信息已提交，等待审核通过后将展示在列表中。');
     const btn = $('msgModal').querySelector('.modal-btn');
     const oldClick = btn.onclick;
     btn.onclick = function(){ closeMsgModal(); btn.onclick = oldClick; resetPostState(); location.hash = '#/trade/rent'; render(); };
   } catch(err) {
-    showMsg('系统错误', '提交时发生错误：' + err.message);
+    showMsg('保存失败', '网络异常或服务器错误，请稍后重试。');
     console.error(err);
+  } finally {
+    isSubmitting = false;
+    if(submitBtn){ submitBtn.disabled = false; submitBtn.textContent = isEdit ? '保存修改' : '提交发布'; }
   }
 }
 
@@ -1292,7 +1327,7 @@ window.addEventListener('hashchange', ()=>{
     render();
   }
 });
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => init());
 
 /* ===================== 详情页 ===================== */
 const LS_FAVORITES = 'trade_favorites';
@@ -1315,7 +1350,7 @@ function goDetail(id){
   location.hash = '#/trade/detail/' + id;
 }
 
-function renderDetailPage(){
+async function renderDetailPage(){
   const id = getDetailIdFromHash();
   currentDetailId = id;
   contactRevealed = false;
@@ -1327,7 +1362,7 @@ function renderDetailPage(){
   }
   currentDetailPost = post;
   post.viewCount = (post.viewCount || 0) + 1;
-  setPosts(posts);
+  try { await setPosts(posts); } catch(e) {}
   const cat = CATEGORIES[post.type] || { name:'', icon:'' };
   const isSupply = post.role === 'supply';
   let h = '<div class="detail-page fade-in">';
@@ -1525,7 +1560,7 @@ function getReports(){
   try{ const d = localStorage.getItem(LS_REPORTS); return d ? JSON.parse(d) : []; }catch(e){ return []; }
 }
 function setReports(arr){ localStorage.setItem(LS_REPORTS, JSON.stringify(arr)); }
-function submitReport(){
+async function submitReport(){
   if(!selectedReportReason){ showMsg('请选择原因', '请选择一项举报原因'); return; }
   const auth = getAuth();
   const reporter = auth ? (auth.name || auth.roomNo || auth.id || '匿名') : '匿名';
@@ -1546,7 +1581,7 @@ function submitReport(){
   if(post){
     post.reportCount = (post.reportCount || 0) + 1;
     post.status = 'hidden'; // 前端临时隐藏
-    setPosts(posts);
+    try { await setPosts(posts); } catch(e) {}
   }
 
   closeReportModal();
@@ -1664,7 +1699,7 @@ function sendReply(replyToId){
   toggleReplyForm(replyToId);
 }
 
-function addMessage(content, replyTo){
+async function addMessage(content, replyTo){
   const auth = getAuth();
   if(!auth) return;
   const post = posts.find(p => p.id === currentDetailId);
@@ -1676,7 +1711,7 @@ function addMessage(content, replyTo){
     content: content, createTime: new Date().toISOString(),
     isAppointment: false, replyTo: replyTo || null
   });
-  setPosts(posts);
+  try { await setPosts(posts); } catch(e) {}
   renderDetailPage();
 }
 
@@ -1755,17 +1790,17 @@ function editPost(postId){
   postState = { step: 3, role: post.role, type: post.type, images: post.images ? [...post.images] : [], editId: postId };
   location.hash = '#/trade/post'; renderPostPage();
 }
-function deletePost(postId){
+async function deletePost(postId){
   if(!confirm('确定要删除这条发布吗？此操作不可恢复。')) return;
-  posts = posts.filter(p => p.id !== postId); setPosts(posts); renderMyPosts();
+  posts = posts.filter(p => p.id !== postId); try{ await setPosts(posts); }catch(e){} renderMyPosts();
 }
-function markSold(postId){
+async function markSold(postId){
   const post = posts.find(p => p.id === postId);
-  if(post){ post.status = 'sold'; setPosts(posts); renderMyPosts(); }
+  if(post){ post.status = 'sold'; try{ await setPosts(posts); }catch(e){} renderMyPosts(); }
 }
-function resubmitPost(postId){
+async function resubmitPost(postId){
   const post = posts.find(p => p.id === postId);
-  if(post){ post.status = 'pending'; setPosts(posts); renderMyPosts(); }
+  if(post){ post.status = 'pending'; try{ await setPosts(posts); }catch(e){} renderMyPosts(); }
 }
 
 /* ===================== 法律合规中心 ===================== */
