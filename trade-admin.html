@@ -214,52 +214,37 @@ function setData(key, val) {
   catch(e) { console.error('setData failed', e); }
 }
 /* [FIX] 异步保存：先写本地，再尝试写云端 */
-/* [FIX] 强制同步云端，失败时明确抛出错误 */
 async function savePostsAsync(posts, msg) {
-  setData('posts', posts);
   try { 
     await workerWrite(TRADE_DATA_FILE, posts, msg || '后台更新交易数据'); 
-    console.log('[Admin] Worker 同步成功:', msg, '条数:', posts.length);
+    setData('posts', posts);
   }
   catch(e) { 
-    console.error('[Admin] Worker同步失败', e);
-    throw new Error('云端同步失败: ' + (e.message || '未知错误'));
+    console.error('Worker同步失败', e); 
+    throw new Error('云端同步失败：' + (e.message || '请检查Worker配置和网络'));
   }
 }
-/* [FIX] 以 updatedAt 时间戳合并，确保删除操作优先 */
 async function loadPostsAsync() {
-  var localPosts = getData('posts', []);
   try {
     var cloudPosts = await workerRead(TRADE_DATA_FILE);
     if(cloudPosts && Array.isArray(cloudPosts)) {
-      var map = new Map();
-
-      /* 先放入本地数据 */
-      if(Array.isArray(localPosts)) localPosts.forEach(function(p){ if(p && p.id) map.set(p.id, p); });
-
-      /* 合并云端数据：仅当云端版本更新时才覆盖 */
-      cloudPosts.forEach(function(p){
-        if(!p || !p.id) return;
-        if(!map.has(p.id)) { 
-          map.set(p.id, p); 
-        } else {
-          var localVer = map.get(p.id);
-          var localTime = new Date(localVer.updatedAt || localVer.createTime || localVer.createdAt || 0).getTime();
-          var cloudTime = new Date(p.updatedAt || p.createTime || p.createdAt || 0).getTime();
-          /* 云端版本更新才覆盖本地 */
-          if(cloudTime > localTime) map.set(p.id, p);
-        }
-      });
-
-      var merged = Array.from(map.values());
-      setData('posts', merged);
-      return merged;
+      setData('posts', cloudPosts);
+      return cloudPosts;
     }
-  } catch(e) { console.error('[Admin] Worker读取失败，使用本地', e); }
+  } catch(e) { console.error('Worker读取失败，使用本地', e); }
+  var localPosts = getData('posts', []);
   return Array.isArray(localPosts) ? localPosts : [];
 }
-function ensureData() {
-  if(!getData('posts', null)) {
+async function ensureData() {
+  var hasLocal = !!getData('posts', null);
+  if(!hasLocal) {
+    try {
+      var cloudPosts = await workerRead(TRADE_DATA_FILE);
+      if(cloudPosts && Array.isArray(cloudPosts) && cloudPosts.length > 0) {
+        setData('posts', cloudPosts);
+        return;
+      }
+    } catch(e) {}
     /* [FIX] 统一字段名，与前台兼容 */
     setData('posts', [
       {id:'post-001', title:'【测试】出租1号楼2单元三居室', type:'rent', category:'rent', role:'supply', identity:'supply', price:'3500元/月', contact:'管理员A', author:'管理员A', phone:'138****0001', description:'精装修，拎包入住，采光好。', content:'精装修，拎包入住，采光好。', status:'pending', createTime:'2026-08-04T10:00:00Z', createdAt:'2026-08-04T10:00:00Z', images:[], viewCount:0, reportCount:0, messages:[], tags:[], extraData:{rentType:'整租',layout:'三室两厅',area:120}},
@@ -448,16 +433,14 @@ async function batchApprove() {
   isSubmitting = true; loading(true);
   try {
     var posts = await loadPostsAsync();
-    var now = new Date().toISOString();
-    posts.forEach(function(p){ if(p && ids.indexOf(p.id)>=0){ p.status='approved'; p.updatedAt = now; } });
+    posts.forEach(function(p){ if(p && ids.indexOf(p.id)>=0){ p.status='approved'; p.updatedAt=new Date().toISOString(); } });
     await savePostsAsync(posts, '后台批量通过');
     toast('已批量通过 '+ids.length+' 条','success');
-    go('review');
   } catch(e) {
-    toast('操作失败: ' + e.message, 'error');
-  } finally {
-    isSubmitting = false; loading(false);
+    toast('操作失败：' + e.message, 'error');
   }
+  isSubmitting = false; loading(false);
+  go('review');
 }
 function batchReject() {
   var ids = Array.from(reviewSelected); if(!ids.length){ toast('请先选择内容','error'); return; }
@@ -470,16 +453,14 @@ async function doBatchReject() {
   isSubmitting = true; loading(true);
   try {
     var posts = await loadPostsAsync();
-    var now = new Date().toISOString();
-    posts.forEach(function(p){ if(p && ids.indexOf(p.id)>=0){ p.status='rejected'; p.rejectReason=reason||'批量驳回'; p.updatedAt = now; } });
+    posts.forEach(function(p){ if(p && ids.indexOf(p.id)>=0){ p.status='rejected'; p.rejectReason=reason||'批量驳回'; p.updatedAt=new Date().toISOString(); } });
     await savePostsAsync(posts, '后台批量驳回');
     closeModal(); toast('已批量驳回 '+ids.length+' 条','success');
-    go('review');
   } catch(e) {
-    toast('操作失败: ' + e.message, 'error');
-  } finally {
-    isSubmitting = false; loading(false);
+    toast('操作失败：' + e.message, 'error');
   }
+  isSubmitting = false; loading(false);
+  go('review');
 }
 async function batchDelete() {
   if(isSubmitting){ toast('操作进行中，请稍候','error'); return; }
@@ -489,18 +470,13 @@ async function batchDelete() {
   try {
     var posts = await loadPostsAsync();
     posts = posts.filter(function(p){ return p && ids.indexOf(p.id)<0; });
-    /* [FIX] 给剩余数据打上 updatedAt，确保合并时本地版本优先 */
-    var now = new Date().toISOString();
-    posts.forEach(function(p){ p.updatedAt = now; });
     await savePostsAsync(posts, '后台批量删除');
     toast('已批量删除 '+ids.length+' 条','success');
-    go('review');
   } catch(e) {
-    toast('删除失败: ' + e.message, 'error');
-    console.error(e);
-  } finally {
-    isSubmitting = false; loading(false);
+    toast('删除失败：' + e.message, 'error');
   }
+  isSubmitting = false; loading(false);
+  go('review');
 }
 async function approvePost(id) {
   if(isSubmitting) return;
@@ -510,11 +486,10 @@ async function approvePost(id) {
     var p = posts.find(function(x){ return x && x.id===id; });
     if(p){ p.status='approved'; p.updatedAt=new Date().toISOString(); await savePostsAsync(posts, '后台通过'); toast('已通过','success'); }
   } catch(e) {
-    toast('操作失败: ' + e.message, 'error');
-  } finally {
-    isSubmitting = false; loading(false);
-    go('review');
+    toast('操作失败：' + e.message, 'error');
   }
+  isSubmitting = false; loading(false);
+  go('review');
 }
 function rejectPrompt(id) {
   openModal('驳回内容','<div class="form-group"><label>驳回原因</label><textarea id="rejReason" rows="3"></textarea></div>','<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-danger" onclick="doReject(\''+id+'\')">确认驳回</button>');
@@ -528,11 +503,10 @@ async function doReject(id) {
     var p = posts.find(function(x){ return x && x.id===id; });
     if(p){ p.status='rejected'; p.rejectReason=reason; p.updatedAt=new Date().toISOString(); await savePostsAsync(posts, '后台驳回'); closeModal(); toast('已驳回','success'); }
   } catch(e) {
-    toast('操作失败: ' + e.message, 'error');
-  } finally {
-    isSubmitting = false; loading(false);
-    go('review');
+    toast('操作失败：' + e.message, 'error');
   }
+  isSubmitting = false; loading(false);
+  go('review');
 }
 async function soldPost(id) {
   if(isSubmitting) return;
@@ -542,11 +516,10 @@ async function soldPost(id) {
     var p = posts.find(function(x){ return x && x.id===id; });
     if(p){ p.status='sold'; p.updatedAt=new Date().toISOString(); await savePostsAsync(posts, '后台下架'); toast('已下架','success'); }
   } catch(e) {
-    toast('操作失败: ' + e.message, 'error');
-  } finally {
-    isSubmitting = false; loading(false);
-    go('review');
+    toast('操作失败：' + e.message, 'error');
   }
+  isSubmitting = false; loading(false);
+  go('review');
 }
 async function delPost(id) { 
   if(!confirm('确定删除？此操作不可恢复。')) return; 
@@ -555,16 +528,13 @@ async function delPost(id) {
   try {
     var posts = await loadPostsAsync(); 
     posts = posts.filter(function(p){ return p && p.id!==id; }); 
-    var now = new Date().toISOString();
-    posts.forEach(function(p){ p.updatedAt = now; });
     await savePostsAsync(posts, '后台删除');
     toast('已删除','success');
   } catch(e) {
-    toast('删除失败: ' + e.message, 'error');
-  } finally {
-    isSubmitting = false; loading(false);
-    go('review');
+    toast('删除失败：' + e.message, 'error');
   }
+  isSubmitting = false; loading(false);
+  go('review'); 
 }
 function viewPost(id) {
   var posts=getData('posts',[]); var p=posts.find(function(x){ return x && x.id===id; }); if(!p) return;
@@ -627,13 +597,17 @@ async function confirmViol(id){
   if(isSubmitting) return;
   if(!confirm('确认违规将删除对应帖子并标记举报为已确认，是否继续？')) return;
   isSubmitting = true; loading(true);
-  var reports=getData('reports',[]); 
-  var posts=await loadPostsAsync();
-  var r=reports.find(function(x){ return x && x.id===id; });
-  if(r){ r.status='resolved'; r.handledAt=new Date().toISOString(); r.handler='管理员'; r.action='确认违规，删除帖子';
-    if(r.postId){ var p=posts.find(function(x){ return x && x.id===r.postId; }); if(p){ p.status='deleted'; p.updatedAt=new Date().toISOString(); } }
-    setData('reports',reports); await savePostsAsync(posts, '举报处理-确认违规'); 
-    toast('已确认违规并删除帖子','success'); 
+  try {
+    var reports=getData('reports',[]); 
+    var posts=await loadPostsAsync();
+    var r=reports.find(function(x){ return x && x.id===id; });
+    if(r){ r.status='resolved'; r.handledAt=new Date().toISOString(); r.handler='管理员'; r.action='确认违规，删除帖子';
+      if(r.postId){ var p=posts.find(function(x){ return x && x.id===r.postId; }); if(p){ p.status='deleted'; p.updatedAt=new Date().toISOString(); } }
+      setData('reports',reports); await savePostsAsync(posts, '举报处理-确认违规'); 
+      toast('已确认违规并删除帖子','success'); 
+    }
+  } catch(e) {
+    toast('操作失败：' + e.message, 'error');
   }
   isSubmitting = false; loading(false);
   go('reports');
@@ -867,7 +841,7 @@ async function submitPost() {
         contact: contact, author: contact, phone: phone,
         description: desc, content: desc,
         status: status,
-        createTime: now, createdAt: now, updatedAt: now,
+        createTime: now, createdAt: now,
         viewCount: 0, reportCount: 0, messages: [], tags: [], extraData: {},
         images: images
       };
@@ -893,9 +867,9 @@ async function submitPost() {
 /* [FIX] 启动时先同步云端数据 */
 document.addEventListener('DOMContentLoaded', async function(){
   try {
-    ensureData();
     renderSidebar();
     loading(true);
+    await ensureData();
     await loadPostsAsync();
     loading(false);
     var hash=location.hash; var m=hash.match(/module=([^&]+)/); var target=m?m[1]:'dashboard';

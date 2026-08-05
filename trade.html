@@ -601,17 +601,22 @@ function fmtPrice(n){ if(n===undefined||n===null||n==='')return'面议'; const n
 function genId(){ return 'tp-'+Date.now()+'-'+Math.random().toString(36).substr(2,5); }
 function getAuth(){ try{ return JSON.parse(localStorage.getItem(LS_AUTH))||null; }catch(e){ return null; } }
 async function getPosts(){
-  try{ return await workerRead(TRADE_DATA_FILE); }
+  try{ 
+    const cloud = await workerRead(TRADE_DATA_FILE);
+    if(cloud && Array.isArray(cloud)){ 
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(cloud)); }catch(e){}
+      return cloud; 
+    }
+  }
   catch(e){ console.error('Worker读取失败，回退本地', e); }
-  try{ const d=localStorage.getItem(STORAGE_KEY); return d?JSON.parse(d):null; }catch(e){ return null; }
+  try{ const d=localStorage.getItem(STORAGE_KEY); return d?JSON.parse(d):[]; }catch(e){ return []; }
 }
 async function setPosts(arr){
-  /* [FIX] 始终同步本地，确保后台能读取；给数据加 updatedAt */
-  const now = new Date().toISOString();
-  arr.forEach(p => { if(p) p.updatedAt = now; });
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); } catch(e){}
-  try{ await workerWrite(TRADE_DATA_FILE, arr, '更新交易数据'); }
-  catch(e){ console.error('Worker保存失败，已回退本地', e); throw e; }
+  try{ 
+    await workerWrite(TRADE_DATA_FILE, arr, '更新交易数据'); 
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); } catch(e){}
+  }
+  catch(e){ console.error('Worker保存失败', e); throw new Error('云端保存失败，请检查网络或Worker配置后重试'); }
 }
 
 function getSensitiveWords(){
@@ -658,11 +663,9 @@ function seedData(){
       contact: b.role==='supply'?'张业主':'李业主',
       phone: '138****'+String(1000+i).slice(-4),
       status: 'approved', userId: 'user-'+i,
-      createTime: t, createdAt: t, updatedAt: t,
-      viewCount: Math.floor(Math.random()*500)+20,
+      createTime: t, viewCount: Math.floor(Math.random()*500)+20,
       reportCount: 0, messages: [], tags: b.tags,
       description: b.title+'，详情请联系。',
-      content: b.title+'，详情请联系。',
       extraData: {}
     });
   });
@@ -722,7 +725,7 @@ async function init(){
     console.error('[Trade] Worker 读取失败:', e);
   }
 
-  /* [FIX] 合并云端与本地数据，按 id 去重，以 updatedAt 为准 */
+  /* [FIX] 合并云端与本地数据，按 id 去重，以最新时间为准 */
   let localPosts = [];
   try {
     const localData = localStorage.getItem(STORAGE_KEY);
@@ -730,26 +733,32 @@ async function init(){
   } catch(e){ localPosts = []; }
 
   const postMap = new Map();
-  /* 先放本地数据 */
-  if(Array.isArray(localPosts)) localPosts.forEach(p => { if(p && p.id) postMap.set(p.id, p); });
-  /* 合并云端：仅当云端版本更新时才覆盖 */
-  if(Array.isArray(cloudPosts)) cloudPosts.forEach(p => {
+  if(Array.isArray(cloudPosts)) cloudPosts.forEach(p => { if(p && p.id) postMap.set(p.id, p); });
+  if(Array.isArray(localPosts)) localPosts.forEach(p => {
     if(!p || !p.id) return;
     if(!postMap.has(p.id)){
       postMap.set(p.id, p);
     } else {
-      const localVer = postMap.get(p.id);
-      const t1 = new Date(localVer.updatedAt || localVer.createTime || localVer.createdAt || 0).getTime();
-      const t2 = new Date(p.updatedAt || p.createTime || p.createdAt || 0).getTime();
+      const existing = postMap.get(p.id);
+      const t1 = new Date(existing.createTime || existing.createdAt || 0).getTime();
+      const t2 = new Date(p.createTime || p.createdAt || 0).getTime();
       if(t2 > t1) postMap.set(p.id, p);
     }
   });
   posts = Array.from(postMap.values());
 
+  const hasSeeded = localStorage.getItem('trade_data_seeded');
   if(!posts || !posts.length){
-    posts = seedData();
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch(e){}
-    console.log('[Trade] 使用模拟数据');
+    if(!hasSeeded){
+      posts = seedData();
+      try { 
+        await setPosts(posts);
+        localStorage.setItem('trade_data_seeded', 'true');
+      } catch(e) {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch(e2){}
+      }
+      console.log('[Trade] 首次使用，已生成模拟数据');
+    }
   } else {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch(e){}
   }
