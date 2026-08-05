@@ -248,9 +248,9 @@ tr:hover td { background:#fafafa; }
         <div class="form-group">
           <label>类型</label>
           <select id="fType">
-            <option value="&#35746;&#39184;">&#35746;&#39184;</option>
-            <option value="&#20195;&#36141;">&#20195;&#36141;</option>
-            <option value="&#36229;&#24066;">&#36229;&#24066;</option>
+            <option value="food">&#35746;&#39184;</option>
+            <option value="shopping">&#20195;&#36141;</option>
+            <option value="supermarket">&#36229;&#24066;</option>
           </select>
         </div>
         <div class="form-group">
@@ -419,10 +419,10 @@ function toggleThemePanel() {
 }
 
 const EMBEDDED_DATA = [
-  { id: "svc-001", name: "张记家常菜", type: "订餐", contact: "张师傅", phone: "13800138001", hours: "10:00 - 22:00", scope: "本小区及周边3公里", menu: ["红烧肉","番茄炒蛋","清蒸鱼","地三鲜"], images: [], status: "active", createdAt: "2026-07-01T08:00:00Z" },
-  { id: "svc-002", name: "小李代购", type: "代购", contact: "李姐", phone: "13900139002", hours: "09:00 - 20:00", scope: "山姆、盒马、Costco", menu: [], images: [], status: "active", createdAt: "2026-07-05T10:30:00Z" },
-  { id: "svc-003", name: "便民超市", type: "超市", contact: "王老板", phone: "13700137003", hours: "07:00 - 23:00", scope: "日用百货、生鲜蔬果", menu: [], images: [], status: "pending", createdAt: "2026-07-10T14:00:00Z" },
-  { id: "svc-004", name: "老陈快餐", type: "订餐", contact: "陈师傅", phone: "13600136004", hours: "11:00 - 21:00", scope: "仅本小区配送", menu: ["宫保鸡丁","麻婆豆腐","酸辣汤"], images: [], status: "closed", createdAt: "2026-06-20T09:00:00Z" }
+  { id: "svc-001", name: "张记家常菜", serviceType: "food", contactName: "张师傅", contactPhone: "13800138001", businessHours: "10:00 - 22:00", serviceScope: "本小区及周边3公里", menuItems: ["红烧肉","番茄炒蛋","清蒸鱼","地三鲜"], images: [], status: "active", createdAt: "2026-07-01T08:00:00Z" },
+  { id: "svc-002", name: "小李代购", serviceType: "shopping", contactName: "李姐", contactPhone: "13900139002", businessHours: "09:00 - 20:00", serviceScope: "山姆、盒马、Costco", menuItems: [], images: [], status: "active", createdAt: "2026-07-05T10:30:00Z" },
+  { id: "svc-003", name: "便民超市", serviceType: "supermarket", contactName: "王老板", contactPhone: "13700137003", businessHours: "07:00 - 23:00", serviceScope: "日用百货、生鲜蔬果", menuItems: [], images: [], status: "pending", createdAt: "2026-07-10T14:00:00Z" },
+  { id: "svc-004", name: "老陈快餐", serviceType: "food", contactName: "陈师傅", contactPhone: "13600136004", businessHours: "11:00 - 21:00", serviceScope: "仅本小区配送", menuItems: ["宫保鸡丁","麻婆豆腐","酸辣汤"], images: [], status: "closed", createdAt: "2026-06-20T09:00:00Z" }
 ];
 
 let services = [];
@@ -503,13 +503,13 @@ function openModal(id) {
     var s = services.find(function(x) { return x.id === id; });
     if (!s) return;
     document.getElementById('fName').value = s.name || '';
-    document.getElementById('fType').value = s.type || '订餐';
+    document.getElementById('fType').value = s.serviceType || 'food';
     document.getElementById('fStatus').value = s.status || 'active';
-    document.getElementById('fContact').value = s.contact || '';
-    document.getElementById('fPhone').value = s.phone || '';
-    document.getElementById('fHours').value = s.hours || '';
-    document.getElementById('fScope').value = s.scope || '';
-    document.getElementById('fMenu').value = (s.menu || []).join('\n');
+    document.getElementById('fContact').value = s.contactName || '';
+    document.getElementById('fPhone').value = s.contactPhone || '';
+    document.getElementById('fHours').value = s.businessHours || '';
+    document.getElementById('fScope').value = s.serviceScope || '';
+    document.getElementById('fMenu').value = (s.menuItems || []).join('\n');
     _editImages = (s.images || []).slice();
   } else {
     document.getElementById('fName').value = '';
@@ -587,10 +587,10 @@ async function doSave() {
 
   var payload = {
     id: id || ('svc-' + Date.now() + '-' + Math.random().toString(36).substr(2,4)),
-    name: name, type: type, status: status, contact: contact, phone: phone,
-    hours: hours, scope: scope, menu: menu,
+    name: name, serviceType: type, status: status, contactName: contact, contactPhone: phone,
+    businessHours: hours, serviceScope: scope, menuItems: menu,
     images: _editImages.slice(),
-    createdAt: id ? (services.find(function(x) { return x.id === id; })?.createdAt || new Date().toISOString()) : new Date().toISOString()
+    createdAt: id ? ((services.find(function(x) { return x.id === id; }) || {}).createdAt || new Date().toISOString()) : new Date().toISOString()
   };
 
   if (id) {
