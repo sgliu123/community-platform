@@ -248,9 +248,9 @@ tr:hover td { background:#fafafa; }
         <div class="form-group">
           <label>类型</label>
           <select id="fType">
-            <option value="food">&#35746;&#39184;</option>
-            <option value="shopping">&#20195;&#36141;</option>
-            <option value="supermarket">&#36229;&#24066;</option>
+            <option value="&#35746;&#39184;">&#35746;&#39184;</option>
+            <option value="&#20195;&#36141;">&#20195;&#36141;</option>
+            <option value="&#36229;&#24066;">&#36229;&#24066;</option>
           </select>
         </div>
         <div class="form-group">
@@ -308,20 +308,6 @@ tr:hover td { background:#fafafa; }
 
 <script>
 
-function migrateRecord(s) {
-  if (!s) return s;
-  // 旧字段 → 新字段
-  if (s.type !== undefined && s.serviceType === undefined) s.serviceType = s.type;
-  if (s.contact !== undefined && s.contactName === undefined) s.contactName = s.contact;
-  if (s.phone !== undefined && s.contactPhone === undefined) s.contactPhone = s.phone;
-  if (s.hours !== undefined && s.businessHours === undefined) s.businessHours = s.hours;
-  if (s.scope !== undefined && s.serviceScope === undefined) s.serviceScope = s.scope;
-  if (s.menu !== undefined && s.menuItems === undefined) s.menuItems = s.menu;
-  // 类型标准化
-  var typeMap = { '订餐': 'food', '代购': 'shopping', '超市': 'supermarket' };
-  if (typeMap[s.serviceType]) s.serviceType = typeMap[s.serviceType];
-  return s;
-}
 
 function escapeHtml(text) {
   if (!text) return '';
@@ -457,11 +443,9 @@ async function loadData() {
       services = [];
     }
     if (!services || !services.length) services = JSON.parse(JSON.stringify(EMBEDDED_DATA));
-    services = services.map(migrateRecord);
   } catch (e) {
     console.error('Worker读取失败，使用嵌入式数据', e);
     services = JSON.parse(JSON.stringify(EMBEDDED_DATA));
-    services = services.map(migrateRecord);
   }
   showPageLoading(false);
   renderList();
@@ -520,17 +504,14 @@ function openModal(id) {
   if (isEdit) {
     var s = services.find(function(x) { return x.id === id; });
     if (!s) return;
-    s = migrateRecord(JSON.parse(JSON.stringify(s)));
     document.getElementById('fName').value = s.name || '';
-    var st = s.serviceType || s.type || 'food';
-    var typeMapRev = { 'food': 'food', 'shopping': 'shopping', 'supermarket': 'supermarket', '订餐': 'food', '代购': 'shopping', '超市': 'supermarket' };
-    document.getElementById('fType').value = typeMapRev[st] || st || 'food';
+    document.getElementById('fType').value = s.type || '';
     document.getElementById('fStatus').value = s.status || 'active';
-    document.getElementById('fContact').value = s.contactName || s.contact || '';
-    document.getElementById('fPhone').value = s.contactPhone || s.phone || '';
-    document.getElementById('fHours').value = s.businessHours || s.hours || '';
-    document.getElementById('fScope').value = s.serviceScope || s.scope || '';
-    document.getElementById('fMenu').value = (s.menuItems || s.menu || []).join('\n');
+    document.getElementById('fContact').value = s.contact || '';
+    document.getElementById('fPhone').value = s.phone || '';
+    document.getElementById('fHours').value = s.hours || '';
+    document.getElementById('fScope').value = s.scope || '';
+    document.getElementById('fMenu').value = (s.menu || []).join('\n');
     _editImages = (s.images || []).slice();
   } else {
     document.getElementById('fName').value = '';
@@ -606,20 +587,26 @@ async function doSave() {
 
   if (!name) { alert('请填写名称'); return; }
 
+  var typeMap = { '订餐': 'food', '代购': 'shopping', '超市': 'supermarket' };
   var payload = {
     id: id || ('svc-' + Date.now() + '-' + Math.random().toString(36).substr(2,4)),
-    name: name, serviceType: type, status: status, contactName: contact, contactPhone: phone,
-    businessHours: hours, serviceScope: scope, menuItems: menu,
+    name: name,
+    type: type,
+    serviceType: typeMap[type] || type,
+    status: status,
+    contact: contact,
+    contactName: contact,
+    phone: phone,
+    contactPhone: phone,
+    hours: hours,
+    businessHours: hours,
+    scope: scope,
+    serviceScope: scope,
+    menu: menu,
+    menuItems: menu,
     images: _editImages.slice(),
     createdAt: id ? ((services.find(function(x) { return x.id === id; }) || {}).createdAt || new Date().toISOString()) : new Date().toISOString()
   };
-  // 清理旧字段，避免混淆
-  delete payload.type;
-  delete payload.contact;
-  delete payload.phone;
-  delete payload.hours;
-  delete payload.scope;
-  delete payload.menu;
 
   if (id) {
     var idx = services.findIndex(function(x) { return x.id === id; });
