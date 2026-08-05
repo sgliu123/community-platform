@@ -478,7 +478,7 @@ a { text-decoration:none; color:var(--primary); }
     <a href="javascript:void(0)" onclick="navigate('polls');return false;" data-page="polls">投票</a>
     <a href="javascript:void(0)" onclick="navigate('workorders');return false;" data-page="workorders">报修</a>
     <a href="javascript:void(0)" onclick="navigate('complaints');return false;" data-page="complaints">反馈</a>
-    <a href="trade-4.html">交易</a>
+    <a href="trade.html">房屋租售和物品交易</a>
   </nav>
   <div class="header-user">
     <span id="userName" style="font-size:13px;"></span>
@@ -855,7 +855,7 @@ function renderHome() {
   h += `<div class="quick-link" onclick="navigate('documents')"><div class="icon">📄</div><div class="label">上级文件</div></div>`;
   h += `<div class="quick-link" onclick="navigate('activities')"><div class="icon">🎉</div><div class="label">社区动态</div></div>`;
   h += `<div class="quick-link" onclick="navigate('polls')"><div class="icon">🗳️</div><div class="label">投票征集</div></div>`;
-  h += `<div class="quick-link" onclick="location.href='trade-4.html'"><div class="icon">🛒</div><div class="label">社区交易</div></div>`;
+  h += `<div class="quick-link" onclick="location.href='trade.html'"><div class="icon">🛒</div><div class="label">房屋租售和物品交易</div></div>`;
   h += `<div class="quick-link" onclick="navigate('submit-workorder')"><div class="icon">🔧</div><div class="label">我要报修</div></div>`;
   h += `<div class="quick-link" onclick="navigate('submit-complaint')"><div class="icon">📝</div><div class="label">投诉建议</div></div>`;
   if (residentAuth) {
