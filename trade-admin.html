@@ -179,9 +179,28 @@ window.onerror = function(msg, url, line) {
   return false;
 };
 
-/* ========== 数据层 ========== */
+/* ========== Worker 云端存储（与前台共用） ========== */
+var WORKER_BASE = (localStorage.getItem('workerBase') || 'https://community.firstblade.site').replace(/\/$/, '');
+var TRADE_DATA_FILE = 'trade_posts.json';
+
+async function workerRead(filePath) {
+  var res = await fetch(WORKER_BASE + '/api/read/' + encodeURIComponent(filePath));
+  if (!res.ok) throw new Error('读取失败');
+  var text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+async function workerWrite(filePath, data, message) {
+  var res = await fetch(WORKER_BASE + '/api/write/' + encodeURIComponent(filePath), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: JSON.stringify(data, null, 2), message: message })
+  });
+  if (!res.ok) { var e = await res.json().catch(function(){return {};}); throw new Error(e.error || '保存失败'); }
+}
+
+/* ========== 数据层（异步：优先云端，fallback本地） ========== */
 var LS_PREFIX = 'trade_';
 var currentModule = 'dashboard';
+var isSubmitting = false;  /* [FIX] 全局防重复提交锁 */
 var reviewFilters = { category:'', status:'', identity:'', _search:'' };
 var reviewSelected = new Set();
 var reportFilterStatus = '';
@@ -194,12 +213,44 @@ function setData(key, val) {
   try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(val)); }
   catch(e) { console.error('setData failed', e); }
 }
+/* [FIX] 异步保存：先写本地，再尝试写云端 */
+async function savePostsAsync(posts, msg) {
+  setData('posts', posts);
+  try { await workerWrite(TRADE_DATA_FILE, posts, msg || '后台更新交易数据'); }
+  catch(e) { console.error('Worker同步失败，已保留本地', e); }
+}
+async function loadPostsAsync() {
+  var localPosts = getData('posts', []);
+  try {
+    var cloudPosts = await workerRead(TRADE_DATA_FILE);
+    if(cloudPosts && Array.isArray(cloudPosts) && cloudPosts.length > 0) {
+      /* 合并去重，以最新为准 */
+      var map = new Map();
+      if(Array.isArray(localPosts)) localPosts.forEach(function(p){ if(p && p.id) map.set(p.id, p); });
+      cloudPosts.forEach(function(p){
+        if(!p || !p.id) return;
+        if(!map.has(p.id)) { map.set(p.id, p); }
+        else {
+          var ex = map.get(p.id);
+          var t1 = new Date(ex.createTime || ex.createdAt || 0).getTime();
+          var t2 = new Date(p.createTime || p.createdAt || 0).getTime();
+          if(t2 > t1) map.set(p.id, p);
+        }
+      });
+      var merged = Array.from(map.values());
+      setData('posts', merged);
+      return merged;
+    }
+  } catch(e) { console.error('Worker读取失败，使用本地', e); }
+  return Array.isArray(localPosts) ? localPosts : [];
+}
 function ensureData() {
   if(!getData('posts', null)) {
+    /* [FIX] 统一字段名，与前台兼容 */
     setData('posts', [
-      {id:'post-001', title:'【测试】出租1号楼2单元三居室', category:'rent', identity:'supply', price:'3500元/月', author:'管理员A', contact:'138****0001', content:'精装修，拎包入住，采光好。', status:'pending', createdAt:'2026-08-04T10:00:00Z', images:[]},
-      {id:'post-002', title:'【测试】求购二手冰箱', category:'used', identity:'demand', price:'500元以内', author:'管理员B', contact:'139****0002', content:'需要双门冰箱，功能正常。', status:'pending', createdAt:'2026-08-04T11:00:00Z', images:[]},
-      {id:'post-003', title:'【测试】家政保洁服务', category:'house', identity:'supply', price:'80元/小时', author:'管理员C', contact:'137****0003', content:'专业保洁团队，深度清洁。', status:'approved', createdAt:'2026-08-03T09:00:00Z', images:[]}
+      {id:'post-001', title:'【测试】出租1号楼2单元三居室', type:'rent', category:'rent', role:'supply', identity:'supply', price:'3500元/月', contact:'管理员A', author:'管理员A', phone:'138****0001', description:'精装修，拎包入住，采光好。', content:'精装修，拎包入住，采光好。', status:'pending', createTime:'2026-08-04T10:00:00Z', createdAt:'2026-08-04T10:00:00Z', images:[], viewCount:0, reportCount:0, messages:[], tags:[], extraData:{rentType:'整租',layout:'三室两厅',area:120}},
+      {id:'post-002', title:'【测试】求购二手冰箱', type:'used', category:'used', role:'demand', identity:'demand', price:'500元以内', contact:'管理员B', author:'管理员B', phone:'139****0002', description:'需要双门冰箱，功能正常。', content:'需要双门冰箱，功能正常。', status:'pending', createTime:'2026-08-04T11:00:00Z', createdAt:'2026-08-04T11:00:00Z', images:[], viewCount:0, reportCount:0, messages:[], tags:[], extraData:{itemCat:'家电',condition:'八成新',originalPrice:800}},
+      {id:'post-003', title:'【测试】家政保洁服务', type:'house', category:'house', role:'supply', identity:'supply', price:'80元/小时', contact:'管理员C', author:'管理员C', phone:'137****0003', description:'专业保洁团队，深度清洁。', content:'专业保洁团队，深度清洁。', status:'approved', createTime:'2026-08-03T09:00:00Z', createdAt:'2026-08-03T09:00:00Z', images:[], viewCount:12, reportCount:0, messages:[], tags:[], extraData:{layout:'两室一厅',area:89,decoration:'精装'}}
     ]);
   }
   if(!getData('reports', null)) {
@@ -257,19 +308,29 @@ function renderSidebar() {
   var nav = document.getElementById('sidebarNav'); if(nav) nav.innerHTML = html;
 }
 
-function go(module) {
+/* [FIX] 异步加载数据后再渲染，确保前后端数据同步 */
+async function go(module) {
   try {
     currentModule = module;
     location.hash = 'module=' + module;
     document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.toggle('active', n.dataset.module === module); });
     var titles = { dashboard:'仪表盘', review:'内容审核', reports:'举报处理', categories:'标签管理', sensitive:'敏感词库' };
     var pt = document.getElementById('pageTitle'); if(pt) pt.textContent = titles[module] || module;
+
+    /* 审核和举报模块需要先同步最新数据 */
+    if(module === 'review' || module === 'reports' || module === 'dashboard'){
+      loading(true);
+      await loadPostsAsync();
+      loading(false);
+    }
+
     var renderers = { dashboard:renderDashboard, review:renderReview, reports:renderReports, categories:renderCategories, sensitive:renderSensitive };
     var fn = renderers[module] || renderDashboard;
     var ca = document.getElementById('contentArea');
     if(ca) { var html = fn(); ca.innerHTML = typeof html === 'string' ? html : '<div class="empty-state"><div class="icon">⚠️</div><div>渲染异常</div></div>'; }
   } catch(e) {
     console.error(e);
+    loading(false);
     var ca = document.getElementById('contentArea');
     if(ca) ca.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div>加载出错</div><div style="font-size:12px;color:#999;margin-top:8px;">'+esc(e.message)+'</div></div>';
   }
@@ -320,7 +381,7 @@ function renderReview() {
   reviewSelected.clear();
 
   var html = '<div class="card"><div class="card-header"><h3>内容审核</h3>';
-  html += '<div class="actions"><button class="btn btn-success" onclick="batchApprove()">批量通过</button><button class="btn btn-danger" onclick="batchReject()">批量驳回</button><button class="btn btn-danger" onclick="batchDelete()">批量删除</button></div></div>';
+  html += '<div class="actions"><button class="btn btn-primary" onclick="openAddModal()">+ 新增发布</button><button class="btn btn-success" onclick="batchApprove()">批量通过</button><button class="btn btn-danger" onclick="batchReject()">批量驳回</button><button class="btn btn-danger" onclick="batchDelete()">批量删除</button></div></div>';
 
   html += '<div class="filter-bar">' +
     '<select onchange="setFilter(\'category\',this.value)"><option value="">全部分类</option><option value="rent" '+(reviewFilters.category==='rent'?'selected':'')+'>房屋租赁</option><option value="house" '+(reviewFilters.category==='house'?'selected':'')+'>家政装修</option><option value="used" '+(reviewFilters.category==='used'?'selected':'')+'>二手闲置</option></select>' +
@@ -335,10 +396,11 @@ function renderReview() {
     html += '<table class="data-table"><thead><tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>标题</th><th>分类</th><th>身份</th><th>价格</th><th>状态</th><th>作者</th><th>时间</th><th>操作</th></tr></thead><tbody>';
     posts.forEach(function(p) {
       if(!p) return;
-      var cat = p.category || p.type || '';
-      var iden = p.identity || p.role || '';
-      var time = p.createdAt || p.createTime || '';
-      var author = p.author || p.contact || p.userId || '';
+      /* [FIX] 兼容前后台字段 */
+      var cat = p.type || p.category || '';
+      var iden = p.role || p.identity || '';
+      var time = p.createTime || p.createdAt || '';
+      var author = p.contact || p.author || p.userId || '';
       var sm = { pending:'<span class="tag tag-pending">待审核</span>', approved:'<span class="tag tag-approved">已通过</span>', rejected:'<span class="tag tag-rejected">已驳回</span>', sold:'<span class="tag tag-sold">已下架</span>', deleted:'<span class="tag tag-deleted">已删除</span>' };
       var thumb = (p.images && p.images.length) ? '<img src="'+p.images[0]+'" class="thumb-img" onclick="previewImg(\''+p.images[0]+'\')">' : '';
       html += '<tr><td><input type="checkbox" value="'+p.id+'" onchange="toggleOne(this)"></td>';
@@ -365,50 +427,91 @@ function setFilter(k,v) { if(k==='search') reviewFilters._search=v; else reviewF
 function toggleAll(cb) { document.querySelectorAll('.data-table tbody input[type=checkbox]').forEach(function(c){ c.checked=cb.checked; if(cb.checked) reviewSelected.add(c.value); else reviewSelected.delete(c.value); }); }
 function toggleOne(cb) { if(cb.checked) reviewSelected.add(cb.value); else reviewSelected.delete(cb.value); }
 
-function batchApprove() {
+/* [FIX] 异步 + 防重 + 云端同步 */
+async function batchApprove() {
+  if(isSubmitting){ toast('操作进行中，请稍候','error'); return; }
   var ids = Array.from(reviewSelected); if(!ids.length){ toast('请先选择内容','error'); return; }
-  var posts = getData('posts',[]); posts.forEach(function(p){ if(p && ids.indexOf(p.id)>=0) p.status='approved'; });
-  setData('posts',posts); toast('已批量通过','success'); go('review');
+  isSubmitting = true; loading(true);
+  var posts = await loadPostsAsync();
+  posts.forEach(function(p){ if(p && ids.indexOf(p.id)>=0){ p.status='approved'; p.updatedAt=new Date().toISOString(); } });
+  await savePostsAsync(posts, '后台批量通过');
+  isSubmitting = false; loading(false);
+  toast('已批量通过 '+ids.length+' 条','success'); go('review');
 }
 function batchReject() {
   var ids = Array.from(reviewSelected); if(!ids.length){ toast('请先选择内容','error'); return; }
   openModal('批量驳回','<div class="form-group"><label>驳回原因</label><textarea id="batchReason" rows="3"></textarea></div>','<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-danger" onclick="doBatchReject()">确认驳回</button>');
 }
-function doBatchReject() {
+async function doBatchReject() {
+  if(isSubmitting) return;
   var reason = document.getElementById('batchReason').value.trim();
   var ids = Array.from(reviewSelected);
-  var posts = getData('posts',[]); posts.forEach(function(p){ if(p && ids.indexOf(p.id)>=0){ p.status='rejected'; p.rejectReason=reason||'批量驳回'; } });
-  setData('posts',posts); closeModal(); toast('已批量驳回','success'); go('review');
+  isSubmitting = true; loading(true);
+  var posts = await loadPostsAsync();
+  posts.forEach(function(p){ if(p && ids.indexOf(p.id)>=0){ p.status='rejected'; p.rejectReason=reason||'批量驳回'; p.updatedAt=new Date().toISOString(); } });
+  await savePostsAsync(posts, '后台批量驳回');
+  isSubmitting = false; loading(false);
+  closeModal(); toast('已批量驳回 '+ids.length+' 条','success'); go('review');
 }
-function batchDelete() {
+async function batchDelete() {
+  if(isSubmitting){ toast('操作进行中，请稍候','error'); return; }
   var ids = Array.from(reviewSelected); if(!ids.length){ toast('请先选择内容','error'); return; }
   if(!confirm('确定批量删除 '+ids.length+' 条内容？')) return;
-  var posts = getData('posts',[]); posts = posts.filter(function(p){ return p && ids.indexOf(p.id)<0; });
-  setData('posts',posts); toast('已批量删除','success'); go('review');
+  isSubmitting = true; loading(true);
+  var posts = await loadPostsAsync();
+  posts = posts.filter(function(p){ return p && ids.indexOf(p.id)<0; });
+  await savePostsAsync(posts, '后台批量删除');
+  isSubmitting = false; loading(false);
+  toast('已批量删除 '+ids.length+' 条','success'); go('review');
 }
-function approvePost(id) {
-  var posts = getData('posts',[]); var p = posts.find(function(x){ return x && x.id===id; });
-  if(p){ p.status='approved'; p.updatedAt=new Date().toISOString(); setData('posts',posts); toast('已通过','success'); go('review'); }
+async function approvePost(id) {
+  if(isSubmitting) return;
+  isSubmitting = true; loading(true);
+  var posts = await loadPostsAsync();
+  var p = posts.find(function(x){ return x && x.id===id; });
+  if(p){ p.status='approved'; p.updatedAt=new Date().toISOString(); await savePostsAsync(posts, '后台通过'); toast('已通过','success'); }
+  isSubmitting = false; loading(false);
+  go('review');
 }
 function rejectPrompt(id) {
   openModal('驳回内容','<div class="form-group"><label>驳回原因</label><textarea id="rejReason" rows="3"></textarea></div>','<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-danger" onclick="doReject(\''+id+'\')">确认驳回</button>');
 }
-function doReject(id) {
+async function doReject(id) {
+  if(isSubmitting) return;
   var reason = document.getElementById('rejReason').value.trim();
-  var posts = getData('posts',[]); var p = posts.find(function(x){ return x && x.id===id; });
-  if(p){ p.status='rejected'; p.rejectReason=reason; p.updatedAt=new Date().toISOString(); setData('posts',posts); closeModal(); toast('已驳回','success'); go('review'); }
+  isSubmitting = true; loading(true);
+  var posts = await loadPostsAsync();
+  var p = posts.find(function(x){ return x && x.id===id; });
+  if(p){ p.status='rejected'; p.rejectReason=reason; p.updatedAt=new Date().toISOString(); await savePostsAsync(posts, '后台驳回'); closeModal(); toast('已驳回','success'); }
+  isSubmitting = false; loading(false);
+  go('review');
 }
-function soldPost(id) {
-  var posts = getData('posts',[]); var p = posts.find(function(x){ return x && x.id===id; });
-  if(p){ p.status='sold'; p.updatedAt=new Date().toISOString(); setData('posts',posts); toast('已下架','success'); go('review'); }
+async function soldPost(id) {
+  if(isSubmitting) return;
+  isSubmitting = true; loading(true);
+  var posts = await loadPostsAsync();
+  var p = posts.find(function(x){ return x && x.id===id; });
+  if(p){ p.status='sold'; p.updatedAt=new Date().toISOString(); await savePostsAsync(posts, '后台下架'); toast('已下架','success'); }
+  isSubmitting = false; loading(false);
+  go('review');
 }
-function delPost(id) { if(!confirm('确定删除？此操作不可恢复。')) return; var posts=getData('posts',[]); posts=posts.filter(function(p){ return p && p.id!==id; }); setData('posts',posts); toast('已删除','success'); go('review'); }
+async function delPost(id) { 
+  if(!confirm('确定删除？此操作不可恢复。')) return; 
+  if(isSubmitting) return;
+  isSubmitting = true; loading(true);
+  var posts = await loadPostsAsync(); 
+  posts = posts.filter(function(p){ return p && p.id!==id; }); 
+  await savePostsAsync(posts, '后台删除');
+  isSubmitting = false; loading(false);
+  toast('已删除','success'); go('review'); 
+}
 function viewPost(id) {
   var posts=getData('posts',[]); var p=posts.find(function(x){ return x && x.id===id; }); if(!p) return;
-  var cat = p.category || p.type || '';
-  var iden = p.identity || p.role || '';
-  var contentText = p.content || p.description || '';
-  var author = p.author || p.contact || p.userId || '';
+  /* [FIX] 兼容前后台字段 */
+  var cat = p.type || p.category || '';
+  var iden = p.role || p.identity || '';
+  var contentText = p.description || p.content || '';
+  var author = p.contact || p.author || p.userId || '';
   var body='<div style="margin-bottom:12px;"><div style="font-weight:600;font-size:16px;margin-bottom:8px;">'+esc(p.title)+'</div>';
   body+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;color:var(--text-secondary);">';
   body+='<span class="badge">分类：'+esc(cat)+'</span><span class="badge">身份：'+(iden==='supply'?'供应':'需求')+'</span>';
@@ -444,7 +547,7 @@ function renderReports() {
     reports.slice().reverse().forEach(function(r){
       if(!r) return;
       var reporter = r.reporterName || r.reporter || '';
-      var time = r.createdAt || r.createTime || '';
+      var time = r.createTime || r.createdAt || '';
       var sm={pending:'<span class="tag tag-pending">待处理</span>', resolved:'<span class="tag tag-resolved">已确认</span>', rejected:'<span class="tag tag-deleted">误报</span>'};
       html+='<tr><td>'+esc(r.postTitle)+'<br><span style="font-size:11px;color:#999">'+(r.postId||'')+'</span></td>';
       html+='<td>'+esc(reporter)+'<br><span style="font-size:11px;color:#999">'+(r.reporterRoom||'')+'</span></td>';
@@ -459,18 +562,28 @@ function renderReports() {
   return html;
 }
 function setReportFilter(s){ reportFilterStatus=s; go('reports'); }
-function confirmViol(id){
+async function confirmViol(id){
+  if(isSubmitting) return;
   if(!confirm('确认违规将删除对应帖子并标记举报为已确认，是否继续？')) return;
-  var reports=getData('reports',[]); var posts=getData('posts',[]);
+  isSubmitting = true; loading(true);
+  var reports=getData('reports',[]); 
+  var posts=await loadPostsAsync();
   var r=reports.find(function(x){ return x && x.id===id; });
   if(r){ r.status='resolved'; r.handledAt=new Date().toISOString(); r.handler='管理员'; r.action='确认违规，删除帖子';
     if(r.postId){ var p=posts.find(function(x){ return x && x.id===r.postId; }); if(p){ p.status='deleted'; p.updatedAt=new Date().toISOString(); } }
-    setData('reports',reports); setData('posts',posts); toast('已确认违规并删除帖子','success'); go('reports');
+    setData('reports',reports); await savePostsAsync(posts, '举报处理-确认违规'); 
+    toast('已确认违规并删除帖子','success'); 
   }
+  isSubmitting = false; loading(false);
+  go('reports');
 }
-function markMis(id){
+async function markMis(id){
+  if(isSubmitting) return;
+  isSubmitting = true; loading(true);
   var reports=getData('reports',[]); var r=reports.find(function(x){ return x && x.id===id; });
-  if(r){ r.status='rejected'; r.handledAt=new Date().toISOString(); r.handler='管理员'; r.action='标记为误报'; setData('reports',reports); toast('已标记为误报','success'); go('reports'); }
+  if(r){ r.status='rejected'; r.handledAt=new Date().toISOString(); r.handler='管理员'; r.action='标记为误报'; setData('reports',reports); toast('已标记为误报','success'); }
+  isSubmitting = false; loading(false);
+  go('reports');
 }
 function viewReport(id){
   var reports=getData('reports',[]); var r=reports.find(function(x){ return x && x.id===id; }); if(!r) return;
@@ -593,16 +706,143 @@ function previewImg(url){
   ov.onclick=function(){ ov.style.opacity='0'; ov.querySelector('img').style.transform='scale(0.95)'; setTimeout(function(){ov.remove();},200); };
 }
 
+/* ========== [FIX] 后台发布/编辑功能 ========== */
+var editingPostId = null;
+
+function openAddModal(postId) {
+  editingPostId = postId || null;
+  var post = null;
+  if(postId) {
+    var posts = getData('posts', []);
+    post = posts.find(function(x){ return x && x.id === postId; });
+  }
+
+  var types = [
+    {k:'rent', label:'房屋租赁'},
+    {k:'house', label:'家政装修'},
+    {k:'used', label:'二手闲置'}
+  ];
+  var roles = [
+    {k:'supply', label:'供应'},
+    {k:'demand', label:'需求'}
+  ];
+
+  var body = '<div class="form-row">';
+  body += '<div class="form-group"><label>分类 <span style="color:#c62828">*</span></label><select id="admType">';
+  types.forEach(function(t){ body += '<option value="'+t.k+'" '+(post && (post.type||post.category)===t.k?'selected':'')+'>'+t.label+'</option>'; });
+  body += '</select></div>';
+  body += '<div class="form-group"><label>身份 <span style="color:#c62828">*</span></label><select id="admRole">';
+  roles.forEach(function(r){ body += '<option value="'+r.k+'" '+(post && (post.role||post.identity)===r.k?'selected':'')+'>'+r.label+'</option>'; });
+  body += '</select></div>';
+  body += '</div>';
+
+  body += '<div class="form-group"><label>标题 <span style="color:#c62828">*</span></label><input type="text" id="admTitle" placeholder="输入标题" value="'+esc(post?post.title:'')+'"></div>';
+  body += '<div class="form-row"><div class="form-group"><label>价格</label><input type="text" id="admPrice" placeholder="如：3500元/月 或 面议" value="'+esc(post?post.price:'')+'"></div><div class="form-group"><label>位置</label><input type="text" id="admLocation" placeholder="如：1号楼3单元" value="'+esc(post?post.location:'')+'"></div></div>';
+  body += '<div class="form-row"><div class="form-group"><label>联系人 <span style="color:#c62828">*</span></label><input type="text" id="admContact" placeholder="联系人姓名" value="'+esc(post?post.contact:'')+'"></div><div class="form-group"><label>手机号 <span style="color:#c62828">*</span></label><input type="text" id="admPhone" placeholder="11位手机号" maxlength="11" value="'+esc(post?post.phone:'')+'"></div></div>';
+  body += '<div class="form-group"><label>详细描述</label><textarea id="admDesc" rows="4" placeholder="输入详细描述">'+esc(post?(post.description||post.content||''):'')+'</textarea></div>';
+  body += '<div class="form-group"><label>状态</label><select id="admStatus">';
+  var sts = [{k:'pending',l:'待审核'},{k:'approved',l:'已通过'},{k:'rejected',l:'已驳回'},{k:'sold',l:'已下架'}];
+  sts.forEach(function(s){ body += '<option value="'+s.k+'" '+(post && post.status===s.k?'selected':'')+'>'+s.l+'</option>'; });
+  body += '</select></div>';
+  body += '<div class="form-group"><label>图片URL（多个用换行分隔）</label><textarea id="admImages" rows="3" placeholder="每行一个图片URL">'+esc(post && post.images ? post.images.join('\n') : '')+'</textarea></div>';
+
+  var title = postId ? '编辑发布' : '新增发布';
+  var footer = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" id="admSubmitBtn" onclick="submitPost()">保存</button>';
+  openModal(title, body, footer);
+}
+
+function validatePhone(phone) {
+  return /^1[3-9]\d{9}$/.test(phone);
+}
+
+async function submitPost() {
+  if(isSubmitting) { toast('保存进行中，请勿重复点击','error'); return; }
+
+  var type = document.getElementById('admType').value;
+  var role = document.getElementById('admRole').value;
+  var title = document.getElementById('admTitle').value.trim();
+  var price = document.getElementById('admPrice').value.trim();
+  var location = document.getElementById('admLocation').value.trim();
+  var contact = document.getElementById('admContact').value.trim();
+  var phone = document.getElementById('admPhone').value.trim();
+  var desc = document.getElementById('admDesc').value.trim();
+  var status = document.getElementById('admStatus').value;
+  var imgsRaw = document.getElementById('admImages').value.trim();
+  var images = imgsRaw ? imgsRaw.split(/\n|,/).map(function(s){return s.trim();}).filter(function(s){return s;}) : [];
+
+  if(!title){ toast('请填写标题','error'); document.getElementById('admTitle').focus(); return; }
+  if(!contact){ toast('请填写联系人','error'); document.getElementById('admContact').focus(); return; }
+  if(!validatePhone(phone)){ toast('请输入正确的11位手机号','error'); document.getElementById('admPhone').focus(); return; }
+
+  isSubmitting = true;
+  var btn = document.getElementById('admSubmitBtn');
+  if(btn){ btn.disabled = true; btn.textContent = '保存中...'; }
+  loading(true);
+
+  try {
+    var posts = await loadPostsAsync();
+    var now = new Date().toISOString();
+
+    if(editingPostId) {
+      var idx = posts.findIndex(function(x){ return x && x.id === editingPostId; });
+      if(idx >= 0){
+        var p = posts[idx];
+        p.type = type; p.category = type;
+        p.role = role; p.identity = role;
+        p.title = title; p.price = price; p.location = location;
+        p.contact = contact; p.phone = phone;
+        p.description = desc; p.content = desc;
+        p.status = status; p.images = images; p.updatedAt = now;
+        toast('修改成功','success');
+      } else {
+        toast('未找到要编辑的内容','error');
+      }
+    } else {
+      var newPost = {
+        id: 'post-' + Date.now() + '-' + Math.random().toString(36).substr(2,5),
+        type: type, category: type,
+        role: role, identity: role,
+        title: title, price: price, location: location,
+        contact: contact, author: contact, phone: phone,
+        description: desc, content: desc,
+        status: status,
+        createTime: now, createdAt: now,
+        viewCount: 0, reportCount: 0, messages: [], tags: [], extraData: {},
+        images: images
+      };
+      posts.unshift(newPost);
+      toast('发布成功','success');
+    }
+
+    await savePostsAsync(posts, editingPostId ? '后台编辑发布' : '后台新增发布');
+    closeModal();
+    editingPostId = null;
+    go('review');
+  } catch(e) {
+    console.error(e);
+    toast('保存失败：' + e.message, 'error');
+  } finally {
+    isSubmitting = false;
+    loading(false);
+    if(btn){ btn.disabled = false; btn.textContent = '保存'; }
+  }
+}
+
 /* ========== 启动 ========== */
-document.addEventListener('DOMContentLoaded', function(){
+/* [FIX] 启动时先同步云端数据 */
+document.addEventListener('DOMContentLoaded', async function(){
   try {
     ensureData();
     renderSidebar();
+    loading(true);
+    await loadPostsAsync();
+    loading(false);
     var hash=location.hash; var m=hash.match(/module=([^&]+)/); var target=m?m[1]:'dashboard';
     var valid=['dashboard','review','reports','categories','sensitive'];
     go(valid.indexOf(target)>=0?target:'dashboard');
   } catch(e) {
     console.error(e);
+    loading(false);
     var ca=document.getElementById('contentArea');
     if(ca) ca.innerHTML='<div style="padding:40px;color:#c62828"><h3>初始化失败</h3><p>'+esc(e.message)+'</p></div>';
   }

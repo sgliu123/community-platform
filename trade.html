@@ -606,8 +606,10 @@ async function getPosts(){
   try{ const d=localStorage.getItem(STORAGE_KEY); return d?JSON.parse(d):null; }catch(e){ return null; }
 }
 async function setPosts(arr){
+  /* [FIX] 始终同步本地，确保后台能读取 */
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); } catch(e){}
   try{ await workerWrite(TRADE_DATA_FILE, arr, '更新交易数据'); }
-  catch(e){ console.error('Worker保存失败，回退本地', e); localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); throw e; }
+  catch(e){ console.error('Worker保存失败，已回退本地', e); throw e; }
 }
 
 function getSensitiveWords(){
@@ -716,21 +718,34 @@ async function init(){
     console.error('[Trade] Worker 读取失败:', e);
   }
 
-  if(cloudPosts && Array.isArray(cloudPosts) && cloudPosts.length > 0){
-    posts = cloudPosts;
-  } else {
-    // 回退本地
-    try {
-      const localData = localStorage.getItem(STORAGE_KEY);
-      if(localData){ posts = JSON.parse(localData); console.log('[Trade] 回退本地数据:', posts.length, '条'); }
-    } catch(e){ posts = []; }
+  /* [FIX] 合并云端与本地数据，按 id 去重，以最新时间为准 */
+  let localPosts = [];
+  try {
+    const localData = localStorage.getItem(STORAGE_KEY);
+    if(localData){ localPosts = JSON.parse(localData); }
+  } catch(e){ localPosts = []; }
 
-    // 如果本地也没有，才用模拟数据，且只存本地不覆盖云端
-    if(!posts || !posts.length){
-      posts = seedData();
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch(e){}
-      console.log('[Trade] 使用模拟数据');
+  const postMap = new Map();
+  if(Array.isArray(cloudPosts)) cloudPosts.forEach(p => { if(p && p.id) postMap.set(p.id, p); });
+  if(Array.isArray(localPosts)) localPosts.forEach(p => {
+    if(!p || !p.id) return;
+    if(!postMap.has(p.id)){
+      postMap.set(p.id, p);
+    } else {
+      const existing = postMap.get(p.id);
+      const t1 = new Date(existing.createTime || existing.createdAt || 0).getTime();
+      const t2 = new Date(p.createTime || p.createdAt || 0).getTime();
+      if(t2 > t1) postMap.set(p.id, p);
     }
+  });
+  posts = Array.from(postMap.values());
+
+  if(!posts || !posts.length){
+    posts = seedData();
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch(e){}
+    console.log('[Trade] 使用模拟数据');
+  } else {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch(e){}
   }
 
   const r = getRoute();
@@ -800,8 +815,8 @@ function render(){
 }
 
 function renderCard(item){
-  const cat = CATEGORIES[item.type] || { name:'', icon:'' };
-  const roleLabel = item.role==='supply' ? '供应' : '需求';
+  const cat = CATEGORIES[item.type || item.category] || { name:'', icon:'' };
+  const roleLabel = (item.role || item.identity) === 'supply' ? '供应' : '需求';
   const roleCls   = item.role==='supply' ? 'tag-supply' : 'tag-demand';
   const img = item.images && item.images[0] ? item.images[0] : '';
   return `<div class="trade-card fade-in" onclick="goDetail('${item.id}')">
@@ -831,10 +846,14 @@ function renderCard(item){
 }
 
 function getFilteredList(){
-  // 兼容后台可能使用的不同状态值：approved / active / 已通过
+  /* [FIX] 兼容后台字段：category/identity/createdAt/content/author */
   const validStatuses = ['approved','active','已通过','published','online'];
-  let list = posts.filter(p=> p.type===currentType && validStatuses.includes(p.status));
-  if(currentRole!=='all') list = list.filter(p=>p.role===currentRole);
+  let list = posts.filter(p=>{
+    const pType = p.type || p.category;
+    const pStatus = p.status || 'pending';
+    return pType === currentType && validStatuses.includes(pStatus);
+  });
+  if(currentRole!=='all') list = list.filter(p=> (p.role || p.identity) === currentRole);
   if(searchKeyword.trim()){
     const kw = searchKeyword.trim().toLowerCase();
     list = list.filter(p=> (p.title||'').toLowerCase().includes(kw) || (p.description||'').toLowerCase().includes(kw));
@@ -1324,12 +1343,17 @@ async function submitPost(){
     }
 
     const auth = getAuth();
+    const now = new Date().toISOString();
     const post = {
-      id: genId(), type: t, role: postState.role, title: title, price: Number(price) || 0,
+      id: genId(), type: t, category: t, role: postState.role, identity: postState.role,
+      title: title, price: Number(price) || 0,
       location: location, images: postState.images, contact: contact, phone: phone,
       status: 'pending', userId: auth && auth.roomNo ? auth.roomNo : (auth && auth.id ? auth.id : 'unknown'),
-      createTime: new Date().toISOString(), viewCount: 0, reportCount: 0, messages: [],
-      tags: getCheckboxValues('f_tags'), description: ($('f_description') && $('f_description').value.trim()) || '', extraData: extra
+      createTime: now, createdAt: now, viewCount: 0, reportCount: 0, messages: [],
+      tags: getCheckboxValues('f_tags'), 
+      description: ($('f_description') && $('f_description').value.trim()) || '',
+      content: ($('f_description') && $('f_description').value.trim()) || '',
+      extraData: extra
     };
     posts.unshift(post);
     await setPosts(posts);
@@ -1398,8 +1422,8 @@ async function renderDetailPage(){
   currentDetailPost = post;
   post.viewCount = (post.viewCount || 0) + 1;
   try { await setPosts(posts); } catch(e) {}
-  const cat = CATEGORIES[post.type] || { name:'', icon:'' };
-  const isSupply = post.role === 'supply';
+  const cat = CATEGORIES[post.type || post.category] || { name:'', icon:'' };
+  const isSupply = (post.role || post.identity) === 'supply';
   let h = '<div class="detail-page fade-in">';
   h += '<button class="detail-back-btn" onclick="goBackFromDetail()"><span>←</span> 返回列表</button>';
   const imgs = post.images || [];
@@ -1544,7 +1568,7 @@ function closeFullscreen(){
 /* 相似推荐 */
 function getSimilarPosts(currentPost){
   return posts
-    .filter(p => p.id !== currentPost.id && p.type === currentPost.type && p.status === 'approved')
+    .filter(p => p.id !== currentPost.id && (p.type || p.category) === (currentPost.type || currentPost.category) && ['approved','active','已通过'].includes(p.status))
     .sort((a,b) => new Date(b.createTime) - new Date(a.createTime))
     .slice(0, 3);
 }
@@ -1774,7 +1798,10 @@ function renderMyPosts(){
     return;
   }
   const uid = auth.roomNo || auth.id || '';
-  const myPosts = posts.filter(p => p.userId === uid).sort((a,b) => new Date(b.createTime) - new Date(a.createTime));
+  const myPosts = posts.filter(p => {
+    const pUid = p.userId || p.author || p.contact || '';
+    return pUid === uid || pUid === (auth.name||'') || pUid === (auth.roomNo||'');
+  }).sort((a,b) => new Date(b.createTime || b.createdAt) - new Date(a.createTime || a.createdAt));
   let h = '<div class="my-posts-page fade-in">';
   h += '<div class="my-posts-header">';
   h += '<h2>📋 我的发布</h2>';
