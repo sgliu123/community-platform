@@ -514,19 +514,24 @@ function renderServiceList() {
     return;
   }
   if (empty) empty.style.display = 'none';
-  var typeTagClass = { "\u8ba2\u9910": "tag-type-dc", "\u4ee3\u8d2d": "tag-type-dg", "\u8d85\u5e02": "tag-type-cs" };
+  var typeTagClass = { "\u8ba2\u9910": "tag-type-dc", "\u4ee3\u8d2d": "tag-type-dg", "\u8d85\u5e02": "tag-type-cs", "food": "tag-type-dc", "shopping": "tag-type-dg", "supermarket": "tag-type-cs" };
+  var typeTextMap = { "food": "\u8ba2\u9910", "shopping": "\u4ee3\u8d2d", "supermarket": "\u8d85\u5e02", "\u8ba2\u9910": "\u8ba2\u9910", "\u4ee3\u8d2d": "\u4ee3\u8d2d", "\u8d85\u5e02": "\u8d85\u5e02" };
   var statusTagClass = { "active": "tag-active", "pending": "tag-pending", "closed": "tag-closed" };
   var statusText = { "active": "上架", "pending": "待审核", "closed": "已关闭" };
   if (tbody) {
     tbody.innerHTML = services.map(function(s) {
-      var tcls = typeTagClass[s.type] || 'tag-type-dc';
+      var typeVal = s.type || s.serviceType || '';
+      var tcls = typeTagClass[typeVal] || 'tag-type-dc';
+      var typeLabel = typeTextMap[typeVal] || typeVal || '其他';
       var scls = statusTagClass[s.status] || 'tag-closed';
       var stxt = statusText[s.status] || s.status;
+      var contact = s.contact || s.contactName || '';
+      var phone = s.phone || s.contactPhone || '';
       return '<tr>' +
         '<td><strong>' + escapeHtml(s.name) + '</strong></td>' +
-        '<td><span class="tag ' + tcls + '">' + s.type + '</span></td>' +
-        '<td>' + escapeHtml(s.contact) + '</td>' +
-        '<td>' + escapeHtml(s.phone) + '</td>' +
+        '<td><span class="tag ' + tcls + '">' + escapeHtml(typeLabel) + '</span></td>' +
+        '<td>' + escapeHtml(contact) + '</td>' +
+        '<td>' + escapeHtml(phone) + '</td>' +
         '<td><span class="tag ' + scls + '">' + stxt + '</span></td>' +
         '<td>' + formatDate(s.createdAt) + '</td>' +
         '<td>' +
@@ -544,17 +549,18 @@ function openModal(id) {
   document.getElementById('modalTitle').textContent = isEdit ? '编辑商家' : '新增商家';
   document.getElementById('editId').value = id || '';
   _editImages = [];
+  var typeReverseMap = { 'food': '\u8ba2\u9910', 'shopping': '\u4ee3\u8d2d', 'supermarket': '\u8d85\u5e02' };
   if (isEdit) {
     var s = services.find(function(x) { return x.id === id; });
     if (!s) return;
     document.getElementById('fName').value = s.name || '';
-    document.getElementById('fType').value = s.type || '';
+    document.getElementById('fType').value = s.type || typeReverseMap[s.serviceType] || '\u8ba2\u9910';
     document.getElementById('fStatus').value = s.status || 'active';
-    document.getElementById('fContact').value = s.contact || '';
-    document.getElementById('fPhone').value = s.phone || '';
-    document.getElementById('fHours').value = s.hours || '';
-    document.getElementById('fScope').value = s.scope || '';
-    document.getElementById('fMenu').value = (s.menu || []).join('\n');
+    document.getElementById('fContact').value = s.contact || s.contactName || '';
+    document.getElementById('fPhone').value = s.phone || s.contactPhone || '';
+    document.getElementById('fHours').value = s.hours || s.businessHours || '';
+    document.getElementById('fScope').value = s.scope || s.serviceScope || '';
+    document.getElementById('fMenu').value = (s.menu || s.menuItems || []).join('\n');
     _editImages = (s.images || []).slice();
   } else {
     document.getElementById('fName').value = '';
@@ -1272,6 +1278,11 @@ function exportOrderCSV() {
 }
 
 /* ===== 初始化 ===== */
+window.addEventListener('hashchange', function() {
+  var hash = window.location.hash;
+  if (hash.indexOf('canteen') >= 0) { switchPage('canteen'); }
+  else { switchPage('life'); }
+});
 document.addEventListener('DOMContentLoaded', async function() {
   applyTheme(currentTheme);
   renderThemePanel();

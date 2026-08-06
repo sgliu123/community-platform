@@ -631,6 +631,7 @@ function renderCanteenHome() {
 }
 
 function renderCanteenMenu(dateStr) {
+  dateStr = (dateStr || "").split("?")[0];
   if (!dateStr) return renderCanteenHome();
   const day = canteenData.menus && canteenData.menus[dateStr];
   if (!day || !day.meals) {
@@ -657,7 +658,7 @@ function renderCanteenMenu(dateStr) {
   mealTypes.forEach(mt => {
     const active = mt === currentMeal ? "active" : "";
     const ok = canOrder(dateStr, mt);
-    h += '<button class="meal-tab ' + active + '" ' + (ok ? '' : 'disabled') + ' onclick="window.location.hash=\'#/canteen/menu/' + dateStr + '?meal=' + mt + '\';render();">' + getMealName(mt) + (ok ? "" : " (已截止)") + '</button>';
+    h += '<button class="meal-tab ' + active + '" ' + (ok ? '' : 'disabled') + ' onclick="navigate(\'canteen/menu\',\'' + dateStr + '?meal=' + mt + '\')">' + getMealName(mt) + (ok ? "" : " (已截止)") + '</button>';
   });
   h += '</div>';
   if (!canOrder(dateStr, currentMeal)) {
@@ -703,6 +704,7 @@ function renderCanteenMenu(dateStr) {
 }
 
 function canteenQty(dateStr, mealType, pkgId, delta) {
+  dateStr = (dateStr || "").split("?")[0];
   const day = canteenData.menus && canteenData.menus[dateStr];
   const meal = day && day.meals && day.meals[mealType];
   if (!meal) return;
@@ -714,15 +716,14 @@ function canteenQty(dateStr, mealType, pkgId, delta) {
   if (next < 0) return;
   if (next > remaining) { showToast("库存不足，仅剩 " + (remaining === Infinity ? '充足' : remaining + " 份")); return; }
   setCart(dateStr, mealType, pkgId, next);
+  _lastRenderedRoute = "";
   render();
 }
 
 function renderCanteenOrder() {
   const r = getRoute();
-  const dateStr = r.params;
-  const hash = window.location.hash;
-  const m = hash.match(/meal=([^&]+)/);
-  const mealType = (m ? m[1] : "lunch");
+  const dateStr = (r.sub || "").split("?")[0];
+  const mealType = (window.location.hash.match(/meal=([^&]+)/) || [])[1] || "lunch";
   const cart = getCart(dateStr, mealType);
   const items = [];
   const day = canteenData.menus && canteenData.menus[dateStr];
@@ -774,6 +775,7 @@ function renderCanteenOrder() {
 }
 
 async function doCanteenOrder(dateStr, mealType) {
+  dateStr = (dateStr || "").split("?")[0];
   if (!canOrder(dateStr, mealType)) { showToast("已截止预订，无法下单"); return; }
   const people = parseInt(document.getElementById("coPeople").value) || 1;
   const pickup = document.getElementById("coPickup").value;
@@ -802,8 +804,10 @@ async function doCanteenOrder(dateStr, mealType) {
   if (!packages.length) { showToast("购物车为空"); return; }
   showPageLoading(true);
   try {
-    const menuData = await workerRead("canteen-menu.json");
-    const orderData = await workerRead("canteen-orders.json");
+    let menuData = canteenData;
+    let orderData = canteenOrders;
+    try { menuData = await workerRead("canteen-menu.json"); } catch(e1) { console.log("菜单读取失败，使用本地数据", e1); }
+    try { orderData = await workerRead("canteen-orders.json"); } catch(e2) { console.log("订单读取失败，使用本地数据", e2); }
     const m = menuData.menus && menuData.menus[dateStr] && menuData.menus[dateStr].meals && menuData.menus[dateStr].meals[mealType];
     if (m) {
       for (const it of packages) {
@@ -840,8 +844,14 @@ async function doCanteenOrder(dateStr, mealType) {
     if (!orderData.orders) orderData.orders = [];
     orderData.orders.unshift(newOrder);
     orderData.updatedAt = new Date().toISOString();
-    await workerWrite("canteen-menu.json", menuData, "扣减库存 " + dateStr + " " + mealType);
-    await workerWrite("canteen-orders.json", orderData, "用户下单 " + newOrder.orderId);
+    try {
+      await workerWrite("canteen-menu.json", menuData, "扣减库存 " + dateStr + " " + mealType);
+      await workerWrite("canteen-orders.json", orderData, "用户下单 " + newOrder.orderId);
+    } catch(writeErr) {
+      console.error("Worker写入失败，仅更新本地数据", writeErr);
+      canteenData = menuData;
+      canteenOrders = orderData;
+    }
     _cart[getCartKey(dateStr, mealType)] = {};
     showToast("已提交，等待食堂确认");
     navigate("canteen/myorders");
