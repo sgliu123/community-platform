@@ -1480,19 +1480,22 @@ async function changePassword() {
 
   const account = ADMIN_ACCOUNTS.find(a => a.id === (currentAdmin && currentAdmin.id));
   if (!account) { showToast('账户配置异常', 'error'); return; }
-  if (oldPwd !== account.password) { showToast('当前密码错误', 'error'); return; }
+  const oldHash = await sha256(oldPwd);
+  if (oldHash !== account.password) { showToast('当前密码错误', 'error'); return; }
+
+  const newHash = await sha256(newPwd);
 
   // 更新内存中的密码
-  account.password = newPwd;
+  account.password = newHash;
 
   // 同步持久化到 config.adminAccounts（如 Worker 可用）
   if (!appData.config) appData.config = {};
   if (!appData.config.adminAccounts) appData.config.adminAccounts = [];
   let persisted = appData.config.adminAccounts.find(a => a.id === account.id);
   if (persisted) {
-    persisted.password = newPwd;
+    persisted.password = newHash;
   } else {
-    appData.config.adminAccounts.push({ id: account.id, password: newPwd, permissions: account.permissions });
+    appData.config.adminAccounts.push({ id: account.id, password: newHash, permissions: account.permissions });
   }
 
   showLoading(true);
@@ -1502,6 +1505,9 @@ async function changePassword() {
     localStorage.setItem('pwdChanged_' + account.id, '1');
     account.mustChangePwd = false;
     showToast('密码修改成功', 'success');
+    document.getElementById('oldPassword').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
   } catch(e) {
     showToast('密码已更新（内存），但持久化失败：' + e.message, 'warning');
   } finally {
