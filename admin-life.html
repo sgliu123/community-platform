@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>生活服务管理</title>
+<title>社区管理平台</title>
 <style>
 :root {
   --primary: #2E8B57; --primary-light: #3da76b; --primary-dark: #1f6b41;
@@ -179,6 +179,59 @@ tr:hover td { background:#fafafa; }
   .topbar { padding:0 16px; }
   .container { padding:16px; }
 }
+
+/* ===== 食堂管理新增样式 ===== */
+.tab-bar { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--border); }
+.tab-bar button {
+  padding:10px 20px; background:none; border:none; border-bottom:2px solid transparent;
+  font-size:14px; font-weight:500; color:var(--text-secondary); cursor:pointer;
+  margin-bottom:-2px; transition:.2s;
+}
+.tab-bar button.active { color:var(--primary); border-bottom-color:var(--primary); }
+
+.pkg-editor { background:#fafbfc; border-radius:8px; padding:14px; margin-bottom:12px; border:1px solid var(--border); }
+.pkg-editor-row { display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; margin-bottom:10px; }
+@media (max-width:600px) { .pkg-editor-row { grid-template-columns:1fr; } }
+.pkg-editor-actions { display:flex; gap:8px; justify-content:flex-end; }
+
+.preview-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:14px; }
+.preview-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; border:1px solid var(--border); }
+.preview-img { width:100%; height:140px; object-fit:cover; display:block; background:#f0f2f5; }
+.preview-img-placeholder { width:100%; height:140px; background:linear-gradient(135deg,var(--primary),var(--primary-light)); display:flex; align-items:center; justify-content:center; color:#fff; font-size:28px; }
+.preview-body { padding:12px; }
+.preview-name { font-size:14px; font-weight:600; margin-bottom:4px; }
+.preview-desc { font-size:12px; color:var(--text-secondary); line-height:1.4; margin-bottom:8px; }
+.preview-meta { display:flex; justify-content:space-between; font-size:13px; }
+.preview-price { color:var(--primary); font-weight:700; }
+
+.meal-section { margin-bottom:20px; }
+.meal-section h4 { font-size:15px; font-weight:600; margin-bottom:10px; color:var(--text); display:flex; align-items:center; gap:6px; }
+.meal-section h4 .tag { font-size:11px; padding:2px 8px; border-radius:4px; background:#e8f5e9; color:#2e7d32; }
+
+.toast { position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-60px); background:#333; color:#fff; padding:12px 24px; border-radius:8px; font-size:14px; z-index:5000; opacity:0; transition:all .3s ease; pointer-events:none; }
+.toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+
+/* 订单管理 */
+.filter-bar { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; align-items:flex-end; }
+.filter-bar .form-group { margin-bottom:0; flex:1; min-width:140px; }
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:14px; margin-bottom:20px; }
+.stat-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; text-align:center; border-top:3px solid var(--primary); }
+.stat-value { font-size:24px; font-weight:700; color:var(--primary); margin-bottom:4px; }
+.stat-label { font-size:12px; color:var(--text-secondary); }
+.stat-row { display:flex; justify-content:space-between; padding:6px 0; font-size:13px; border-bottom:1px dashed var(--border); }
+.stat-row:last-child { border-bottom:none; }
+.order-table td { font-size:13px; vertical-align:top; }
+.order-table .pkg-list { font-size:12px; color:var(--text-secondary); line-height:1.5; }
+.badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; }
+.badge-pending { background:#fff3e0; color:#e65100; }
+.badge-confirmed { background:#e8f5e9; color:#2e7d32; }
+.badge-cancelled { background:#eceff1; color:#546e7a; }
+.badge-completed { background:#e3f2fd; color:#1565c0; }
+.alert-banner { background:#fff3e0; border-left:4px solid #e65100; padding:12px 16px; border-radius:8px; margin-bottom:16px; display:flex; align-items:center; gap:10px; font-size:14px; color:#e65100; }
+.rank-list { display:flex; flex-direction:column; gap:6px; }
+.rank-item { display:flex; justify-content:space-between; align-items:center; font-size:13px; }
+.rank-bar-bg { width:100%; height:6px; background:#f0f2f5; border-radius:3px; margin-top:4px; overflow:hidden; }
+.rank-bar { height:100%; background:var(--primary); border-radius:3px; }
 </style>
 </head>
 <body>
@@ -195,39 +248,21 @@ tr:hover td { background:#fafafa; }
       <a href="admin.html#residents"><span class="nav-icon">&#128101;</span>居民管理</a>
       <a href="admin.html#workorders"><span class="nav-icon">&#128295;</span>工单管理</a>
       <a href="admin.html#complaints"><span class="nav-icon">&#128221;</span>投诉管理</a>
-      <a href="admin-life.html" class="active"><span class="nav-icon">&#127835;</span>生活服务</a>
+      <a href="admin-life.html" class="active" id="navLife"><span class="nav-icon">&#127835;</span>生活服务</a>
+      <a href="admin-life.html#canteen" id="navCanteen"><span class="nav-icon">&#127860;</span>食堂管理</a>
     </nav>
     <div class="sidebar-footer">社区数字化平台<br>v2026.08</div>
   </aside>
 
   <div class="main-content">
     <div class="topbar">
-      <h1>&#127835; 生活服务管理</h1>
-      <div class="topbar-actions">
+      <h1 id="pageTitle">&#127835; 生活服务管理</h1>
+      <div class="topbar-actions" id="topbarActions">
         <button class="btn btn-secondary" onclick="downloadJSON()">&#11015; 下载 JSON</button>
         <button class="btn btn-primary" onclick="openModal()">&#10133; 新增商家</button>
       </div>
     </div>
-    <div class="container">
-      <div class="card">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>名称</th>
-                <th>类型</th>
-                <th>联系人</th>
-                <th>电话</th>
-                <th>状态</th>
-                <th>创建时间</th>
-                <th style="width:120px;">操作</th>
-              </tr>
-            </thead>
-            <tbody id="listBody"></tbody>
-          </table>
-        </div>
-        <div id="listEmpty" class="empty" style="display:none;">暂无商家数据</div>
-      </div>
+    <div class="container" id="mainContainer">
     </div>
   </div>
 </div>
@@ -306,8 +341,9 @@ tr:hover td { background:#fafafa; }
   <button class="theme-btn" onclick="toggleThemePanel()">&#127912;</button>
 </div>
 
-<script>
+<div class="toast" id="toast"></div>
 
+<script>
 
 function escapeHtml(text) {
   if (!text) return '';
@@ -320,6 +356,11 @@ function formatDate(iso) {
   const d = new Date(iso);
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
+function formatDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return formatDate(iso) + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
 function showPageLoading(show) {
   let el = document.getElementById('pageLoading');
   if (!el) {
@@ -330,6 +371,12 @@ function showPageLoading(show) {
     document.body.appendChild(el);
   }
   el.style.display = show ? 'flex' : 'none';
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
 }
 
 const WORKER_BASE = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
@@ -420,6 +467,7 @@ function toggleThemePanel() {
   document.getElementById("themePanel").classList.toggle("active");
 }
 
+/* ===== 原有生活服务数据 ===== */
 const EMBEDDED_DATA = [
   { id: "svc-001", name: "张记家常菜", serviceType: "food", contactName: "张师傅", contactPhone: "13800138001", businessHours: "10:00 - 22:00", serviceScope: "本小区及周边3公里", menuItems: ["红烧肉","番茄炒蛋","清蒸鱼","地三鲜"], images: [], status: "active", createdAt: "2026-07-01T08:00:00Z" },
   { id: "svc-002", name: "小李代购", serviceType: "shopping", contactName: "李姐", contactPhone: "13900139002", businessHours: "09:00 - 20:00", serviceScope: "山姆、盒马、Costco", menuItems: [], images: [], status: "active", createdAt: "2026-07-05T10:30:00Z" },
@@ -430,28 +478,22 @@ const EMBEDDED_DATA = [
 let services = [];
 let _editImages = [];
 
-async function loadData() {
+async function loadServices() {
   showPageLoading(true);
   try {
     var data = await workerRead('services.json');
-    // 兼容两种格式：数组 或 { services: [...] }
-    if (Array.isArray(data)) {
-      services = data;
-    } else if (data && Array.isArray(data.services)) {
-      services = data.services;
-    } else {
-      services = [];
-    }
+    if (Array.isArray(data)) { services = data; }
+    else if (data && Array.isArray(data.services)) { services = data.services; }
+    else { services = []; }
     if (!services || !services.length) services = JSON.parse(JSON.stringify(EMBEDDED_DATA));
   } catch (e) {
     console.error('Worker读取失败，使用嵌入式数据', e);
     services = JSON.parse(JSON.stringify(EMBEDDED_DATA));
   }
   showPageLoading(false);
-  renderList();
 }
 
-async function saveData() {
+async function saveServices() {
   showPageLoading(true);
   try {
     await workerWrite('services.json', services, '更新生活服务商家数据');
@@ -460,38 +502,40 @@ async function saveData() {
     alert('保存到服务器失败，数据仅保留在本地内存中。\n建议点击「下载 JSON」手动备份。');
   }
   showPageLoading(false);
-  renderList();
+  renderServiceList();
 }
 
-function renderList() {
+function renderServiceList() {
   var tbody = document.getElementById('listBody');
   var empty = document.getElementById('listEmpty');
   if (!services.length) {
-    tbody.innerHTML = '';
-    empty.style.display = 'block';
+    if (tbody) tbody.innerHTML = '';
+    if (empty) empty.style.display = 'block';
     return;
   }
-  empty.style.display = 'none';
-  var typeTagClass = { "订餐": "tag-type-dc", "代购": "tag-type-dg", "超市": "tag-type-cs" };
+  if (empty) empty.style.display = 'none';
+  var typeTagClass = { "\u8ba2\u9910": "tag-type-dc", "\u4ee3\u8d2d": "tag-type-dg", "\u8d85\u5e02": "tag-type-cs" };
   var statusTagClass = { "active": "tag-active", "pending": "tag-pending", "closed": "tag-closed" };
   var statusText = { "active": "上架", "pending": "待审核", "closed": "已关闭" };
-  tbody.innerHTML = services.map(function(s) {
-    var tcls = typeTagClass[s.type] || 'tag-type-dc';
-    var scls = statusTagClass[s.status] || 'tag-closed';
-    var stxt = statusText[s.status] || s.status;
-    return '<tr>' +
-      '<td><strong>' + escapeHtml(s.name) + '</strong></td>' +
-      '<td><span class="tag ' + tcls + '">' + s.type + '</span></td>' +
-      '<td>' + escapeHtml(s.contact) + '</td>' +
-      '<td>' + escapeHtml(s.phone) + '</td>' +
-      '<td><span class="tag ' + scls + '">' + stxt + '</span></td>' +
-      '<td>' + formatDate(s.createdAt) + '</td>' +
-      '<td>' +
-        '<button class="btn btn-secondary btn-sm" onclick="openModal(\'' + s.id + '\')">编辑</button>' +
-        '<button class="btn btn-danger btn-sm" style="margin-left:6px;" onclick="doDelete(\'' + s.id + '\')">删除</button>' +
-      '</td>' +
-    '</tr>';
-  }).join('');
+  if (tbody) {
+    tbody.innerHTML = services.map(function(s) {
+      var tcls = typeTagClass[s.type] || 'tag-type-dc';
+      var scls = statusTagClass[s.status] || 'tag-closed';
+      var stxt = statusText[s.status] || s.status;
+      return '<tr>' +
+        '<td><strong>' + escapeHtml(s.name) + '</strong></td>' +
+        '<td><span class="tag ' + tcls + '">' + s.type + '</span></td>' +
+        '<td>' + escapeHtml(s.contact) + '</td>' +
+        '<td>' + escapeHtml(s.phone) + '</td>' +
+        '<td><span class="tag ' + scls + '">' + stxt + '</span></td>' +
+        '<td>' + formatDate(s.createdAt) + '</td>' +
+        '<td>' +
+          '<button class="btn btn-secondary btn-sm" onclick="openModal(\'' + s.id + '\')">编辑</button>' +
+          '<button class="btn btn-danger btn-sm" style="margin-left:6px;" onclick="doDelete(\'' + s.id + '\')">删除</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
 }
 
 function openModal(id) {
@@ -500,7 +544,6 @@ function openModal(id) {
   document.getElementById('modalTitle').textContent = isEdit ? '编辑商家' : '新增商家';
   document.getElementById('editId').value = id || '';
   _editImages = [];
-
   if (isEdit) {
     var s = services.find(function(x) { return x.id === id; });
     if (!s) return;
@@ -515,7 +558,7 @@ function openModal(id) {
     _editImages = (s.images || []).slice();
   } else {
     document.getElementById('fName').value = '';
-    document.getElementById('fType').value = '订餐';
+    document.getElementById('fType').value = '\u8ba2\u9910';
     document.getElementById('fStatus').value = 'active';
     document.getElementById('fContact').value = '';
     document.getElementById('fPhone').value = '';
@@ -526,12 +569,10 @@ function openModal(id) {
   renderImagePreview();
   modal.classList.add('active');
 }
-
 function closeModal() {
   document.getElementById('editModal').classList.remove('active');
   _editImages = [];
 }
-
 function renderImagePreview() {
   var grid = document.getElementById('imgPreviewGrid');
   if (!_editImages.length) { grid.innerHTML = ''; return; }
@@ -542,12 +583,10 @@ function renderImagePreview() {
     '</div>';
   }).join('');
 }
-
 function removeImage(idx) {
   _editImages.splice(idx, 1);
   renderImagePreview();
 }
-
 async function handleImages(input) {
   var files = Array.from(input.files);
   if (!files.length) return;
@@ -556,23 +595,16 @@ async function handleImages(input) {
     try {
       var compressed = await compressImage(f, { maxWidth: 640, maxHeight: 640, quality: 0.25, maxSize: 30 * 1024 });
       var reader = new FileReader();
-      reader.onload = function(e) {
-        _editImages.push(e.target.result);
-        renderImagePreview();
-      };
+      reader.onload = function(e) { _editImages.push(e.target.result); renderImagePreview(); };
       reader.readAsDataURL(compressed);
     } catch (e) {
       var reader = new FileReader();
-      reader.onload = function(e) {
-        _editImages.push(e.target.result);
-        renderImagePreview();
-      };
+      reader.onload = function(e) { _editImages.push(e.target.result); renderImagePreview(); };
       reader.readAsDataURL(f);
     }
   }
   input.value = '';
 }
-
 async function doSave() {
   var id = document.getElementById('editId').value;
   var name = document.getElementById('fName').value.trim();
@@ -584,65 +616,671 @@ async function doSave() {
   var scope = document.getElementById('fScope').value.trim();
   var menuRaw = document.getElementById('fMenu').value;
   var menu = menuRaw.split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
-
   if (!name) { alert('请填写名称'); return; }
-
-  var typeMap = { '订餐': 'food', '代购': 'shopping', '超市': 'supermarket' };
+  var typeMap = { '\u8ba2\u9910': 'food', '\u4ee3\u8d2d': 'shopping', '\u8d85\u5e02': 'supermarket' };
   var payload = {
     id: id || ('svc-' + Date.now() + '-' + Math.random().toString(36).substr(2,4)),
-    name: name,
-    type: type,
-    serviceType: typeMap[type] || type,
-    status: status,
-    contact: contact,
-    contactName: contact,
-    phone: phone,
-    contactPhone: phone,
-    hours: hours,
-    businessHours: hours,
-    scope: scope,
-    serviceScope: scope,
-    menu: menu,
-    menuItems: menu,
-    images: _editImages.slice(),
+    name: name, type: type, serviceType: typeMap[type] || type, status: status,
+    contact: contact, contactName: contact, phone: phone, contactPhone: phone,
+    hours: hours, businessHours: hours, scope: scope, serviceScope: scope,
+    menu: menu, menuItems: menu, images: _editImages.slice(),
     createdAt: id ? ((services.find(function(x) { return x.id === id; }) || {}).createdAt || new Date().toISOString()) : new Date().toISOString()
   };
-
   if (id) {
     var idx = services.findIndex(function(x) { return x.id === id; });
     if (idx >= 0) services[idx] = payload;
-  } else {
-    services.push(payload);
-  }
-
-  await saveData();
+  } else { services.push(payload); }
+  await saveServices();
   closeModal();
 }
-
 async function doDelete(id) {
   var s = services.find(function(x) { return x.id === id; });
   if (!s) return;
   if (!confirm('确定要删除「' + s.name + '」吗？此操作不可撤销。')) return;
   services = services.filter(function(x) { return x.id !== id; });
-  await saveData();
+  await saveServices();
 }
-
 function downloadJSON() {
   var blob = new Blob([JSON.stringify(services, null, 2)], { type: 'application/json' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
-  a.href = url;
-  a.download = 'services-备份.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  a.href = url; a.download = 'services-\u5907\u4efd.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+/* ===== 食堂管理数据 ===== */
+let canteenMenuData = { version: "1.0", updatedAt: "", menus: {} };
+let canteenOrdersData = { version: "1.0", updatedAt: "", orders: [] };
+let _pkgEditors = [];
+
+const CANTEEN_EMBED = {
+  version: "1.0", updatedAt: "2026-08-06T08:00:00+08:00",
+  menus: {
+    "2026-08-06": {
+      date: "2026-08-06",
+      meals: {
+        breakfast: { mealType: "breakfast", mealName: "早餐", orderDeadline: "07:00", packages: [
+          { id: "pkg-bf-001", name: "营养粥品套餐", price: 8.00, stock: 80, sold: 45, description: "皮蛋瘦肉粥 + 蒸饺4只 + 豆浆", image: "", tags: ["清淡", "暖胃"] },
+          { id: "pkg-bf-002", name: "西式早餐套餐", price: 12.00, stock: 50, sold: 22, description: "全麦吐司 + 煎蛋 + 牛奶 + 水果沙拉", image: "", tags: ["轻食", "高蛋白"] }
+        ]},
+        lunch: { mealType: "lunch", mealName: "午餐", orderDeadline: "11:00", packages: [
+          { id: "pkg-ln-001", name: "家常两荤一素", price: 18.00, stock: 100, sold: 67, description: "红烧肉 + 宫保鸡丁 + 清炒时蔬 + 米饭 + 例汤", image: "", tags: ["经典", "量大"] },
+          { id: "pkg-ln-002", name: "健康轻食套餐", price: 22.00, stock: 60, sold: 35, description: "香煎鸡胸肉 + 藜麦饭 + 西兰花 + 圣女果", image: "", tags: ["低卡", "健身"] },
+          { id: "pkg-ln-003", name: "川味套餐", price: 20.00, stock: 50, sold: 48, description: "水煮鱼 + 麻婆豆腐 + 米饭 + 酸梅汤", image: "", tags: ["辣味", "下饭"] }
+        ]},
+        dinner: { mealType: "dinner", mealName: "晚餐", orderDeadline: "17:00", packages: [
+          { id: "pkg-dn-001", name: "养生粥套餐", price: 15.00, stock: 60, sold: 18, description: "小米粥 + 蒸南瓜 + 凉拌黄瓜 + 花卷", image: "", tags: ["清淡", "易消化"] },
+          { id: "pkg-dn-002", name: "面食套餐", price: 16.00, stock: 40, sold: 12, description: "牛肉拉面 + 凉拌木耳 + 茶叶蛋", image: "", tags: ["面食", "热乎"] }
+        ]}
+      }
+    }
+  }
+};
+
+async function loadCanteenMenu() {
+  showPageLoading(true);
+  try {
+    var data = await workerRead('canteen-menu.json');
+    if (data && data.menus) canteenMenuData = data;
+    else canteenMenuData = JSON.parse(JSON.stringify(CANTEEN_EMBED));
+  } catch(e) {
+    console.error('食堂菜单读取失败，使用嵌入数据', e);
+    canteenMenuData = JSON.parse(JSON.stringify(CANTEEN_EMBED));
+  }
+  showPageLoading(false);
+}
+async function saveCanteenMenu() {
+  showPageLoading(true);
+  try {
+    canteenMenuData.updatedAt = new Date().toISOString();
+    await workerWrite('canteen-menu.json', canteenMenuData, '管理员更新食堂菜单');
+    showToast('菜单已保存');
+  } catch(e) {
+    console.error('保存失败', e);
+    alert('保存到服务器失败，数据仅保留在本地。\n建议导出 JSON 手动备份。');
+  }
+  showPageLoading(false);
+}
+
+/* 静默保存菜单（用于库存回滚） */
+async function saveCanteenMenuSilent() {
+  try {
+    canteenMenuData.updatedAt = new Date().toISOString();
+    await workerWrite('canteen-menu.json', canteenMenuData, '管理员回滚库存');
+  } catch(e) { console.error('库存回滚保存失败', e); }
+}
+
+function getTodayStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function getYesterdayStr(dateStr) {
+  var d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function getMealLabel(type) {
+  return { breakfast: '早餐', lunch: '午餐', dinner: '晚餐' }[type] || type;
+}
+function getMealDeadline(type) {
+  return { breakfast: '07:00', lunch: '11:00', dinner: '17:00' }[type] || '12:00';
+}
+
+/* ===== 页面路由 ===== */
+let currentPage = 'life';
+let canteenTab = 'menu';
+
+function switchPage(page) {
+  currentPage = page;
+  var navLife = document.getElementById('navLife');
+  var navCanteen = document.getElementById('navCanteen');
+  if (navLife) navLife.className = page === 'life' ? 'active' : '';
+  if (navCanteen) navCanteen.className = page === 'canteen' ? 'active' : '';
+  renderPage();
+}
+function switchCanteenTab(tab) {
+  canteenTab = tab;
+  renderPage();
+  if (tab === 'orders') renderOrderPage();
+}
+
+function renderPage() {
+  var title = document.getElementById('pageTitle');
+  var actions = document.getElementById('topbarActions');
+  var container = document.getElementById('mainContainer');
+  if (currentPage === 'life') {
+    if (title) title.innerHTML = '&#127835; 生活服务管理';
+    if (actions) actions.style.display = 'flex';
+    if (container) container.innerHTML = renderLifePage();
+    renderServiceList();
+  } else {
+    if (title) title.innerHTML = '&#127860; 食堂管理';
+    if (actions) actions.style.display = 'none';
+    if (container) container.innerHTML = renderCanteenPage();
+    if (canteenTab === 'menu') { initMenuEditor(); renderMenuPreview(); }
+    if (canteenTab === 'orders') renderOrderPage();
+  }
+}
+
+function renderLifePage() {
+  return '<div class="card">' +
+    '<div class="table-wrap">' +
+    '<table><thead><tr><th>名称</th><th>类型</th><th>联系人</th><th>电话</th><th>状态</th><th>创建时间</th><th style="width:120px;">操作</th></tr></thead>' +
+    '<tbody id="listBody"></tbody></table></div>' +
+    '<div id="listEmpty" class="empty" style="display:none;">暂无商家数据</div></div>';
+}
+
+function renderCanteenPage() {
+  var h = '<div class="tab-bar">';
+  h += '<button class="' + (canteenTab === 'menu' ? 'active' : '') + '" onclick="switchCanteenTab(\'menu\')">&#127860; 发布菜单</button>';
+  h += '<button class="' + (canteenTab === 'orders' ? 'active' : '') + '" onclick="switchCanteenTab(\'orders\')">&#128203; 订单管理</button>';
+  h += '</div>';
+  if (canteenTab === 'menu') {
+    h += renderMenuEditor();
+  } else {
+    h += '<div id="orderPageContent"></div>';
+  }
+  return h;
+}
+
+/* ===== 菜单编辑器 ===== */
+function renderMenuEditor() {
+  var today = getTodayStr();
+  var h = '<div class="card">';
+  h += '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">';
+  h += '<div class="form-group" style="margin-bottom:0;flex:1;min-width:180px;">';
+  h += '<label>日期</label><input type="date" id="menuDate" value="' + today + '" onchange="onMenuDateChange()">';
+  h += '</div>';
+  h += '<div class="form-group" style="margin-bottom:0;flex:1;min-width:140px;">';
+  h += '<label>餐别</label><select id="menuMeal" onchange="onMenuMealChange()">';
+  h += '<option value="breakfast">早餐</option><option value="lunch" selected>午餐</option><option value="dinner">晚餐</option>';
+  h += '</select></div>';
+  h += '<button class="btn btn-secondary" onclick="copyYesterdayMenu()">&#128260; 复制昨日菜单</button>';
+  h += '<button class="btn btn-primary" onclick="saveMenu()">&#128190; 保存菜单</button>';
+  h += '</div>';
+  h += '<div id="pkgEditors"></div>';
+  h += '<button class="btn btn-secondary" style="margin-top:8px;" onclick="addPkgEditor()">&#10133; 添加套餐</button>';
+  h += '</div>';
+  h += '<div id="menuPreview"></div>';
+  return h;
+}
+
+function initMenuEditor() {
+  onMenuDateChange();
+}
+
+function onMenuDateChange() {
+  var date = document.getElementById('menuDate').value;
+  var meal = document.getElementById('menuMeal').value;
+  if (!date) return;
+  var day = canteenMenuData.menus[date];
+  var m = day && day.meals && day.meals[meal];
+  _pkgEditors = [];
+  if (m && m.packages && m.packages.length) {
+    m.packages.forEach(function(p) {
+      _pkgEditors.push({
+        id: p.id || ('pkg-' + Date.now() + '-' + Math.random().toString(36).substr(2,4)),
+        name: p.name || '', price: p.price || 0, stock: p.stock === -1 ? -1 : (p.stock || 0),
+        description: p.description || '', image: p.image || '', tags: (p.tags || []).join(', ')
+      });
+    });
+  }
+  renderPkgEditors();
+  renderMenuPreview();
+}
+function onMenuMealChange() {
+  onMenuDateChange();
+}
+
+function renderPkgEditors() {
+  var el = document.getElementById('pkgEditors');
+  if (!el) return;
+  if (!_pkgEditors.length) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:8px 0;">暂无套餐，点击「添加套餐」</div>'; return; }
+  el.innerHTML = _pkgEditors.map(function(p, idx) {
+    return '<div class="pkg-editor" data-idx="' + idx + '">' +
+      '<div class="pkg-editor-row">' +
+      '<div class="form-group" style="margin-bottom:0;"><label>套餐名称</label><input type="text" class="pkg-name" value="' + escapeHtml(p.name) + '" placeholder="如：家常两荤一素"></div>' +
+      '<div class="form-group" style="margin-bottom:0;"><label>价格（元）</label><input type="number" class="pkg-price" value="' + p.price + '" step="0.01" min="0"></div>' +
+      '<div class="form-group" style="margin-bottom:0;"><label>库存份数（-1为不限量）</label><input type="number" class="pkg-stock" value="' + (p.stock === -1 ? '-1' : p.stock) + '" min="-1"></div>' +
+      '</div>' +
+      '<div class="form-group"><label>描述</label><input type="text" class="pkg-desc" value="' + escapeHtml(p.description) + '" placeholder="套餐内容描述"></div>' +
+      '<div class="form-group"><label>标签（逗号分隔）</label><input type="text" class="pkg-tags" value="' + escapeHtml(p.tags) + '" placeholder="清淡, 暖胃"></div>' +
+      '<div class="form-group" style="margin-bottom:0;">' +
+      '<label>图片</label>' +
+      '<div style="display:flex;gap:8px;align-items:center;">' +
+      '<input type="file" class="pkg-img-input" accept="image/*" style="display:none" onchange="handlePkgImage(this,' + idx + ')">' +
+      '<button type="button" class="btn btn-secondary btn-sm" onclick="this.previousElementSibling.click()">&#128206; 选择图片</button>' +
+      '<div class="img-preview-grid" id="pkgImgGrid_' + idx + '">' + (p.image ? '<div class="img-preview-item"><img src="' + p.image + '"><button class="img-remove" onclick="removePkgImage(' + idx + ')">&#10005;</button></div>' : '') + '</div>' +
+      '</div></div>' +
+      '<div class="pkg-editor-actions"><button class="btn btn-danger btn-sm" onclick="removePkgEditor(' + idx + ')">删除套餐</button></div>' +
+      '</div>';
+  }).join('');
+}
+
+function addPkgEditor() {
+  _pkgEditors.push({ id: 'pkg-' + Date.now() + '-' + Math.random().toString(36).substr(2,4), name: '', price: 0, stock: 0, description: '', image: '', tags: '' });
+  renderPkgEditors();
+}
+function removePkgEditor(idx) {
+  _pkgEditors.splice(idx, 1);
+  renderPkgEditors();
+}
+
+async function handlePkgImage(input, idx) {
+  var file = input.files[0];
+  if (!file) return;
+  try {
+    var compressed = await compressImage(file, { maxWidth: 640, maxHeight: 640, quality: 0.25, maxSize: 30 * 1024 });
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      _pkgEditors[idx].image = e.target.result;
+      renderPkgEditors();
+    };
+    reader.readAsDataURL(compressed);
+  } catch(e) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      _pkgEditors[idx].image = e.target.result;
+      renderPkgEditors();
+    };
+    reader.readAsDataURL(file);
+  }
+  input.value = '';
+}
+function removePkgImage(idx) {
+  _pkgEditors[idx].image = '';
+  renderPkgEditors();
+}
+
+function gatherPackages() {
+  var editors = document.querySelectorAll('.pkg-editor');
+  var pkgs = [];
+  editors.forEach(function(el, idx) {
+    var name = el.querySelector('.pkg-name').value.trim();
+    if (!name) return;
+    var price = parseFloat(el.querySelector('.pkg-price').value) || 0;
+    var stockRaw = el.querySelector('.pkg-stock').value;
+    var stock = stockRaw === '-1' ? -1 : (parseInt(stockRaw) || 0);
+    var desc = el.querySelector('.pkg-desc').value.trim();
+    var tags = el.querySelector('.pkg-tags').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
+    var img = _pkgEditors[idx] ? (_pkgEditors[idx].image || '') : '';
+    var sold = 0;
+    var date = document.getElementById('menuDate').value;
+    var meal = document.getElementById('menuMeal').value;
+    var day = canteenMenuData.menus[date];
+    var m = day && day.meals && day.meals[meal];
+    var existing = m && m.packages ? m.packages.find(function(x){return x.name === name;}) : null;
+    if (existing) sold = existing.sold || 0;
+    pkgs.push({ id: _pkgEditors[idx].id, name: name, price: price, stock: stock, sold: sold, description: desc, image: img, tags: tags });
+  });
+  return pkgs;
+}
+
+async function saveMenu() {
+  var date = document.getElementById('menuDate').value;
+  var meal = document.getElementById('menuMeal').value;
+  if (!date) { alert('请选择日期'); return; }
+  var pkgs = gatherPackages();
+  if (!pkgs.length) { if (!confirm('当前餐别无套餐，确定保存为空菜单吗？')) return; }
+  if (!canteenMenuData.menus) canteenMenuData.menus = {};
+  if (!canteenMenuData.menus[date]) canteenMenuData.menus[date] = { date: date, meals: {} };
+  canteenMenuData.menus[date].meals[meal] = {
+    mealType: meal, mealName: getMealLabel(meal), orderDeadline: getMealDeadline(meal), packages: pkgs
+  };
+  await saveCanteenMenu();
+  renderMenuPreview();
+}
+
+function copyYesterdayMenu() {
+  var date = document.getElementById('menuDate').value;
+  var meal = document.getElementById('menuMeal').value;
+  if (!date) { alert('请先选择日期'); return; }
+  var yesterday = getYesterdayStr(date);
+  var day = canteenMenuData.menus[yesterday];
+  var m = day && day.meals && day.meals[meal];
+  if (!m || !m.packages || !m.packages.length) { alert('昨日该餐别无菜单可复制'); return; }
+  _pkgEditors = m.packages.map(function(p) {
+    return {
+      id: 'pkg-' + Date.now() + '-' + Math.random().toString(36).substr(2,4),
+      name: p.name, price: p.price, stock: p.stock === -1 ? -1 : (p.stock || 0), description: p.description || '',
+      image: p.image || '', tags: (p.tags || []).join(', ')
+    };
+  });
+  renderPkgEditors();
+  showToast('已复制昨日菜单，请修改后保存');
+}
+
+/* ===== 菜单预览 ===== */
+function renderMenuPreview() {
+  var date = document.getElementById('menuDate').value;
+  if (!date) return;
+  var day = canteenMenuData.menus[date];
+  if (!day || !day.meals) { var el = document.getElementById('menuPreview'); if (el) el.innerHTML = ''; return; }
+  var h = '<div class="card"><div class="card-title">&#128064; ' + date + ' 菜单预览</div>';
+  ['breakfast','lunch','dinner'].forEach(function(mealType) {
+    var meal = day.meals[mealType];
+    if (!meal || !meal.packages || !meal.packages.length) return;
+    h += '<div class="meal-section">';
+    h += '<h4><span class="tag">' + meal.mealName + '</span> 截止 ' + meal.orderDeadline + ' · ' + meal.packages.length + ' 个套餐</h4>';
+    h += '<div class="preview-grid">';
+    meal.packages.forEach(function(p) {
+      h += '<div class="preview-card">';
+      if (p.image) { h += '<img src="' + p.image + '" class="preview-img" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'; h += '<div class="preview-img-placeholder" style="display:none;">&#127860;</div>'; }
+      else { h += '<div class="preview-img-placeholder">&#127860;</div>'; }
+      h += '<div class="preview-body">';
+      h += '<div class="preview-name">' + escapeHtml(p.name) + '</div>';
+      if (p.description) h += '<div class="preview-desc">' + escapeHtml(p.description) + '</div>';
+      h += '<div class="preview-meta">';
+      h += '<span class="preview-price">&#165;' + p.price.toFixed(2) + '</span>';
+      var stockText = (p.stock === -1 || p.stock === null || p.stock === undefined) ? '不限量' : ('库存 ' + p.stock + ' / 已售 ' + (p.sold || 0));
+      h += '<span style="color:var(--text-secondary);font-size:12px;">' + stockText + '</span>';
+      h += '</div>';
+      if (p.tags && p.tags.length) h += '<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">' + p.tags.map(function(t){return '<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:#f0f2f5;color:var(--text-secondary);">' + escapeHtml(t) + '</span>';}).join('') + '</div>';
+      h += '</div></div>';
+    });
+    h += '</div></div>';
+  });
+  h += '</div>';
+  var el = document.getElementById('menuPreview');
+  if (el) el.innerHTML = h;
+}
+
+/* ===== 订单管理 ===== */
+const ORDERS_EMBED = {
+  version: "1.0", updatedAt: "2026-08-06T08:30:00+08:00",
+  orders: [
+    { orderId: "ord-20260806001", userId: "u-1001", userName: "王建国", userPhone: "13800138001", orderDate: "2026-08-06", mealType: "lunch", mealName: "午餐", packages: [{ pkgId: "pkg-ln-001", name: "家常两荤一素", price: 18.00, quantity: 1 }, { pkgId: "pkg-ln-002", name: "健康轻食套餐", price: 22.00, quantity: 1 }], peopleCount: 2, pickupType: "self", deliveryAddress: "", totalAmount: 40.00, status: "confirmed", remark: "少油少盐", createdAt: "2026-08-05T09:15:00+08:00", confirmedAt: "2026-08-05T09:20:00+08:00", cancelledAt: null, completedAt: null, cancelReason: null },
+    { orderId: "ord-20260806002", userId: "u-1002", userName: "李小红", userPhone: "13900139002", orderDate: "2026-08-06", mealType: "dinner", mealName: "晚餐", packages: [{ pkgId: "pkg-dn-001", name: "养生粥套餐", price: 15.00, quantity: 2 }], peopleCount: 2, pickupType: "delivery", deliveryAddress: "春天阳光小区 3栋 2单元 1201室", totalAmount: 30.00, status: "pending", remark: "请准时送达，老人在家", createdAt: "2026-08-05T16:30:00+08:00", confirmedAt: null, cancelledAt: null, completedAt: null, cancelReason: null },
+    { orderId: "ord-20260806003", userId: "u-1003", userName: "张大伟", userPhone: "13700137003", orderDate: "2026-08-06", mealType: "breakfast", mealName: "早餐", packages: [{ pkgId: "pkg-bf-001", name: "营养粥品套餐", price: 8.00, quantity: 3 }], peopleCount: 3, pickupType: "dinein", deliveryAddress: "", totalAmount: 24.00, status: "completed", remark: "", createdAt: "2026-08-05T08:00:00+08:00", confirmedAt: "2026-08-05T08:05:00+08:00", cancelledAt: null, completedAt: "2026-08-06T08:10:00+08:00", cancelReason: null },
+    { orderId: "ord-20260807001", userId: "u-1001", userName: "王建国", userPhone: "13800138001", orderDate: "2026-08-07", mealType: "lunch", mealName: "午餐", packages: [{ pkgId: "pkg-ln-004", name: "海鲜套餐", price: 28.00, quantity: 1 }], peopleCount: 1, pickupType: "self", deliveryAddress: "", totalAmount: 28.00, status: "pending", remark: "对海鲜过敏，请确认无虾", createdAt: "2026-08-06T08:20:00+08:00", confirmedAt: null, cancelledAt: null, completedAt: null, cancelReason: null },
+    { orderId: "ord-20260807002", userId: "u-1004", userName: "赵秀英", userPhone: "13600136004", orderDate: "2026-08-07", mealType: "breakfast", mealName: "早餐", packages: [{ pkgId: "pkg-bf-003", name: "广式早茶套餐", price: 15.00, quantity: 1 }, { pkgId: "pkg-bf-004", name: "快捷包子套餐", price: 6.00, quantity: 2 }], peopleCount: 3, pickupType: "delivery", deliveryAddress: "春天阳光小区 5栋 1单元 802室", totalAmount: 27.00, status: "cancelled", remark: "临时出差，取消订单", createdAt: "2026-08-05T10:00:00+08:00", confirmedAt: "2026-08-05T10:05:00+08:00", cancelledAt: "2026-08-05T14:30:00+08:00", completedAt: null, cancelReason: "用户主动取消" }
+  ]
+};
+
+let _orderFilter = { date: '', meal: '', status: '' };
+let _selectedOrders = [];
+
+async function loadCanteenOrders() {
+  showPageLoading(true);
+  try {
+    var data = await workerRead('canteen-orders.json');
+    if (data && data.orders) canteenOrdersData = data;
+    else canteenOrdersData = JSON.parse(JSON.stringify(ORDERS_EMBED));
+  } catch(e) {
+    console.error('食堂订单读取失败，使用嵌入数据', e);
+    canteenOrdersData = JSON.parse(JSON.stringify(ORDERS_EMBED));
+  }
+  showPageLoading(false);
+}
+async function saveCanteenOrders() {
+  showPageLoading(true);
+  try {
+    canteenOrdersData.updatedAt = new Date().toISOString();
+    await workerWrite('canteen-orders.json', canteenOrdersData, '管理员更新食堂订单');
+    showToast('订单已更新');
+  } catch(e) {
+    console.error('保存失败', e);
+    alert('保存到服务器失败，数据仅保留在本地。');
+  }
+  showPageLoading(false);
+}
+
+/* 库存回滚：取消订单时释放库存 */
+function rollbackStock(order) {
+  if (!order || !order.packages) return;
+  var day = canteenMenuData.menus && canteenMenuData.menus[order.orderDate];
+  var meal = day && day.meals && day.meals[order.mealType];
+  if (!meal || !meal.packages) return;
+  order.packages.forEach(function(op) {
+    var pkg = meal.packages.find(function(p){return p.id === op.pkgId;});
+    if (pkg && pkg.stock !== -1 && pkg.stock !== null && pkg.stock !== undefined) {
+      if (pkg.sold === undefined || pkg.sold === null) pkg.sold = 0;
+      pkg.sold = Math.max(0, pkg.sold - op.quantity);
+    }
+  });
+  saveCanteenMenuSilent();
+}
+
+function getFilteredOrders() {
+  var orders = canteenOrdersData.orders || [];
+  var f = _orderFilter;
+  return orders.filter(function(o) {
+    if (f.date && o.orderDate !== f.date) return false;
+    if (f.meal && o.mealType !== f.meal) return false;
+    if (f.status && o.status !== f.status) return false;
+    return true;
+  });
+}
+
+function getStatusBadge(status) {
+  var map = { pending: 'badge-pending', confirmed: 'badge-confirmed', cancelled: 'badge-cancelled', completed: 'badge-completed' };
+  var text = { pending: '待确认', confirmed: '已确认', cancelled: '已取消', completed: '已完成' };
+  return '<span class="badge ' + (map[status] || 'badge-pending') + '">' + (text[status] || status) + '</span>';
+}
+function getPickupText(type) {
+  return { self: '自取', dinein: '堂食', delivery: '送餐' }[type] || type;
+}
+
+function renderOrderPage() {
+  var el = document.getElementById('orderPageContent');
+  if (!el) return;
+  var today = getTodayStr();
+  var pendingCount = (canteenOrdersData.orders || []).filter(function(o){ return o.status === 'pending'; }).length;
+  var h = '';
+  if (pendingCount > 0) {
+    h += '<div class="alert-banner">&#128227; 有 <strong>' + pendingCount + '</strong> 个待确认订单，请及时处理</div>';
+  }
+  h += '<div class="card">';
+  h += '<div class="filter-bar">';
+  h += '<div class="form-group"><label>日期</label><input type="date" id="filterDate" value="' + _orderFilter.date + '" onchange="updateOrderFilter()"></div>';
+  h += '<div class="form-group"><label>餐别</label><select id="filterMeal" onchange="updateOrderFilter()"><option value="">全部</option><option value="breakfast">早餐</option><option value="lunch">午餐</option><option value="dinner">晚餐</option></select></div>';
+  h += '<div class="form-group"><label>状态</label><select id="filterStatus" onchange="updateOrderFilter()"><option value="">全部</option><option value="pending">待确认</option><option value="confirmed">已确认</option><option value="cancelled">已取消</option><option value="completed">已完成</option></select></div>';
+  h += '<button class="btn btn-secondary" onclick="exportOrderCSV()">&#128196; 导出当日清单</button>';
+  h += '<button class="btn btn-secondary" onclick="clearOrderFilter()">&#128260; 重置筛选</button>';
+  h += '</div>';
+  h += renderOrderStats();
+  h += renderOrderTable();
+  h += '</div>';
+  el.innerHTML = h;
+  document.getElementById('filterDate').value = _orderFilter.date;
+  document.getElementById('filterMeal').value = _orderFilter.meal;
+  document.getElementById('filterStatus').value = _orderFilter.status;
+}
+
+function renderOrderStats() {
+  var orders = getFilteredOrders();
+  var totalOrders = orders.length;
+  var totalQty = 0, totalAmount = 0;
+  var pickupMap = { self: 0, dinein: 0, delivery: 0 };
+  var pkgMap = {};
+  orders.forEach(function(o) {
+    o.packages.forEach(function(p) {
+      totalQty += p.quantity;
+      totalAmount += p.price * p.quantity;
+      pkgMap[p.name] = (pkgMap[p.name] || 0) + p.quantity;
+    });
+    pickupMap[o.pickupType] = (pickupMap[o.pickupType] || 0) + o.packages.reduce(function(s,p){return s+p.quantity;},0);
+  });
+  var pkgRank = Object.entries(pkgMap).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
+  var maxPkg = pkgRank.length ? pkgRank[0][1] : 1;
+
+  var h = '<div class="stats-grid">';
+  h += '<div class="stat-card"><div class="stat-value">' + totalOrders + '</div><div class="stat-label">订单数</div></div>';
+  h += '<div class="stat-card"><div class="stat-value">' + totalQty + '</div><div class="stat-label">总份数</div></div>';
+  h += '<div class="stat-card"><div class="stat-value">&#165;' + totalAmount.toFixed(2) + '</div><div class="stat-label">总金额</div></div>';
+  h += '<div class="stat-card" style="text-align:left;">';
+  h += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">取餐方式分布</div>';
+  h += '<div class="stat-row"><span>自取</span><span>' + (pickupMap.self || 0) + ' 份</span></div>';
+  h += '<div class="stat-row"><span>堂食</span><span>' + (pickupMap.dinein || 0) + ' 份</span></div>';
+  h += '<div class="stat-row"><span>送餐</span><span>' + (pickupMap.delivery || 0) + ' 份</span></div>';
+  h += '</div>';
+  if (pkgRank.length) {
+    h += '<div class="stat-card" style="text-align:left;grid-column:span 2;">';
+    h += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">套餐预订排行 TOP5</div>';
+    h += '<div class="rank-list">';
+    pkgRank.forEach(function(item) {
+      var pct = Math.round(item[1] / maxPkg * 100);
+      h += '<div class="rank-item"><span>' + escapeHtml(item[0]) + '</span><span>' + item[1] + ' 份</span></div>';
+      h += '<div class="rank-bar-bg"><div class="rank-bar" style="width:' + pct + '%;"></div></div>';
+    });
+    h += '</div></div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function renderOrderTable() {
+  var orders = getFilteredOrders();
+  if (!orders.length) return '<div class="empty"><div class="empty-icon">&#128203;</div><div>暂无订单</div></div>';
+  var h = '<div class="table-wrap"><table class="order-table"><thead><tr>';
+  h += '<th style="width:30px;"><input type="checkbox" onchange="toggleSelectAll(this)"></th>';
+  h += '<th>订单号</th><th>业主信息</th><th>日期/餐别</th><th>套餐明细</th><th>份数</th><th>金额</th><th>取餐方式</th><th>状态</th><th>下单时间</th><th style="width:120px;">操作</th>';
+  h += '</tr></thead><tbody>';
+  orders.forEach(function(o) {
+    var qty = o.packages.reduce(function(s,p){return s+p.quantity;},0);
+    var pkgDetail = o.packages.map(function(p){return escapeHtml(p.name) + ' x' + p.quantity;}).join('<br>');
+    var isChecked = _selectedOrders.indexOf(o.orderId) >= 0 ? 'checked' : '';
+    h += '<tr>';
+    h += '<td><input type="checkbox" ' + isChecked + ' onchange="toggleSelectOrder(\'' + o.orderId + '\',this.checked)"></td>';
+    h += '<td><strong>' + o.orderId + '</strong></td>';
+    h += '<td>' + escapeHtml(o.userName) + '<br><span style="color:var(--text-secondary);font-size:12px;">' + escapeHtml(o.userPhone) + '</span></td>';
+    h += '<td>' + o.orderDate + '<br><span style="color:var(--text-secondary);font-size:12px;">' + o.mealName + '</span></td>';
+    h += '<td class="pkg-list">' + pkgDetail + '</td>';
+    h += '<td>' + qty + '</td>';
+    h += '<td>&#165;' + o.totalAmount.toFixed(2) + '</td>';
+    h += '<td>' + getPickupText(o.pickupType) + (o.deliveryAddress ? '<br><span style="color:var(--text-secondary);font-size:11px;">' + escapeHtml(o.deliveryAddress) + '</span>' : '') + '</td>';
+    h += '<td>' + getStatusBadge(o.status) + '</td>';
+    h += '<td>' + formatDateTime(o.createdAt) + '</td>';
+    h += '<td>';
+    if (o.status === 'pending') h += '<button class="btn btn-primary btn-sm" onclick="confirmOrder(\'' + o.orderId + '\')">确认</button> ';
+    if (o.status !== 'cancelled' && o.status !== 'completed') h += '<button class="btn btn-danger btn-sm" onclick="cancelOrder(\'' + o.orderId + '\')">取消</button>';
+    h += '</td>';
+    h += '</tr>';
+  });
+  h += '</tbody></table></div>';
+  if (_selectedOrders.length) {
+    h += '<div style="margin-top:12px;display:flex;gap:10px;">';
+    h += '<button class="btn btn-primary" onclick="batchConfirm()">批量确认 (' + _selectedOrders.length + ')</button>';
+    h += '<button class="btn btn-danger" onclick="batchCancel()">批量取消 (' + _selectedOrders.length + ')</button>';
+    h += '</div>';
+  }
+  return h;
+}
+
+function updateOrderFilter() {
+  _orderFilter.date = document.getElementById('filterDate').value;
+  _orderFilter.meal = document.getElementById('filterMeal').value;
+  _orderFilter.status = document.getElementById('filterStatus').value;
+  _selectedOrders = [];
+  renderOrderPage();
+}
+function clearOrderFilter() {
+  _orderFilter = { date: '', meal: '', status: '' };
+  _selectedOrders = [];
+  renderOrderPage();
+}
+
+function toggleSelectAll(checked) {
+  var orders = getFilteredOrders();
+  if (checked) {
+    _selectedOrders = orders.map(function(o){return o.orderId;});
+  } else {
+    _selectedOrders = [];
+  }
+  renderOrderPage();
+}
+function toggleSelectOrder(orderId, checked) {
+  if (checked) {
+    if (_selectedOrders.indexOf(orderId) < 0) _selectedOrders.push(orderId);
+  } else {
+    _selectedOrders = _selectedOrders.filter(function(id){return id !== orderId;});
+  }
+  renderOrderPage();
+}
+
+async function confirmOrder(orderId) {
+  var o = (canteenOrdersData.orders || []).find(function(x){return x.orderId === orderId;});
+  if (!o) return;
+  o.status = 'confirmed';
+  o.confirmedAt = new Date().toISOString();
+  await saveCanteenOrders();
+  renderOrderPage();
+}
+async function cancelOrder(orderId) {
+  var o = (canteenOrdersData.orders || []).find(function(x){return x.orderId === orderId;});
+  if (!o) return;
+  if (!confirm('确定要取消订单「' + orderId + '」吗？')) return;
+  rollbackStock(o);
+  o.status = 'cancelled';
+  o.cancelledAt = new Date().toISOString();
+  o.cancelReason = '管理员取消';
+  await saveCanteenOrders();
+  renderOrderPage();
+}
+async function batchConfirm() {
+  if (!_selectedOrders.length) return;
+  if (!confirm('确定批量确认 ' + _selectedOrders.length + ' 个订单吗？')) return;
+  (canteenOrdersData.orders || []).forEach(function(o) {
+    if (_selectedOrders.indexOf(o.orderId) >= 0 && o.status === 'pending') {
+      o.status = 'confirmed';
+      o.confirmedAt = new Date().toISOString();
+    }
+  });
+  await saveCanteenOrders();
+  _selectedOrders = [];
+  renderOrderPage();
+}
+async function batchCancel() {
+  if (!_selectedOrders.length) return;
+  if (!confirm('确定批量取消 ' + _selectedOrders.length + ' 个订单吗？')) return;
+  (canteenOrdersData.orders || []).forEach(function(o) {
+    if (_selectedOrders.indexOf(o.orderId) >= 0 && o.status !== 'cancelled' && o.status !== 'completed') {
+      rollbackStock(o);
+      o.status = 'cancelled';
+      o.cancelledAt = new Date().toISOString();
+      o.cancelReason = '管理员批量取消';
+    }
+  });
+  await saveCanteenOrders();
+  _selectedOrders = [];
+  renderOrderPage();
+}
+
+function exportOrderCSV() {
+  var orders = getFilteredOrders();
+  if (!orders.length) { alert('当前筛选条件下无订单可导出'); return; }
+  var rows = [];
+  rows.push(['订单号','姓名','电话','套餐','份数','取餐方式','地址','备注'].join(','));
+  orders.forEach(function(o) {
+    o.packages.forEach(function(p) {
+      rows.push([
+        o.orderId, o.userName, o.userPhone, p.name, p.quantity,
+        getPickupText(o.pickupType), o.deliveryAddress || '', o.remark || ''
+      ].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','));
+    });
+  });
+  var csv = '\uFEFF' + rows.join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = '食堂订单-' + (_orderFilter.date || '全部') + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('CSV 已导出');
+}
+
+/* ===== 初始化 ===== */
+document.addEventListener('DOMContentLoaded', async function() {
   applyTheme(currentTheme);
   renderThemePanel();
-  loadData();
+  await loadServices();
+  await loadCanteenMenu();
+  await loadCanteenOrders();
+  var hash = window.location.hash;
+  if (hash.indexOf('canteen') >= 0) { switchPage('canteen'); }
+  else { switchPage('life'); renderServiceList(); }
 });
 </script>
 </body>
