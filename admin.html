@@ -388,14 +388,10 @@ function escapeHtml(text){
   return div.innerHTML;
 }
 /* ==================== 管理员账户配置（安全哈希存储） ====================
-   说明：以下密码已使用 SHA-256 哈希存储，运行时不再暴露明文。
+   说明：密码已使用 SHA-256 哈希存储，运行时不再暴露明文。
    如需修改密码，请登录后在「系统设置」中操作，或重置持久化数据。
    四个角色：总维护人员、物管人员、业委会成员、社区人员。
-   默认密码（首次登录后请立即修改）：
-     总维护人员: Sunlight2026
-     物管人员: Property2026
-     业委会成员: Committee2026
-     社区人员: Community2026
+   默认密码请在首次登录后通过「系统设置」修改。
    ==================================================================== */
 const ADMIN_ACCOUNTS = [
   { id: 'admin-super',      name: '总维护人员',   role: 'super',      password: '826890b9c0b9431a205048bdffcedd1424e499b250e82151c69c17a6841d30b6',  permissions: ['all'], mustChangePwd: true },
@@ -1483,9 +1479,8 @@ async function changePassword() {
   const oldHash = await sha256(oldPwd);
   if (oldHash !== account.password) { showToast('当前密码错误', 'error'); return; }
 
+  // 更新内存中的密码（存储 SHA-256 哈希值）
   const newHash = await sha256(newPwd);
-
-  // 更新内存中的密码
   account.password = newHash;
 
   // 同步持久化到 config.adminAccounts（如 Worker 可用）
@@ -1505,9 +1500,6 @@ async function changePassword() {
     localStorage.setItem('pwdChanged_' + account.id, '1');
     account.mustChangePwd = false;
     showToast('密码修改成功', 'success');
-    document.getElementById('oldPassword').value = '';
-    document.getElementById('newPassword').value = '';
-    document.getElementById('confirmPassword').value = '';
   } catch(e) {
     showToast('密码已更新（内存），但持久化失败：' + e.message, 'warning');
   } finally {
