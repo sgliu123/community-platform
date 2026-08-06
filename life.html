@@ -347,6 +347,8 @@ function renderSiteLogo() {
   const cfg = getSiteLogoConfig();
   const iconEl = document.getElementById("siteLogoIcon");
   const titleEl = document.getElementById("siteLogoTitle");
+  const dynTitle = document.getElementById("dynTitle");
+  const displayTitle = cfg.title || "春天阳光小区";
   if (iconEl) {
     if (cfg.type === "image" && cfg.value) {
       iconEl.innerHTML = '<img src="' + cfg.value.replace(/"/g, "&quot;") + '" style="width:28px;height:28px;border-radius:50%;object-fit:cover;display:block;">';
@@ -354,7 +356,11 @@ function renderSiteLogo() {
       iconEl.innerHTML = cfg.value || "&#127968;";
     }
   }
-  if (titleEl) titleEl.textContent = cfg.title || "春天阳光小区";
+  if (titleEl) titleEl.textContent = displayTitle;
+  // 同步浏览器标签页标题
+  const fullTitle = displayTitle + " - 生活服务";
+  document.title = fullTitle;
+  if (dynTitle) dynTitle.textContent = fullTitle;
   // favicon
   let link = document.getElementById("dynFavicon");
   if (!link) {
@@ -376,12 +382,32 @@ function renderSiteLogo() {
     link.href = canvas.toDataURL("image/png");
   }
 }
-
 function showToast(msg) {
   const t = document.getElementById("toast");
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+async function loadSiteConfig() {
+  try {
+    const base = getWorkerBase();
+    if (!base) { console.log("[Life] Worker 未配置，跳过云端拉取"); return; }
+    const res = await fetch(base + "/api/read/" + encodeURIComponent("data/config.json") + "?_=" + Date.now(), {cache:"no-store"});
+    if (!res.ok) { console.log("[Life] config fetch failed", res.status); return; }
+    const config = await res.json();
+    const c = config && config.community;
+    if (c) {
+      const logoCfg = {
+        type: c.logo ? "image" : "emoji",
+        value: c.logo || "&#127968;",
+        title: c.siteTitle || c.name || "春天阳光小区",
+        adminTitle: c.name ? c.name + " - 管理后台" : "管理后台"
+      };
+      setSiteLogoConfig(logoCfg);
+      console.log("[Life] 已从 Worker 同步站点配置:", logoCfg.title);
+    }
+  } catch(e) { console.log("[Life] config read fail", e); }
 }
 
 async function loadData() {
@@ -984,8 +1010,10 @@ function renderCanteenOrderDetail(orderId) {
 document.addEventListener("keydown", function(e) { if (e.key === "Escape") closeImagePreview(); });
 window.addEventListener("hashchange", () => render());
 document.addEventListener("DOMContentLoaded", async () => {
-  applyTheme(currentTheme); renderThemePanel(); renderSiteLogo();
-  await loadData();
+  applyTheme(currentTheme); renderThemePanel();
+  try { await loadSiteConfig(); } catch(e) { console.log("[Life] loadSiteConfig error", e); }
+  renderSiteLogo();
+  try { await loadData(); } catch(e) { console.log("[Life] loadData error", e); }
   render();
 });
 </script>
