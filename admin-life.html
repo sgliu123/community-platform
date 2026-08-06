@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>社区管理平台</title>
+<title id="dynTitle">社区管理平台</title>
 <link id="dynFavicon" rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🏠%3C/text%3E%3C/svg%3E">
 <style>
 :root {
@@ -479,26 +479,6 @@ const EMBEDDED_DATA = [
 
 let services = [];
 let _editImages = [];
-
-async function loadSiteConfig() {
-  try {
-    var base = getWorkerBase();
-    if (!base) return;
-    var res = await fetch(base + "/api/read/" + encodeURIComponent("data/config.json") + "?_=" + Date.now(), {cache:"no-store"});
-    if (!res.ok) return;
-    var config = await res.json();
-    var c = config && config.community;
-    if (c) {
-      var logoCfg = {
-        type: c.logo ? "image" : "emoji",
-        value: c.logo || "&#127968;",
-        title: c.siteTitle || c.name || "春天阳光小区",
-        adminTitle: c.name ? c.name + " - 管理后台" : "管理后台"
-      };
-      setSiteLogoConfig(logoCfg);
-    }
-  } catch(e) { console.log("[AdminLife] config read fail", e); }
-}
 
 async function loadServices() {
   showPageLoading(true);
@@ -1323,8 +1303,6 @@ function renderSiteLogo() {
     }
   }
   if (titleEl) titleEl.textContent = cfg.adminTitle || "社区管理平台";
-  // 同步浏览器标签页标题
-  document.title = cfg.adminTitle || cfg.title || "社区管理平台";
   // favicon
   var link = document.getElementById("dynFavicon");
   if (!link) {
@@ -1406,7 +1384,6 @@ window.addEventListener('hashchange', function() {
 document.addEventListener('DOMContentLoaded', async function() {
   applyTheme(currentTheme);
   renderThemePanel();
-  await loadSiteConfig();
   renderSiteLogo();
   await loadServices();
   await loadCanteenMenu();

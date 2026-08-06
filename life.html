@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>春天阳光小区 - 生活服务</title>
+<title id="dynTitle">春天阳光小区 - 生活服务</title>
 <link id="dynFavicon" rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🏠%3C/text%3E%3C/svg%3E">
 <style>
 :root { --primary: #2E8B57; --primary-light: #3da76b; --primary-dark: #1f6b41; --bg: #f5f7fa; --card: #fff; --text: #333; --text-secondary: #666; --border: #e0e0e0; --shadow: 0 2px 12px rgba(0,0,0,0.08); --radius: 12px; --header-h: 56px; }
@@ -355,8 +355,6 @@ function renderSiteLogo() {
     }
   }
   if (titleEl) titleEl.textContent = cfg.title || "春天阳光小区";
-  // 同步浏览器标签页标题
-  document.title = (cfg.title || "春天阳光小区") + " - 生活服务";
   // favicon
   let link = document.getElementById("dynFavicon");
   if (!link) {
@@ -384,26 +382,6 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 2500);
-}
-
-async function loadSiteConfig() {
-  try {
-    const base = getWorkerBase();
-    if (!base) return;
-    const res = await fetch(base + "/api/read/" + encodeURIComponent("data/config.json") + "?_=" + Date.now(), {cache:"no-store"});
-    if (!res.ok) return;
-    const config = await res.json();
-    const c = config && config.community;
-    if (c) {
-      const logoCfg = {
-        type: c.logo ? "image" : "emoji",
-        value: c.logo || "&#127968;",
-        title: c.siteTitle || c.name || "春天阳光小区",
-        adminTitle: c.name ? c.name + " - 管理后台" : "管理后台"
-      };
-      setSiteLogoConfig(logoCfg);
-    }
-  } catch(e) { console.log("[Life] config read fail", e); }
 }
 
 async function loadData() {
@@ -1006,9 +984,7 @@ function renderCanteenOrderDetail(orderId) {
 document.addEventListener("keydown", function(e) { if (e.key === "Escape") closeImagePreview(); });
 window.addEventListener("hashchange", () => render());
 document.addEventListener("DOMContentLoaded", async () => {
-  applyTheme(currentTheme); renderThemePanel();
-  await loadSiteConfig();
-  renderSiteLogo();
+  applyTheme(currentTheme); renderThemePanel(); renderSiteLogo();
   await loadData();
   render();
 });
