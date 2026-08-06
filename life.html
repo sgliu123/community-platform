@@ -355,6 +355,8 @@ function renderSiteLogo() {
     }
   }
   if (titleEl) titleEl.textContent = cfg.title || "春天阳光小区";
+  // 同步浏览器标签页标题
+  document.title = (cfg.title || "春天阳光小区") + " - 生活服务";
   // favicon
   let link = document.getElementById("dynFavicon");
   if (!link) {
@@ -382,6 +384,26 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+async function loadSiteConfig() {
+  try {
+    const base = getWorkerBase();
+    if (!base) return;
+    const res = await fetch(base + "/api/read/" + encodeURIComponent("data/config.json") + "?_=" + Date.now(), {cache:"no-store"});
+    if (!res.ok) return;
+    const config = await res.json();
+    const c = config && config.community;
+    if (c) {
+      const logoCfg = {
+        type: c.logo ? "image" : "emoji",
+        value: c.logo || "&#127968;",
+        title: c.siteTitle || c.name || "春天阳光小区",
+        adminTitle: c.name ? c.name + " - 管理后台" : "管理后台"
+      };
+      setSiteLogoConfig(logoCfg);
+    }
+  } catch(e) { console.log("[Life] config read fail", e); }
 }
 
 async function loadData() {
@@ -984,7 +1006,9 @@ function renderCanteenOrderDetail(orderId) {
 document.addEventListener("keydown", function(e) { if (e.key === "Escape") closeImagePreview(); });
 window.addEventListener("hashchange", () => render());
 document.addEventListener("DOMContentLoaded", async () => {
-  applyTheme(currentTheme); renderThemePanel(); renderSiteLogo();
+  applyTheme(currentTheme); renderThemePanel();
+  await loadSiteConfig();
+  renderSiteLogo();
   await loadData();
   render();
 });
