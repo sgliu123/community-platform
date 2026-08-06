@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>社区管理平台</title>
+<link id="dynFavicon" rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🏠%3C/text%3E%3C/svg%3E">
 <style>
 :root {
   --primary: #2E8B57; --primary-light: #3da76b; --primary-dark: #1f6b41;
@@ -238,7 +239,7 @@ tr:hover td { background:#fafafa; }
 
 <div class="layout">
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo"><span class="icon">&#127968;</span>社区管理平台</div>
+    <div class="sidebar-logo" id="sidebarLogoWrap"><span class="icon" id="siteLogoIcon">&#127968;</span><span id="siteLogoTitle">社区管理平台</span></div>
     <nav class="sidebar-nav">
       <a href="admin.html"><span class="nav-icon">&#127968;</span>首页</a>
       <a href="admin.html#announcements"><span class="nav-icon">&#128226;</span>公告管理</a>
@@ -251,6 +252,7 @@ tr:hover td { background:#fafafa; }
       <a href="admin-life.html" class="active" id="navLife"><span class="nav-icon">&#127835;</span>生活服务</a>
       <a href="admin-life.html#canteen" id="navCanteen"><span class="nav-icon">&#127860;</span>食堂管理</a>
     </nav>
+    <div style="padding:10px 20px;border-top:1px solid rgba(255,255,255,0.1);margin-top:auto;"><a href="#" onclick="openSiteSettings();return false;" style="display:flex;align-items:center;gap:10px;padding:8px 0;color:rgba(255,255,255,0.6);font-size:13px;transition:.2s;"><span style="font-size:16px;width:22px;text-align:center;">&#9881;</span>站点设置</a></div>
     <div class="sidebar-footer">社区数字化平台<br>v2026.08</div>
   </aside>
 
@@ -1277,6 +1279,102 @@ function exportOrderCSV() {
   showToast('CSV 已导出');
 }
 
+
+/* ===== 站点 Logo 统一配置 ===== */
+function getSiteLogoConfig() {
+  try {
+    var raw = localStorage.getItem("siteLogoConfig");
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return { type: "emoji", value: "&#127968;", title: "春天阳光小区", adminTitle: "社区管理平台" };
+}
+function setSiteLogoConfig(cfg) {
+  localStorage.setItem("siteLogoConfig", JSON.stringify(cfg));
+}
+function renderSiteLogo() {
+  var cfg = getSiteLogoConfig();
+  var iconEl = document.getElementById("siteLogoIcon");
+  var titleEl = document.getElementById("siteLogoTitle");
+  if (iconEl) {
+    if (cfg.type === "image" && cfg.value) {
+      iconEl.innerHTML = '<img src="' + cfg.value.replace(/"/g, "&quot;") + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;display:block;">';
+    } else {
+      iconEl.innerHTML = cfg.value || "&#127968;";
+    }
+  }
+  if (titleEl) titleEl.textContent = cfg.adminTitle || "社区管理平台";
+  // favicon
+  var link = document.getElementById("dynFavicon");
+  if (!link) {
+    link = document.createElement("link");
+    link.id = "dynFavicon";
+    link.rel = "shortcut icon";
+    document.head.appendChild(link);
+  }
+  if (cfg.type === "image" && cfg.value) {
+    link.href = cfg.value;
+  } else {
+    var emoji = cfg.value ? cfg.value.replace(/&#(\d+);/g, function(m, code) { return String.fromCodePoint(code); }) : "🏠";
+    var canvas = document.createElement("canvas");
+    canvas.width = 64; canvas.height = 64;
+    var ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 64, 64);
+    ctx.font = "48px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(emoji, 32, 34);
+    link.href = canvas.toDataURL("image/png");
+  }
+}
+function openSiteSettings() {
+  var cfg = getSiteLogoConfig();
+  document.getElementById("ssLogoType").value = cfg.type || "emoji";
+  document.getElementById("ssLogoValue").value = cfg.value || "&#127968;";
+  document.getElementById("ssFrontTitle").value = cfg.title || "春天阳光小区";
+  document.getElementById("ssAdminTitle").value = cfg.adminTitle || "社区管理平台";
+  onLogoTypeChange();
+  updateLogoPreview();
+  document.getElementById("siteSettingsModal").classList.add("active");
+}
+function closeSiteSettings() {
+  document.getElementById("siteSettingsModal").classList.remove("active");
+}
+function onLogoTypeChange() {
+  var type = document.getElementById("ssLogoType").value;
+  document.getElementById("ssLogoValueLabel").textContent = type === "image" ? "图片 URL" : "Logo 内容（Emoji 或文字）";
+  document.getElementById("ssLogoValue").placeholder = type === "image" ? "https://example.com/logo.png" : "如：&#127968; 或 小区名称";
+  updateLogoPreview();
+}
+function updateLogoPreview() {
+  var type = document.getElementById("ssLogoType").value;
+  var val = document.getElementById("ssLogoValue").value || "&#127968;";
+  var title = document.getElementById("ssFrontTitle").value || "春天阳光小区";
+  var previewIcon = document.getElementById("ssPreviewIcon");
+  var previewTitle = document.getElementById("ssPreviewTitle");
+  if (type === "image" && val) {
+    previewIcon.innerHTML = '<img src="' + val.replace(/"/g, "&quot;") + '" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">';
+  } else {
+    previewIcon.innerHTML = val;
+  }
+  previewTitle.textContent = title;
+}
+function saveSiteSettings() {
+  var cfg = {
+    type: document.getElementById("ssLogoType").value,
+    value: document.getElementById("ssLogoValue").value.trim(),
+    title: document.getElementById("ssFrontTitle").value.trim(),
+    adminTitle: document.getElementById("ssAdminTitle").value.trim()
+  };
+  setSiteLogoConfig(cfg);
+  renderSiteLogo();
+  closeSiteSettings();
+  showToast("站点设置已保存，刷新前端页面即可同步");
+}
+// 监听输入实时预览
+document.addEventListener("input", function(e) {
+  if (e.target && (e.target.id === "ssLogoValue" || e.target.id === "ssFrontTitle" || e.target.id === "ssAdminTitle")) {
+    updateLogoPreview();
+  }
+});
+
 /* ===== 初始化 ===== */
 window.addEventListener('hashchange', function() {
   var hash = window.location.hash;
@@ -1286,6 +1384,7 @@ window.addEventListener('hashchange', function() {
 document.addEventListener('DOMContentLoaded', async function() {
   applyTheme(currentTheme);
   renderThemePanel();
+  renderSiteLogo();
   await loadServices();
   await loadCanteenMenu();
   await loadCanteenOrders();
@@ -1294,5 +1393,49 @@ document.addEventListener('DOMContentLoaded', async function() {
   else { switchPage('life'); renderServiceList(); }
 });
 </script>
+
+
+<!-- 站点设置模态框 -->
+<div class="modal-overlay" id="siteSettingsModal" onclick="if(event.target===this)closeSiteSettings()">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-header">
+      <h3>&#9881; 站点设置</h3>
+      <button class="modal-close" onclick="closeSiteSettings()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Logo 类型</label>
+        <select id="ssLogoType" onchange="onLogoTypeChange()">
+          <option value="emoji">Emoji / 文字</option>
+          <option value="image">图片 URL</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label id="ssLogoValueLabel">Logo 内容（Emoji 或文字）</label>
+        <input type="text" id="ssLogoValue" placeholder="如：&#127968; 或 小区名称">
+      </div>
+      <div class="form-group">
+        <label>前端页面标题</label>
+        <input type="text" id="ssFrontTitle" placeholder="春天阳光小区">
+      </div>
+      <div class="form-group">
+        <label>后台管理标题</label>
+        <input type="text" id="ssAdminTitle" placeholder="社区管理平台">
+      </div>
+      <div style="background:#fafbfc;border-radius:8px;padding:12px;margin-top:8px;">
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">实时预览</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="ssPreviewIcon" style="width:36px;height:36px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 1px 4px rgba(0,0,0,0.1);">&#127968;</div>
+          <div id="ssPreviewTitle" style="font-size:14px;font-weight:600;">春天阳光小区</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeSiteSettings()">取消</button>
+      <button class="btn btn-primary" onclick="saveSiteSettings()">保存并同步</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

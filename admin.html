@@ -304,7 +304,7 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
     </select>
     <input type="password" id="loginPassword" placeholder="请输入密码">
     <button id="loginBtn" onclick="doAdminLogin()">登录</button>
-    <p class="tip" id="loginTip">请选择身份并输入对应密码<br>首次登录后请前往「系统设置」修改默认密码</p>
+    <p class="tip" id="loginTip">请选择身份并输入对应密码<br>如需修改密码请编辑代码顶部 ADMIN_ACCOUNTS</p>
   </div>
 </div>
 
@@ -324,9 +324,9 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
 <div class="admin-layout" id="adminLayout">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="logo">⚙️</div>
+      <div class="logo" id="siteLogoIcon">⚙️</div>
       <div>
-        <div class="title">管理后台</div>
+        <div class="title" id="siteLogoTitle">管理后台</div>
         <div class="role" id="adminRole">超级管理员</div>
       </div>
     </div>
@@ -387,21 +387,16 @@ function escapeHtml(text){
   div.textContent=text;
   return div.innerHTML;
 }
-/* ==================== 管理员账户配置（安全哈希存储） ====================
-   说明：以下密码已使用 SHA-256 哈希存储，运行时不再暴露明文。
-   如需修改密码，请登录后在「系统设置」中操作，或重置持久化数据。
+/* ==================== 管理员账户配置（可直接修改） ====================
+   说明：以下密码为明文，方便直接修改。如需调整权限或密码，
+   直接编辑下方 ADMIN_ACCOUNTS 数组即可，无需理解其他代码逻辑。
    四个角色：总维护人员、物管人员、业委会成员、社区人员。
-   默认密码（首次登录后请立即修改）：
-     总维护人员: Sunlight2026
-     物管人员: Property2026
-     业委会成员: Committee2026
-     社区人员: Community2026
    ==================================================================== */
 const ADMIN_ACCOUNTS = [
-  { id: 'admin-super',      name: '总维护人员',   role: 'super',      password: '826890b9c0b9431a205048bdffcedd1424e499b250e82151c69c17a6841d30b6',  permissions: ['all'], mustChangePwd: true },
-  { id: 'admin-property',   name: '物管人员',       role: 'property',   password: 'd1e35d3d81fb2d981c863ff578c8535770b76c4e3e7b5bf7a2c79d167a209778',  permissions: ['announcements','documents','workorders','residents'], mustChangePwd: true },
-  { id: 'admin-committee',  name: '业委会成员',     role: 'committee',  password: '813c22cb8a65563c3757d3b910baff07bd4b956e7bc51149702bc2d3c01631cc',  permissions: ['polls','residents','complaints','audit'], mustChangePwd: true },
-  { id: 'admin-community',  name: '社区人员',       role: 'community',  password: 'aea0fef061574fed8ef68bc55f2fc3fd8455fe11411271bf772dce2fcdbb3114',  permissions: ['announcements','activities','complaints'], mustChangePwd: true }
+  { id: 'admin-super',      name: '总维护人员',   role: 'super',      password: 'Sunlight2026',  permissions: ['all'] },
+  { id: 'admin-property',   name: '物管人员',       role: 'property',   password: 'Property2026',  permissions: ['announcements','documents','workorders','residents'] },
+  { id: 'admin-committee',  name: '业委会成员',     role: 'committee',  password: 'Committee2026', permissions: ['polls','residents','complaints','audit'] },
+  { id: 'admin-community',  name: '社区人员',       role: 'community',  password: 'Community2026', permissions: ['announcements','activities','complaints'] }
 ];
 
 let appData = {config:{},announcements:[],documents:[],activities:[],polls:[],residents:[],'audit-log':[],workorders:[],complaints:[]};
@@ -547,6 +542,7 @@ async function loadAllData() {
   }
   updateFavicon();
   updatePageTitle();
+  renderSiteLogo();
   // === 数据清洗：移除已失效的 blob URL，防止脏数据持续保存 ===
   if (appData.activities) {
     appData.activities.forEach(item => {
@@ -576,15 +572,8 @@ async function loadAllData() {
       const acc = ADMIN_ACCOUNTS.find(a => a.id === persisted.id);
       if (acc && persisted.password) acc.password = persisted.password;
       if (acc && persisted.permissions) acc.permissions = persisted.permissions;
-      if (acc && persisted.mustChangePwd === false) acc.mustChangePwd = false;
     });
   }
-  // 加载 localStorage 中标记的已修改密码状态
-  ADMIN_ACCOUNTS.forEach(acc => {
-    if (localStorage.getItem('pwdChanged_' + acc.id)) {
-      acc.mustChangePwd = false;
-    }
-  });
 }
 
 function updateFavicon() {
@@ -596,6 +585,44 @@ function updateFavicon() {
 function updatePageTitle() {
   const c = appData.config && appData.config.community || {};
   document.title = (c.siteTitle || (c.name ? c.name + ' - 管理后台' : '管理后台'));
+}
+function getSiteLogoConfig() {
+  try { var raw = localStorage.getItem("siteLogoConfig"); if (raw) return JSON.parse(raw); } catch(e) {}
+  return { type: "emoji", value: "⚙️", title: "管理后台", adminTitle: "管理后台" };
+}
+function setSiteLogoConfig(cfg) {
+  localStorage.setItem("siteLogoConfig", JSON.stringify(cfg));
+}
+function renderSiteLogo() {
+  var cfg = getSiteLogoConfig();
+  var iconEl = document.getElementById("siteLogoIcon");
+  var titleEl = document.getElementById("siteLogoTitle");
+  if (iconEl) {
+    if (cfg.type === "image" && cfg.value) {
+      iconEl.innerHTML = '<img src="' + cfg.value.replace(/"/g, "&quot;") + '" style="width:28px;height:28px;border-radius:50%;object-fit:cover;display:block;">';
+    } else {
+      iconEl.innerHTML = cfg.value || "⚙️";
+    }
+  }
+  if (titleEl) titleEl.textContent = cfg.adminTitle || cfg.title || "管理后台";
+  var link = document.getElementById("faviconLink");
+  if (!link) {
+    link = document.createElement("link");
+    link.id = "faviconLink"; link.rel = "shortcut icon"; link.type = "image/png";
+    document.head.appendChild(link);
+  }
+  if (cfg.type === "image" && cfg.value) {
+    link.href = cfg.value;
+  } else {
+    var emoji = cfg.value ? cfg.value.replace(/&#(\d+);/g, function(m, code) { return String.fromCodePoint(code); }) : "⚙️";
+    var canvas = document.createElement("canvas");
+    canvas.width = 64; canvas.height = 64;
+    var ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 64, 64);
+    ctx.font = "48px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(emoji, 32, 34);
+    link.href = canvas.toDataURL("image/png");
+  }
 }
 function checkLoginState() {
   autoSkipLogin();
@@ -642,46 +669,14 @@ async function doAdminLogin() {
   const account = ADMIN_ACCOUNTS.find(a => a.id === roleId);
   if (!account) { err.textContent = '身份配置错误，请联系总维护人员'; err.style.display = 'block'; return; }
 
-  // 检查登录锁定
-  const lockKey = 'loginLock_' + roleId;
-  const lockData = localStorage.getItem(lockKey);
-  if (lockData) {
-    try {
-      const lock = JSON.parse(lockData);
-      if (lock.lockedUntil && Date.now() < lock.lockedUntil) {
-        const remain = Math.ceil((lock.lockedUntil - Date.now()) / 60000);
-        err.textContent = '登录尝试次数过多，请 ' + remain + ' 分钟后再试';
-        err.style.display = 'block';
-        return;
-      }
-    } catch(e) { localStorage.removeItem(lockKey); }
-  }
-
   btn.disabled = true; btn.textContent = '验证中...';
 
-  // SHA-256 哈希对比
-  const inputHash = await sha256(pwd);
-  if (inputHash !== account.password) {
-    // 记录失败次数
-    const failKey = 'loginFail_' + roleId;
-    let fails = parseInt(localStorage.getItem(failKey) || '0') + 1;
-    localStorage.setItem(failKey, String(fails));
-    if (fails >= 5) {
-      const lockoutMinutes = 30;
-      localStorage.setItem(lockKey, JSON.stringify({ lockedUntil: Date.now() + lockoutMinutes * 60000, failCount: fails }));
-      localStorage.removeItem(failKey);
-      err.textContent = '登录尝试次数过多，已锁定 ' + lockoutMinutes + ' 分钟';
-    } else {
-      err.textContent = '密码错误，还剩 ' + (5 - fails) + ' 次机会';
-    }
-    err.style.display = 'block';
+  // 明文对比，方便直接修改代码中的密码
+  if (pwd !== account.password) {
+    err.textContent = '密码错误，请重新输入'; err.style.display = 'block';
     btn.disabled = false; btn.textContent = '登录';
     return;
   }
-
-  // 登录成功，清除失败记录
-  localStorage.removeItem('loginFail_' + roleId);
-  localStorage.removeItem(lockKey);
 
   // 登录成功
   currentAdmin = { id: account.id, name: account.name, role: account.role, permissions: account.permissions };
@@ -692,14 +687,6 @@ async function doAdminLogin() {
   document.getElementById('tokenPage').style.display = 'none';
   showAdminLayout();
   showToast('欢迎，' + account.name, 'success');
-
-  // 首次登录强制提醒修改默认密码
-  if (account.mustChangePwd && !localStorage.getItem('pwdChanged_' + roleId)) {
-    setTimeout(() => {
-      showToast('⚠️ 首次登录，请立即修改默认密码以确保安全', 'warning');
-      navigateTo('settings');
-    }, 800);
-  }
 }
 
 async function saveToken() {
@@ -1127,10 +1114,18 @@ async function saveCurrentModule() {
     if (!appData.config.settings) appData.config.settings = {};
     appData.config.settings.defaultTheme = document.getElementById('cfgTheme').value;
     updateFavicon();
+    // 同步站点 Logo 配置到 localStorage，供所有子页面（life.html / admin-life.html）读取
+    var logoCfg = {
+      type: c.logo ? "image" : "emoji",
+      value: c.logo || "&#127968;",
+      title: c.siteTitle || c.name || "春天阳光小区",
+      adminTitle: c.name ? c.name + " - 管理后台" : "管理后台"
+    };
+    setSiteLogoConfig(logoCfg);
     showLoading(true);
     try {
       await saveDataFile('config', appData.config, '更新社区配置', 'update');
-      showToast('保存成功', 'success');
+      showToast('保存成功，站点 Logo 已同步到所有页面', 'success');
     } catch(e) {
       showToast('保存失败：' + e.message, 'error');
     } finally {
@@ -1497,9 +1492,6 @@ async function changePassword() {
   showLoading(true);
   try {
     await saveDataFile('config', appData.config, '管理员 ' + account.name + ' 修改密码', 'password-change');
-    // 标记密码已修改，不再强制提示
-    localStorage.setItem('pwdChanged_' + account.id, '1');
-    account.mustChangePwd = false;
     showToast('密码修改成功', 'success');
   } catch(e) {
     showToast('密码已更新（内存），但持久化失败：' + e.message, 'warning');

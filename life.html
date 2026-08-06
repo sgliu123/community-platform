@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>春天阳光小区 - 生活服务</title>
+<link id="dynFavicon" rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🏠%3C/text%3E%3C/svg%3E">
 <style>
 :root { --primary: #2E8B57; --primary-light: #3da76b; --primary-dark: #1f6b41; --bg: #f5f7fa; --card: #fff; --text: #333; --text-secondary: #666; --border: #e0e0e0; --shadow: 0 2px 12px rgba(0,0,0,0.08); --radius: 12px; --header-h: 56px; }
 .theme-t2 { --primary: #1976D2; --primary-light: #42a5f5; --primary-dark: #0d47a1; }
@@ -152,7 +153,7 @@ a { text-decoration:none; color:var(--primary); }
 </head>
 <body>
 <header class="header">
-  <div class="header-left"><div class="header-logo">&#127968;</div><div class="header-title">春天阳光小区</div></div>
+  <div class="header-left"><div class="header-logo" id="siteLogoIcon">&#127968;</div><div class="header-title" id="siteLogoTitle">春天阳光小区</div></div>
   <nav class="header-nav" id="headerNav">
     <a href="index.html#/home">首页</a>
     <a href="index.html#/announcements">公告</a>
@@ -330,6 +331,52 @@ function closeImagePreview() {
   var img = document.getElementById("imagePreviewImg");
   if (img) { img.src = ""; img.onload = null; img.onerror = null; }
 }
+
+/* ===== 站点 Logo 统一配置 ===== */
+function getSiteLogoConfig() {
+  try {
+    const raw = localStorage.getItem("siteLogoConfig");
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return { type: "emoji", value: "&#127968;", title: "春天阳光小区", adminTitle: "社区管理平台" };
+}
+function setSiteLogoConfig(cfg) {
+  localStorage.setItem("siteLogoConfig", JSON.stringify(cfg));
+}
+function renderSiteLogo() {
+  const cfg = getSiteLogoConfig();
+  const iconEl = document.getElementById("siteLogoIcon");
+  const titleEl = document.getElementById("siteLogoTitle");
+  if (iconEl) {
+    if (cfg.type === "image" && cfg.value) {
+      iconEl.innerHTML = '<img src="' + cfg.value.replace(/"/g, "&quot;") + '" style="width:28px;height:28px;border-radius:50%;object-fit:cover;display:block;">';
+    } else {
+      iconEl.innerHTML = cfg.value || "&#127968;";
+    }
+  }
+  if (titleEl) titleEl.textContent = cfg.title || "春天阳光小区";
+  // favicon
+  let link = document.getElementById("dynFavicon");
+  if (!link) {
+    link = document.createElement("link");
+    link.id = "dynFavicon";
+    link.rel = "shortcut icon";
+    document.head.appendChild(link);
+  }
+  if (cfg.type === "image" && cfg.value) {
+    link.href = cfg.value;
+  } else {
+    const emoji = cfg.value ? cfg.value.replace(/&#(\d+);/g, function(m, code) { return String.fromCodePoint(code); }) : "🏠";
+    const canvas = document.createElement("canvas");
+    canvas.width = 64; canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 64, 64);
+    ctx.font = "48px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(emoji, 32, 34);
+    link.href = canvas.toDataURL("image/png");
+  }
+}
+
 function showToast(msg) {
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -937,7 +984,7 @@ function renderCanteenOrderDetail(orderId) {
 document.addEventListener("keydown", function(e) { if (e.key === "Escape") closeImagePreview(); });
 window.addEventListener("hashchange", () => render());
 document.addEventListener("DOMContentLoaded", async () => {
-  applyTheme(currentTheme); renderThemePanel();
+  applyTheme(currentTheme); renderThemePanel(); renderSiteLogo();
   await loadData();
   render();
 });
