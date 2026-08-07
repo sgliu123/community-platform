@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>业主投票</title>
+<style>
+:root {
+  --primary: #2E8B57; --primary-light: #3da76b; --primary-dark: #1f6b41;
+  --bg: #f0f2f5; --card: #fff; --text: #333; --text-secondary: #666;
+  --border: #e0e0e0; --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --radius: 8px; --danger: #c62828; --warning: #f9a825; --success: #2e7d32;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.5; min-height:100vh; }
+
+.login-page { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); padding:20px; }
+.login-box { background:#fff; border-radius:16px; padding:32px; width:90%; max-width:420px; box-shadow:0 12px 40px rgba(0,0,0,0.2); }
+.login-box h2 { text-align:center; margin-bottom:8px; font-size:22px; }
+.login-box .subtitle { text-align:center; color:var(--text-secondary); font-size:14px; margin-bottom:24px; }
+.login-box input { width:100%; padding:12px 14px; margin-bottom:12px; border:1px solid var(--border); border-radius:8px; font-size:14px; }
+.login-box input:focus { outline:none; border-color:var(--primary); }
+.login-box button { width:100%; padding:12px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:15px; cursor:pointer; font-weight:500; }
+.login-box button:hover { background:var(--primary-dark); }
+.login-box button:disabled { background:#ccc; cursor:not-allowed; }
+.login-box .error { color:var(--danger); font-size:13px; text-align:center; margin-bottom:12px; display:none; }
+
+.main-wrap { display:none; max-width:800px; margin:0 auto; padding:20px; }
+.main-wrap.active { display:block; }
+
+.top-info { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.top-info .vote-power { font-size:15px; font-weight:600; color:var(--primary); }
+.top-info .resident-tag { font-size:13px; color:var(--text-secondary); }
+.top-info button { padding:6px 14px; border:1px solid var(--border); background:#fff; border-radius:6px; cursor:pointer; font-size:13px; }
+
+.card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:20px; }
+.card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.card-header h3 { font-size:16px; font-weight:600; }
+
+.poll-list { display:flex; flex-direction:column; gap:12px; }
+.poll-item { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; cursor:pointer; transition:.15s; border-left:4px solid var(--primary); }
+.poll-item:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+.poll-item .title { font-size:15px; font-weight:600; margin-bottom:6px; }
+.poll-item .meta { font-size:13px; color:var(--text-secondary); }
+.poll-item .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; background:#e8f5e9; color:#2e7d32; margin-left:8px; }
+.poll-item .tag-ended { background:#eceff1; color:#546e7a; }
+
+.question-block { margin-bottom:20px; }
+.question-block .q-title { font-size:15px; font-weight:600; margin-bottom:10px; }
+.question-block .q-title .req { color:var(--danger); margin-left:2px; }
+.question-block .options { display:flex; flex-direction:column; gap:8px; }
+.question-block label { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--border); border-radius:6px; cursor:pointer; font-size:14px; transition:.15s; }
+.question-block label:hover { border-color:var(--primary); background:#f5f5f5; }
+.question-block input[type="radio"], .question-block input[type="checkbox"] { width:18px; height:18px; accent-color:var(--primary); }
+.question-block textarea { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:6px; font-size:14px; font-family:inherit; min-height:80px; resize:vertical; }
+.question-block textarea:focus { outline:none; border-color:var(--primary); }
+
+.btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:6px; font-size:14px; cursor:pointer; border:1px solid var(--border); background:#fff; }
+.btn:hover { background:#f5f5f5; }
+.btn-primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+.btn-primary:hover { background:var(--primary-dark); }
+.btn:disabled { opacity:0.6; cursor:not-allowed; }
+
+.empty-state { text-align:center; padding:60px 20px; color:var(--text-secondary); }
+.empty-state .icon { font-size:48px; margin-bottom:16px; }
+
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px; }
+.modal-overlay.active { display:flex; }
+.modal-box { background:#fff; border-radius:12px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,0.2); }
+.modal-header { padding:20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.modal-header h3 { font-size:17px; }
+.modal-header .close { font-size:24px; cursor:pointer; color:var(--text-secondary); line-height:1; }
+.modal-body { padding:20px; }
+.modal-footer { padding:16px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; }
+
+.toast-container { position:fixed; top:20px; right:20px; z-index:2000; display:flex; flex-direction:column; gap:8px; }
+.toast { background:#fff; border-radius:8px; padding:12px 16px; box-shadow:0 4px 16px rgba(0,0,0,0.15); display:flex; align-items:center; gap:10px; min-width:280px; animation:slideIn .3s ease; }
+.toast.success { border-left:4px solid var(--success); }
+.toast.error { border-left:4px solid var(--danger); }
+.toast.info { border-left:4px solid var(--primary); }
+@keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+
+.loading-overlay { position:fixed; inset:0; background:rgba(255,255,255,0.8); z-index:3000; display:none; align-items:center; justify-content:center; }
+.loading-overlay.active { display:flex; }
+.spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.back-link { color:var(--primary); cursor:pointer; font-size:14px; margin-bottom:12px; display:inline-flex; align-items:center; gap:4px; }
+.back-link:hover { text-decoration:underline; }
+
+.voted-badge { display:inline-block; padding:4px 10px; background:#e8f5e9; color:#2e7d32; border-radius:4px; font-size:12px; font-weight:600; margin-left:auto; }
+
+@media (max-width:600px) {
+  .login-box { padding:24px; }
+  .main-wrap { padding:12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="login-page" id="loginPage">
+  <div class="login-box">
+    <h2>🗳️ 业主投票登录</h2>
+    <p class="subtitle">请验证您的业主身份</p>
+    <div class="error" id="loginError"></div>
+    <input type="text" id="inRoom" placeholder="房号（如：1-1-101）" maxlength="20">
+    <input type="text" id="inName" placeholder="姓名" maxlength="20">
+    <input type="text" id="inIdCard" placeholder="身份证号后4位" maxlength="4" inputmode="numeric">
+    <button id="loginBtn" onclick="doLogin()">验证并进入</button>
+  </div>
+</div>
+
+<div class="main-wrap" id="mainWrap">
+  <div class="top-info">
+    <div>
+      <div class="vote-power" id="votePower">您的投票权：人数 1 票，面积 — ㎡</div>
+      <div class="resident-tag" id="residentTag">—</div>
+    </div>
+    <button onclick="logout()">退出</button>
+  </div>
+
+  <div id="pollListView">
+    <div class="card">
+      <div class="card-header"><h3>📋 当前进行中的投票</h3></div>
+      <div id="pollListContainer"><div class="empty-state"><div class="icon">📭</div><div>暂无进行中的投票</div></div></div>
+    </div>
+  </div>
+
+  <div id="pollDetailView" style="display:none;">
+    <div class="back-link" onclick="showPollList()">← 返回投票列表</div>
+    <div class="card" id="pollDetailCard"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>⚠️ 确认提交投票</h3>
+      <span class="close" onclick="closeConfirm()">&times;</span>
+    </div>
+    <div class="modal-body" id="confirmBody"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeConfirm()">取消</button>
+      <button class="btn btn-primary" id="confirmBtn" onclick="doSubmitVote()">确认提交</button>
+    </div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const WORKER_BASE = (localStorage.getItem('workerBase') || '').replace(/\/$/,'');
+function getWorkerBase(){ return WORKER_BASE; }
+
+let appData = { polls: [], residents: [] };
+let currentResident = null;
+let currentPoll = null;
+let pendingAnswers = null;
+
+async function workerRead(filePath){
+  const base = getWorkerBase();
+  if(!base){
+    const saved = localStorage.getItem('adminData_' + filePath.replace(/^data\//,'').replace(/\.json$/,''));
+    if(saved) return JSON.parse(saved);
+    return [];
+  }
+  const res = await fetch(base + '/api/read/' + encodeURIComponent(filePath));
+  if(!res.ok) throw new Error('读取失败');
+  const t = await res.text();
+  return t ? JSON.parse(t) : [];
+}
+
+async function workerWrite(filePath, data, message){
+  const base = getWorkerBase();
+  if(!base){
+    localStorage.setItem('adminData_' + filePath.replace(/^data\//,'').replace(/\.json$/,''), JSON.stringify(data));
+    return;
+  }
+  const res = await fetch(base + '/api/write/' + encodeURIComponent(filePath), {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({content: JSON.stringify(data, null, 2), message})
+  });
+  if(!res.ok){ const e = await res.json(); throw new Error(e.error || '保存失败'); }
+}
+
+async function sha256(str){
+  const buf = new TextEncoder().encode(str);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function showLoading(show){ document.getElementById('loadingOverlay').classList.toggle('active', show); }
+
+function showToast(message, type){
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+async function loadData(){
+  showLoading(true);
+  try{
+    // 读取 polls
+    let polls = [];
+    try{ polls = await workerRead('data/polls.json'); }catch(e){}
+    if(!polls || !polls.length){
+      const saved = localStorage.getItem('adminData_polls');
+      if(saved) try{ polls = JSON.parse(saved); }catch(e){}
+    }
+    appData.polls = Array.isArray(polls) ? polls : [];
+
+    // 读取 residents
+    let residents = [];
+    try{ residents = await workerRead('data/residents.json'); }catch(e){}
+    if(!residents || !residents.length){
+      const saved = localStorage.getItem('adminData_residents');
+      if(saved) try{ residents = JSON.parse(saved); }catch(e){}
+    }
+    appData.residents = Array.isArray(residents) ? residents : [];
+  }catch(e){ showToast('数据加载失败：' + e.message, 'error'); }
+  finally{ showLoading(false); }
+}
+
+function verifyResident(roomNo, name, suffix){
+  const r = appData.residents.find(x => x.roomNo === roomNo && x.name === name);
+  if(!r) return null;
+  if(r.idCardHash && r.idCardHash.length >= 4){
+    if(r.idCardHash.slice(-4) === suffix) return r;
+    return null;
+  }
+  // 兼容测试数据：无 idCardHash 时用 phoneSuffix 匹配
+  if(r.phoneSuffix && r.phoneSuffix.slice(-4) === suffix) return r;
+  if(!r.idCardHash && !r.phoneSuffix) return r;
+  return null;
+}
+
+async function doLogin(){
+  const room = document.getElementById('inRoom').value.trim();
+  const name = document.getElementById('inName').value.trim();
+  const suffix = document.getElementById('inIdCard').value.trim();
+  const err = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  err.style.display = 'none';
+
+  if(!room || !name || !suffix){ err.textContent = '请填写所有字段'; err.style.display = 'block'; return; }
+  if(!/^\d{4}$/.test(suffix)){ err.textContent = '身份证后4位应为4位数字'; err.style.display = 'block'; return; }
+
+  btn.disabled = true; btn.textContent = '验证中...';
+  await loadData();
+
+  const resident = verifyResident(room, name, suffix);
+  if(!resident){
+    err.textContent = '身份验证失败，请检查房号、姓名和身份证后4位';
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = '验证并进入';
+    return;
+  }
+
+  currentResident = resident;
+  sessionStorage.setItem('voteResident', JSON.stringify({id: resident.id, roomNo: resident.roomNo, name: resident.name, loginAt: Date.now()}));
+  btn.disabled = false; btn.textContent = '验证并进入';
+  enterMain();
+}
+
+function enterMain(){
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('mainWrap').classList.add('active');
+  const area = currentResident.area || 0;
+  const count = currentResident.voteWeightCount || 1;
+  document.getElementById('votePower').textContent = '您的投票权：人数 ' + count + ' 票，面积 ' + area + ' ㎡';
+  document.getElementById('residentTag').textContent = currentResident.roomNo + ' · ' + currentResident.name;
+  renderPollList();
+}
+
+function logout(){
+  if(!confirm('确定要退出登录吗？')) return;
+  sessionStorage.removeItem('voteResident');
+  currentResident = null;
+  location.reload();
+}
+
+function renderPollList(){
+  const container = document.getElementById('pollListContainer');
+  const activePolls = appData.polls.filter(p => p.status === '进行中' && p.mode === 'local');
+  if(!activePolls.length){
+    container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div>暂无进行中的投票</div></div>';
+    return;
+  }
+  let html = '<div class="poll-list">';
+  activePolls.forEach(p => {
+    const isMajor = p.category === 'major';
+    html += '<div class="poll-item" onclick="openPoll(\'' + p.id + '\')">';
+    html += '<div class="title">' + escapeHtml(p.title) + (isMajor ? '<span class="tag" style="background:#ffebee;color:#c62828;margin-left:8px;">重大</span>' : '') + '</div>';
+    html += '<div class="meta">案卷号：' + (p.caseNo||'') + ' · ' + (p.startDate||'') + ' 至 ' + (p.endDate||'') + '</div>';
+    if(p.description) html += '<div class="meta" style="margin-top:4px;">' + escapeHtml(p.description).substring(0,80) + (p.description.length>80?'...':'') + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function escapeHtml(text){
+  if(!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+async function openPoll(pollId){
+  const poll = appData.polls.find(p => p.id === pollId);
+  if(!poll) return;
+  currentPoll = poll;
+
+  // 检查是否已投票
+  showLoading(true);
+  let hasVoted = false;
+  try{
+    hasVoted = await checkHasVoted(pollId, currentResident.id);
+  }catch(e){}
+  showLoading(false);
+
+  document.getElementById('pollListView').style.display = 'none';
+  document.getElementById('pollDetailView').style.display = 'block';
+  window.scrollTo(0,0);
+
+  const isMajor = poll.category === 'major';
+  let html = '<div class="card-header" style="margin-bottom:12px;"><h3>' + escapeHtml(poll.title) + '</h3>' + (hasVoted ? '<span class="voted-badge">✅ 您已投票</span>' : '') + '</div>';
+  html += '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">案卷号：' + (poll.caseNo||'') + ' · ' + (poll.startDate||'') + ' 至 ' + (poll.endDate||'') + (isMajor ? ' · <span style="color:#c62828;font-weight:600;">重大事项</span>' : '') + '</div>';
+  if(poll.description) html += '<div style="font-size:14px;margin-bottom:20px;padding:12px;background:#fafafa;border-radius:6px;">' + escapeHtml(poll.description) + '</div>';
+
+  if(hasVoted){
+    html += '<div class="empty-state" style="padding:40px 20px;"><div class="icon">✅</div><div>您已完成此投票，每人限投一次</div></div>';
+    document.getElementById('pollDetailCard').innerHTML = html;
+    return;
+  }
+
+  if(!poll.questions || !poll.questions.length){
+    html += '<div class="empty-state" style="padding:40px 20px;"><div class="icon">📝</div><div>此投票暂未设置题目</div></div>';
+    document.getElementById('pollDetailCard').innerHTML = html;
+    return;
+  }
+
+  html += '<div id="questionsForm">';
+  poll.questions.forEach((q, idx) => {
+    html += '<div class="question-block">';
+    html += '<div class="q-title">' + (idx+1) + '. ' + escapeHtml(q.title) + (q.required ? '<span class="req">*</span>' : '') + '</div>';
+    if(q.type === 'text'){
+      html += '<textarea id="ans-' + q.id + '" placeholder="请输入您的回答" ' + (q.required?'data-required="1"':'') + '></textarea>';
+    } else if(q.type === 'single'){
+      html += '<div class="options">';
+      (q.options||[]).forEach((opt, oi) => {
+        html += '<label><input type="radio" name="ans-' + q.id + '" value="' + escapeHtml(opt) + '" ' + (q.required?'data-required="1"':'') + '> ' + escapeHtml(opt) + '</label>';
+      });
+      html += '</div>';
+    } else if(q.type === 'multiple'){
+      html += '<div class="options">';
+      (q.options||[]).forEach((opt, oi) => {
+        html += '<label><input type="checkbox" name="ans-' + q.id + '" value="' + escapeHtml(opt) + '" ' + (q.required?'data-required="1"':'') + '> ' + escapeHtml(opt) + '</label>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '<div style="text-align:center;margin-top:24px;"><button class="btn btn-primary" style="padding:12px 32px;font-size:15px;" onclick="prepareSubmit()">提交投票</button></div>';
+  document.getElementById('pollDetailCard').innerHTML = html;
+}
+
+function showPollList(){
+  document.getElementById('pollDetailView').style.display = 'none';
+  document.getElementById('pollListView').style.display = 'block';
+  currentPoll = null;
+  renderPollList();
+}
+
+function prepareSubmit(){
+  if(!currentPoll || !currentResident) return;
+  const answers = [];
+  let missing = false;
+
+  for(const q of currentPoll.questions){
+    let val = null;
+    if(q.type === 'text'){
+      val = document.getElementById('ans-' + q.id).value.trim();
+      if(q.required && !val){ missing = true; }
+    } else if(q.type === 'single'){
+      const checked = document.querySelector('input[name="ans-' + q.id + '"]:checked');
+      val = checked ? checked.value : null;
+      if(q.required && !val){ missing = true; }
+    } else if(q.type === 'multiple'){
+      const checked = Array.from(document.querySelectorAll('input[name="ans-' + q.id + '"]:checked')).map(el => el.value);
+      val = checked.length ? checked : null;
+      if(q.required && (!val || !val.length)){ missing = true; }
+    }
+    answers.push({ questionId: q.id, value: val });
+  }
+
+  if(missing){ showToast('请完成所有必填题目', 'error'); return; }
+  pendingAnswers = answers;
+
+  document.getElementById('confirmBody').innerHTML = '<p>您以 <strong>' + escapeHtml(currentResident.roomNo) + '</strong> 业主身份投票，结果不可更改，是否确认？</p>';
+  document.getElementById('confirmModal').classList.add('active');
+}
+
+function closeConfirm(){
+  document.getElementById('confirmModal').classList.remove('active');
+  pendingAnswers = null;
+}
+
+async function checkHasVoted(pollId, residentId){
+  const d = new Date();
+  const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+  let responses = [];
+  try{ responses = await workerRead(path); }catch(e){ responses = []; }
+  if(!Array.isArray(responses)) responses = [];
+  return responses.some(r => r.pollId === pollId && r.residentId === residentId);
+}
+
+
+function generateVoterReceipt(voteRecord) {
+  if (!voteRecord) return;
+  const title = '投票回执';
+  const roomNo = voteRecord.roomNo || '—';
+  const voteTime = voteRecord.voteTime ? new Date(voteRecord.voteTime).toLocaleString('zh-CN') : '—';
+  const nonce = voteRecord.nonce || '—';
+  const hashFrag = voteRecord.ipHash ? voteRecord.ipHash.substring(0, 16) + '...' : '—';
+
+  const win = window.open('', '_blank', 'width=420,height=600');
+  if (!win) { showToast('请允许弹窗以生成回执', 'error'); return; }
+
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投票回执</title>
+<style>
+body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.receipt { background: #fff; width: 360px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); padding: 28px; position: relative; overflow: hidden; }
+.receipt::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #2E8B57, #3da76b); }
+.receipt-header { text-align: center; margin-bottom: 20px; }
+.receipt-header .logo { font-size: 32px; margin-bottom: 8px; }
+.receipt-header .title { font-size: 16px; font-weight: 700; color: #333; }
+.receipt-header .subtitle { font-size: 11px; color: #999; margin-top: 4px; }
+.receipt-body { border-top: 1px dashed #e0e0e0; border-bottom: 1px dashed #e0e0e0; padding: 16px 0; }
+.receipt-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px; }
+.receipt-row .label { color: #666; }
+.receipt-row .value { color: #333; font-weight: 500; }
+.receipt-row .value.room { font-size: 18px; font-weight: 700; color: #2E8B57; }
+.hash-box { background: #f8f9fa; border-radius: 6px; padding: 10px; margin-top: 12px; font-family: monospace; font-size: 11px; color: #666; word-break: break-all; line-height: 1.5; }
+.receipt-footer { text-align: center; margin-top: 20px; }
+.receipt-footer .stamp { display: inline-block; padding: 6px 16px; border: 2px solid #2E8B57; color: #2E8B57; border-radius: 4px; font-size: 13px; font-weight: 600; transform: rotate(-3deg); opacity: 0.8; }
+.receipt-footer .tip { font-size: 11px; color: #999; margin-top: 12px; }
+.btn-print { display: block; width: 100%; padding: 10px; margin-top: 16px; background: #2E8B57; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+.qr-placeholder { width: 80px; height: 80px; background: #f5f5f5; border-radius: 6px; margin: 12px auto 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999; }
+@media print {
+  body { background: #fff; }
+  .btn-print { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="receipt">
+  <div class="receipt-header">
+    <div class="logo">🗳️</div>
+    <div class="title">${title}</div>
+    <div class="subtitle">业主投票回执</div>
+  </div>
+  <div class="receipt-body">
+    <div class="receipt-row"><span class="label">房号</span><span class="value room">${roomNo}</span></div>
+    <div class="receipt-row"><span class="label">投票时间</span><span class="value">${voteTime}</span></div>
+    <div class="receipt-row"><span class="label">随机Nonce</span><span class="value">${nonce.substring(0, 8)}...</span></div>
+    <div class="receipt-row"><span class="label">IP哈希</span><span class="value">${hashFrag}</span></div>
+    <div class="hash-box">
+      <div style="margin-bottom:4px;font-weight:600;color:#333;">Merkle Path 片段</div>
+      <div>${voteRecord.prevHash ? voteRecord.prevHash.substring(0, 24) + '...' : '首票（无前置）'}</div>
+    </div>
+  </div>
+  <div class="receipt-footer">
+    <div class="stamp">已上链存证</div>
+    <div class="qr-placeholder">Merkle<br>Root</div>
+    <div class="tip">请截图保存此回执<br>作为您的投票凭证</div>
+  </div>
+  <button class="btn-print" onclick="window.print()">🖨️ 打印 / 保存为 PDF</button>
+</div>
+</body>
+</html>`;
+
+  win.document.write(html);
+  win.document.close();
+}
+
+async function doSubmitVote(){
+  if(!currentPoll || !currentResident || !pendingAnswers) return;
+  const btn = document.getElementById('confirmBtn');
+  btn.disabled = true; btn.textContent = '提交中...';
+  showLoading(true);
+
+  try{
+    // 再次检查重复
+    const hasVoted = await checkHasVoted(currentPoll.id, currentResident.id);
+    if(hasVoted){ showToast('您已投过票，请勿重复提交', 'error'); closeConfirm(); return; }
+
+    // 获取 IP（通过外部服务）
+    let ip = '';
+    try{
+      const ipRes = await fetch('https://api.ipify.org?format=json', {cache:'no-store'});
+      if(ipRes.ok){ const ipData = await ipRes.json(); ip = ipData.ip || ''; }
+    }catch(e){}
+
+    const ipHash = await sha256(ip || 'unknown');
+    const deviceHash = await sha256(navigator.userAgent || 'unknown');
+    const nonce = Math.random().toString(36).substring(2,10) + Date.now().toString(36);
+
+    // 读取已有响应，计算 prevHash
+    const d = new Date();
+    const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+    let responses = [];
+    try{ responses = await workerRead(path); }catch(e){ responses = []; }
+    if(!Array.isArray(responses)) responses = [];
+    const pollVotes = responses.filter(r => r.pollId === currentPoll.id);
+    let prevHash = '';
+    if(pollVotes.length > 0){
+      const last = pollVotes[pollVotes.length - 1];
+      prevHash = await sha256(JSON.stringify(last));
+    }
+
+    const voteRecord = {
+      pollId: currentPoll.id,
+      residentId: currentResident.id,
+      roomNo: currentResident.roomNo,
+      area: currentResident.area || 0,
+      choice: pendingAnswers,
+      voteTime: new Date().toISOString(),
+      ipHash: ipHash,
+      deviceHash: deviceHash,
+      nonce: nonce,
+      prevHash: prevHash
+    };
+
+    responses.push(voteRecord);
+    await workerWrite(path, responses, '业主 ' + currentResident.roomNo + ' 投票 ' + currentPoll.caseNo);
+
+    showToast('投票成功，感谢您的参与！', 'success');
+    generateVoterReceipt(voteRecord);
+    closeConfirm();
+    openPoll(currentPoll.id);
+  }catch(e){
+    showToast('提交失败：' + e.message, 'error');
+  }finally{
+    btn.disabled = false; btn.textContent = '确认提交';
+    showLoading(false);
+  }
+}
+
+// 初始化
+async function init(){
+  const saved = sessionStorage.getItem('voteResident');
+  if(saved){
+    try{
+      const s = JSON.parse(saved);
+      if(s.loginAt && Date.now() - s.loginAt < 8*3600*1000){
+        await loadData();
+        currentResident = appData.residents.find(r => r.id === s.id);
+        if(currentResident){ enterMain(); return; }
+      }
+    }catch(e){}
+    sessionStorage.removeItem('voteResident');
+  }
+  await loadData();
+}
+
+init();
+</script>
+</body>
+</html>

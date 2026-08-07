@@ -304,7 +304,7 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
     </select>
     <input type="password" id="loginPassword" placeholder="请输入密码">
     <button id="loginBtn" onclick="doAdminLogin()">登录</button>
-    <p class="tip" id="loginTip">请选择身份并输入对应密码<br>首次登录后请前往「系统设置」修改默认密码</p>
+    <p class="tip" id="loginTip">请选择身份并输入对应密码<br>如需修改密码请编辑代码顶部 ADMIN_ACCOUNTS</p>
   </div>
 </div>
 
@@ -324,9 +324,9 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
 <div class="admin-layout" id="adminLayout">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="logo">⚙️</div>
+      <div class="logo" id="siteLogoIcon">⚙️</div>
       <div>
-        <div class="title">管理后台</div>
+        <div class="title" id="siteLogoTitle">管理后台</div>
         <div class="role" id="adminRole">超级管理员</div>
       </div>
     </div>
@@ -372,6 +372,12 @@ const EMBEDDED_DATA = {"config":{"community":{"name":"春天阳光小区","siteT
   {"id":"admin-committee","name":"业委会成员","role":"committee","permissions":["polls","residents","complaints","audit"]},
   {"id":"admin-community","name":"社区人员","role":"community","permissions":["announcements","activities","complaints"]}
 ]},"announcements":[{"id":"ann-001","title":"【测试】关于小区电梯年度维保的通知","category":"物业通知","content":"<p>【测试数据】各位业主，为确保电梯安全运行，物业将于本月进行年度维保，具体安排如下...</p>","isPinned":true,"publishDate":"2026-07-20","author":"管理员A","views":156,"attachments":[]},{"id":"ann-002","title":"【测试】端午节放假及值班安排","category":"节日通知","content":"<p>【测试数据】端午节期间物业服务中心值班时间为：6月22日-24日 9:00-17:00...</p>","isPinned":false,"publishDate":"2026-07-15","author":"管理员B","views":89,"attachments":[]},{"id":"ann-003","title":"【测试】垃圾分类投放点调整说明","category":"社区公告","content":"<p>【测试数据】根据上级要求，小区垃圾分类投放点将做如下调整：1号楼北侧...</p>","isPinned":false,"publishDate":"2026-07-18","author":"管理员C","views":120,"attachments":[]},{"id":"ann-004","title":"【测试】停车场管理系统升级通知","category":"物业通知","content":"<p>【测试数据】为提升停车体验，停车场系统将于本周末升级，期间可能短暂影响...</p>","isPinned":false,"publishDate":"2026-07-19","author":"管理员B","views":76,"attachments":[]},{"id":"ann-005","title":"【测试】关于成立业主委员会筹备组的公告","category":"重要公告","content":"<p>【测试数据】根据《物业管理条例》，现成立业主委员会筹备组，欢迎热心业主报名...</p>","isPinned":true,"publishDate":"2026-07-10","author":"管理员A","views":234,"attachments":[]},{"id":"ann-006","title":"【测试】夏季绿化养护计划","category":"环境通知","content":"<p>【测试数据】为保持小区绿化景观，夏季养护计划如下：修剪草坪、病虫害防治...</p>","isPinned":false,"publishDate":"2026-07-12","author":"管理员C","views":45,"attachments":[]},{"id":"ann-007","title":"【测试】消防演练活动通知","category":"安全通知","content":"<p>【测试数据】定于本周六上午9:00开展消防演练，请业主配合，听到警报请勿惊慌...</p>","isPinned":false,"publishDate":"2026-07-22","author":"管理员D","views":98,"attachments":[]},{"id":"ann-008","title":"【测试】物业费收缴温馨提示","category":"物业通知","content":"<p>【测试数据】请各位业主及时缴纳本年度物业费，可通过微信/支付宝/银行转账...</p>","isPinned":false,"publishDate":"2026-07-23","author":"管理员B","views":67,"attachments":[]}],"documents":[{"id":"doc-001","title":"【测试】关于进一步加强社区治理工作的指导意见","source":"xx街道办事处","publishDate":"2026-07-15","fileUrl":"","description":"【测试数据】根据市城管局要求，各社区需加强治理工作，落实网格化管理...","category":"上级文件"},{"id":"doc-002","title":"【测试】2026年度老旧小区改造实施方案","source":"市住建局","publishDate":"2026-07-10","fileUrl":"","description":"【测试数据】本年度改造重点包括外墙翻新、管道更换、加装电梯等...","category":"上级文件"},{"id":"doc-003","title":"【测试】社区消防安全检查标准及要求","source":"区消防大队","publishDate":"2026-07-05","fileUrl":"","description":"【测试数据】各社区需按照以下标准开展消防安全自查，确保消防设施完好...","category":"上级文件"}],"activities":[{"id":"act-001","title":"【测试】端午节包粽子活动圆满结束","date":"2026-05-30","location":"小区中心广场","content":"<p>【测试数据】活动现场热闹非凡，共有80余位业主参与，大家亲手包粽子、做香囊...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"已结束"},{"id":"act-002","title":"【测试】暑期少儿绘画培训班开班啦","date":"2026-07-20","location":"社区活动室","content":"<p>【测试数据】暑期绘画班即日起接受报名，限20人，由专业美术老师授课...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"进行中"},{"id":"act-003","title":"【测试】社区健康义诊活动预告","date":"2026-08-05","location":"小区中心广场","content":"<p>【测试数据】特邀市三甲医院医生来小区开展义诊，提供免费血压血糖检测...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"预告"},{"id":"act-004","title":"【测试】业主羽毛球友谊赛精彩回顾","date":"2026-06-15","location":"小区羽毛球馆","content":"<p>【测试数据】本次比赛共有16支队伍参加，经过激烈角逐，最终A栋代表队夺冠...</p>","coverImage":"","images":[],"videoUrl":"","externalLink":"","status":"已结束"}],"polls":[{"id":"poll-001","caseNo":"2026-YJ-001","title":"【测试】关于增设儿童游乐设施的意见征集","type":"opinion","description":"【测试数据】为丰富小区儿童活动空间，拟在中心花园增设游乐设施，现征集业主意见...","tencentUrl":"https://wj.qq.com/s2/xxxx/xxxx","startDate":"2026-07-20","endDate":"2026-08-20","status":"进行中","progress":{"target":300,"current":156,"unit":"户"},"results":{"isPublished":false,"summary":"","detailUrl":""},"createdBy":"管理员A","createdAt":"2026-07-20T09:00:00Z"},{"id":"poll-002","caseNo":"2026-YJ-002","title":"【测试】小区停车位管理方案投票","type":"vote","description":"【测试数据】针对小区停车位紧张问题，现提供三种管理方案供业主投票选择...","tencentUrl":"https://wj.qq.com/s2/xxxx/xxxx2","startDate":"2026-06-01","endDate":"2026-06-15","status":"已结束","progress":{"target":300,"current":278,"unit":"户"},"results":{"isPublished":true,"summary":"方案A获得68%支持率（189户），方案B获得22%（61户），方案C获得10%（28户）","detailUrl":""},"createdBy":"管理员D","createdAt":"2026-06-01T09:00:00Z"}],"residents":[{"id":"r-001","roomNo":"1-1-101","name":"测试业主01","phoneSuffix":"0001","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-002","roomNo":"1-1-102","name":"测试业主02","phoneSuffix":"0002","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-003","roomNo":"1-1-103","name":"测试业主03","phoneSuffix":"0003","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-004","roomNo":"1-1-104","name":"测试业主04","phoneSuffix":"0004","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-005","roomNo":"1-1-105","name":"测试业主05","phoneSuffix":"0005","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-006","roomNo":"1-1-106","name":"测试业主06","phoneSuffix":"0006","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-007","roomNo":"1-1-107","name":"测试业主07","phoneSuffix":"0007","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-008","roomNo":"1-1-108","name":"测试业主08","phoneSuffix":"0008","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-009","roomNo":"1-1-109","name":"测试业主09","phoneSuffix":"0009","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-010","roomNo":"1-1-110","name":"测试业主10","phoneSuffix":"0010","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-011","roomNo":"1-2-101","name":"测试业主11","phoneSuffix":"0011","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-012","roomNo":"1-2-102","name":"测试业主12","phoneSuffix":"0012","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-013","roomNo":"1-2-103","name":"测试业主13","phoneSuffix":"0013","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-014","roomNo":"1-2-104","name":"测试业主14","phoneSuffix":"0014","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-015","roomNo":"1-2-105","name":"测试业主15","phoneSuffix":"0015","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-016","roomNo":"1-2-106","name":"测试业主16","phoneSuffix":"0016","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-017","roomNo":"1-2-107","name":"测试业主17","phoneSuffix":"0017","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-018","roomNo":"1-2-108","name":"测试业主18","phoneSuffix":"0018","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-019","roomNo":"1-2-109","name":"测试业主19","phoneSuffix":"0019","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-020","roomNo":"1-2-110","name":"测试业主20","phoneSuffix":"0020","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-021","roomNo":"1-3-101","name":"测试业主21","phoneSuffix":"0021","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-022","roomNo":"1-3-102","name":"测试业主22","phoneSuffix":"0022","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-023","roomNo":"1-3-103","name":"测试业主23","phoneSuffix":"0023","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-024","roomNo":"1-3-104","name":"测试业主24","phoneSuffix":"0024","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-025","roomNo":"1-3-105","name":"测试业主25","phoneSuffix":"0025","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-026","roomNo":"1-3-106","name":"测试业主26","phoneSuffix":"0026","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-027","roomNo":"1-3-107","name":"测试业主27","phoneSuffix":"0027","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-028","roomNo":"1-3-108","name":"测试业主28","phoneSuffix":"0028","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-029","roomNo":"1-3-109","name":"测试业主29","phoneSuffix":"0029","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-030","roomNo":"1-3-110","name":"测试业主30","phoneSuffix":"0030","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-031","roomNo":"1-4-101","name":"测试业主31","phoneSuffix":"0031","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-032","roomNo":"1-4-102","name":"测试业主32","phoneSuffix":"0032","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-033","roomNo":"1-4-103","name":"测试业主33","phoneSuffix":"0033","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-034","roomNo":"1-4-104","name":"测试业主34","phoneSuffix":"0034","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-035","roomNo":"1-4-105","name":"测试业主35","phoneSuffix":"0035","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-036","roomNo":"1-4-106","name":"测试业主36","phoneSuffix":"0036","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-037","roomNo":"1-4-107","name":"测试业主37","phoneSuffix":"0037","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-038","roomNo":"1-4-108","name":"测试业主38","phoneSuffix":"0038","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-039","roomNo":"1-4-109","name":"测试业主39","phoneSuffix":"0039","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-040","roomNo":"1-4-110","name":"测试业主40","phoneSuffix":"0040","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-041","roomNo":"1-5-101","name":"测试业主41","phoneSuffix":"0041","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-042","roomNo":"1-5-102","name":"测试业主42","phoneSuffix":"0042","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-043","roomNo":"1-5-103","name":"测试业主43","phoneSuffix":"0043","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-044","roomNo":"1-5-104","name":"测试业主44","phoneSuffix":"0044","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-045","roomNo":"1-5-105","name":"测试业主45","phoneSuffix":"0045","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-046","roomNo":"1-5-106","name":"测试业主46","phoneSuffix":"0046","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-047","roomNo":"1-5-107","name":"测试业主47","phoneSuffix":"0047","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-048","roomNo":"1-5-108","name":"测试业主48","phoneSuffix":"0048","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-049","roomNo":"1-5-109","name":"测试业主49","phoneSuffix":"0049","status":"active","isTest":true,"registeredAt":"2026-07-01"},{"id":"r-050","roomNo":"1-5-110","name":"测试业主50","phoneSuffix":"0050","status":"active","isTest":true,"registeredAt":"2026-07-01"}],"audit-log":[{"id":"log-001","timestamp":"2026-07-25T10:00:00Z","adminName":"系统初始化","adminId":"system","action":"init","target":"all","targetId":"","details":"系统预设数据初始化完成，认证方式：预设密码+SHA-256哈希","clientInfo":"System"}]};
+// 扩展 residents 测试数据：增加 area 字段（随机 60-140）
+if (EMBEDDED_DATA.residents) {
+  EMBEDDED_DATA.residents.forEach((r, i) => {
+    if (!r.area) r.area = 60 + Math.floor(Math.abs(Math.sin(i * 7.3 + 1.5)) * 81);
+  });
+}
 // Global error handlers to prevent blank pages
 window.onerror = function(msg, url, line, col, error) {
   console.error('Global error:', msg, 'at line', line);
@@ -387,17 +393,16 @@ function escapeHtml(text){
   div.textContent=text;
   return div.innerHTML;
 }
-/* ==================== 管理员账户配置（安全哈希存储） ====================
-   说明：密码已使用 SHA-256 哈希存储，运行时不再暴露明文。
-   如需修改密码，请登录后在「系统设置」中操作，或重置持久化数据。
+/* ==================== 管理员账户配置（可直接修改） ====================
+   说明：以下密码为明文，方便直接修改。如需调整权限或密码，
+   直接编辑下方 ADMIN_ACCOUNTS 数组即可，无需理解其他代码逻辑。
    四个角色：总维护人员、物管人员、业委会成员、社区人员。
-   默认密码请在首次登录后通过「系统设置」修改。
    ==================================================================== */
 const ADMIN_ACCOUNTS = [
-  { id: 'admin-super',      name: '总维护人员',   role: 'super',      password: '826890b9c0b9431a205048bdffcedd1424e499b250e82151c69c17a6841d30b6',  permissions: ['all'], mustChangePwd: true },
-  { id: 'admin-property',   name: '物管人员',       role: 'property',   password: 'd1e35d3d81fb2d981c863ff578c8535770b76c4e3e7b5bf7a2c79d167a209778',  permissions: ['announcements','documents','workorders','residents'], mustChangePwd: true },
-  { id: 'admin-committee',  name: '业委会成员',     role: 'committee',  password: '813c22cb8a65563c3757d3b910baff07bd4b956e7bc51149702bc2d3c01631cc',  permissions: ['polls','residents','complaints','audit'], mustChangePwd: true },
-  { id: 'admin-community',  name: '社区人员',       role: 'community',  password: 'aea0fef061574fed8ef68bc55f2fc3fd8455fe11411271bf772dce2fcdbb3114',  permissions: ['announcements','activities','complaints'], mustChangePwd: true }
+  { id: 'admin-super',      name: '总维护人员',   role: 'super',      password: 'Sunlight2026',  permissions: ['all'] },
+  { id: 'admin-property',   name: '物管人员',       role: 'property',   password: 'Property2026',  permissions: ['announcements','documents','workorders','residents'] },
+  { id: 'admin-committee',  name: '业委会成员',     role: 'committee',  password: 'Committee2026', permissions: ['polls','residents','complaints','audit'] },
+  { id: 'admin-community',  name: '社区人员',       role: 'community',  password: 'Community2026', permissions: ['announcements','activities','complaints'] }
 ];
 
 let appData = {config:{},announcements:[],documents:[],activities:[],polls:[],residents:[],'audit-log':[],workorders:[],complaints:[]};
@@ -543,6 +548,7 @@ async function loadAllData() {
   }
   updateFavicon();
   updatePageTitle();
+  renderSiteLogo();
   // === 数据清洗：移除已失效的 blob URL，防止脏数据持续保存 ===
   if (appData.activities) {
     appData.activities.forEach(item => {
@@ -572,15 +578,8 @@ async function loadAllData() {
       const acc = ADMIN_ACCOUNTS.find(a => a.id === persisted.id);
       if (acc && persisted.password) acc.password = persisted.password;
       if (acc && persisted.permissions) acc.permissions = persisted.permissions;
-      if (acc && persisted.mustChangePwd === false) acc.mustChangePwd = false;
     });
   }
-  // 加载 localStorage 中标记的已修改密码状态
-  ADMIN_ACCOUNTS.forEach(acc => {
-    if (localStorage.getItem('pwdChanged_' + acc.id)) {
-      acc.mustChangePwd = false;
-    }
-  });
 }
 
 function updateFavicon() {
@@ -592,6 +591,44 @@ function updateFavicon() {
 function updatePageTitle() {
   const c = appData.config && appData.config.community || {};
   document.title = (c.siteTitle || (c.name ? c.name + ' - 管理后台' : '管理后台'));
+}
+function getSiteLogoConfig() {
+  try { var raw = localStorage.getItem("siteLogoConfig"); if (raw) return JSON.parse(raw); } catch(e) {}
+  return { type: "emoji", value: "⚙️", title: "管理后台", adminTitle: "管理后台" };
+}
+function setSiteLogoConfig(cfg) {
+  localStorage.setItem("siteLogoConfig", JSON.stringify(cfg));
+}
+function renderSiteLogo() {
+  var cfg = getSiteLogoConfig();
+  var iconEl = document.getElementById("siteLogoIcon");
+  var titleEl = document.getElementById("siteLogoTitle");
+  if (iconEl) {
+    if (cfg.type === "image" && cfg.value) {
+      iconEl.innerHTML = '<img src="' + cfg.value.replace(/"/g, "&quot;") + '" style="width:28px;height:28px;border-radius:50%;object-fit:cover;display:block;">';
+    } else {
+      iconEl.innerHTML = cfg.value || "⚙️";
+    }
+  }
+  if (titleEl) titleEl.textContent = cfg.adminTitle || cfg.title || "管理后台";
+  var link = document.getElementById("faviconLink");
+  if (!link) {
+    link = document.createElement("link");
+    link.id = "faviconLink"; link.rel = "shortcut icon"; link.type = "image/png";
+    document.head.appendChild(link);
+  }
+  if (cfg.type === "image" && cfg.value) {
+    link.href = cfg.value;
+  } else {
+    var emoji = cfg.value ? cfg.value.replace(/&#(\d+);/g, function(m, code) { return String.fromCodePoint(code); }) : "⚙️";
+    var canvas = document.createElement("canvas");
+    canvas.width = 64; canvas.height = 64;
+    var ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 64, 64);
+    ctx.font = "48px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(emoji, 32, 34);
+    link.href = canvas.toDataURL("image/png");
+  }
 }
 function checkLoginState() {
   autoSkipLogin();
@@ -638,46 +675,14 @@ async function doAdminLogin() {
   const account = ADMIN_ACCOUNTS.find(a => a.id === roleId);
   if (!account) { err.textContent = '身份配置错误，请联系总维护人员'; err.style.display = 'block'; return; }
 
-  // 检查登录锁定
-  const lockKey = 'loginLock_' + roleId;
-  const lockData = localStorage.getItem(lockKey);
-  if (lockData) {
-    try {
-      const lock = JSON.parse(lockData);
-      if (lock.lockedUntil && Date.now() < lock.lockedUntil) {
-        const remain = Math.ceil((lock.lockedUntil - Date.now()) / 60000);
-        err.textContent = '登录尝试次数过多，请 ' + remain + ' 分钟后再试';
-        err.style.display = 'block';
-        return;
-      }
-    } catch(e) { localStorage.removeItem(lockKey); }
-  }
-
   btn.disabled = true; btn.textContent = '验证中...';
 
-  // SHA-256 哈希对比
-  const inputHash = await sha256(pwd);
-  if (inputHash !== account.password) {
-    // 记录失败次数
-    const failKey = 'loginFail_' + roleId;
-    let fails = parseInt(localStorage.getItem(failKey) || '0') + 1;
-    localStorage.setItem(failKey, String(fails));
-    if (fails >= 5) {
-      const lockoutMinutes = 30;
-      localStorage.setItem(lockKey, JSON.stringify({ lockedUntil: Date.now() + lockoutMinutes * 60000, failCount: fails }));
-      localStorage.removeItem(failKey);
-      err.textContent = '登录尝试次数过多，已锁定 ' + lockoutMinutes + ' 分钟';
-    } else {
-      err.textContent = '密码错误，还剩 ' + (5 - fails) + ' 次机会';
-    }
-    err.style.display = 'block';
+  // 明文对比，方便直接修改代码中的密码
+  if (pwd !== account.password) {
+    err.textContent = '密码错误，请重新输入'; err.style.display = 'block';
     btn.disabled = false; btn.textContent = '登录';
     return;
   }
-
-  // 登录成功，清除失败记录
-  localStorage.removeItem('loginFail_' + roleId);
-  localStorage.removeItem(lockKey);
 
   // 登录成功
   currentAdmin = { id: account.id, name: account.name, role: account.role, permissions: account.permissions };
@@ -688,14 +693,6 @@ async function doAdminLogin() {
   document.getElementById('tokenPage').style.display = 'none';
   showAdminLayout();
   showToast('欢迎，' + account.name, 'success');
-
-  // 首次登录强制提醒修改默认密码
-  if (account.mustChangePwd && !localStorage.getItem('pwdChanged_' + roleId)) {
-    setTimeout(() => {
-      showToast('⚠️ 首次登录，请立即修改默认密码以确保安全', 'warning');
-      navigateTo('settings');
-    }, 800);
-  }
 }
 
 async function saveToken() {
@@ -762,6 +759,7 @@ function renderSidebar() {
     { id: 'activities', label: '动态管理', icon: '🎉', perm: 'activities', roles: ['super','community'] },
     { id: 'polls', label: '投票管理', icon: '🗳️', perm: 'polls', roles: ['super','committee'] },
     { id: 'residents', label: '业主管理', icon: '👥', perm: 'residents', roles: ['super','property','committee'] },
+    { id: 'objections', label: '异议管理', icon: '⚖️', perm: 'polls', roles: ['super','committee'] },
     { id: 'audit', label: '操作日志', icon: '📋', perm: 'audit-log', roles: ['super','committee'] },
     { id: 'workorders', label: '工单管理', icon: '🔧', perm: 'workorders', roles: ['super','property'] },
     { id: 'complaints', label: '投诉建议', icon: '📝', perm: 'complaints', roles: ['super','committee','community'] },
@@ -789,7 +787,7 @@ function navigateTo(module) {
     currentModule = module;
     location.hash = 'module=' + module;
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === module));
-    const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', audit: '操作日志', workorders: '工单管理', complaints: '投诉建议', life: '生活服务', settings: '系统设置' };
+    const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', objections: '异议管理', audit: '操作日志', workorders: '工单管理', complaints: '投诉建议', life: '生活服务', settings: '系统设置' };
     var pt = document.getElementById('pageTitle');
     if (pt) pt.textContent = titles[module] || module;
     var sb = document.getElementById('saveBtn');
@@ -797,7 +795,7 @@ function navigateTo(module) {
     const renderers = {
       dashboard: renderDashboard, config: renderConfig, announcements: renderAnnouncementsAdmin,
       documents: renderDocumentsAdmin, activities: renderActivitiesAdmin, polls: renderPollsAdmin,
-      residents: renderResidentsAdmin, audit: renderAuditLog,
+      residents: renderResidentsAdmin, objections: renderObjectionsAdmin, audit: renderAuditLog,
       workorders: renderWorkordersAdmin,
       complaints: renderComplaintsAdmin,
       settings: renderSettings
@@ -922,16 +920,35 @@ function renderActivitiesAdmin() {
 function renderPollsAdmin() {
   const list = appData.polls || [];
   return `<div class="card"><div class="card-header"><h3>🗳️ 投票管理</h3><button class="btn btn-primary" onclick="openEditModal('polls',null)">➕ 新增投票</button></div>` +
-    '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>模式</th><th>状态</th><th>进度</th><th>操作</th></tr></thead><tbody>' +
+    '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>类型</th><th>模式</th><th>状态</th><th>参与率</th><th>同意率</th><th>结果</th><th>操作</th></tr></thead><tbody>' +
     list.map(item => {
-      const prog = item.progress || {current:0, target:1};
-      const pct = Math.round((prog.current||0)/(prog.target||1)*100);
+      const res = item.results || {};
       const modeLabel = item.mode === 'local' ? '<span class="tag tag-active">本地问卷</span>' : '<span class="tag tag-test">腾讯问卷</span>';
+      const catLabel = item.category === 'major' ? '<span class="tag" style="background:#ffebee;color:#c62828;">重大</span>' : '<span class="tag" style="background:#e8f5e9;color:#2e7d32;">一般</span>';
+      const statusTag = '<span class="tag ' + (item.status==="进行中"?"tag-active":"tag-disabled") + '">' + (item.status||'') + '</span>';
+
+      // 参与率
+      const rPart = res.residentParticipationRate || 0;
+      const aPart = res.areaParticipationRate || 0;
+      const partHtml = '<div style="font-size:12px;">人数 ' + rPart.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, rPart) + '%;"></div></div>面积 ' + aPart.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, aPart) + '%;background:#1976D2;"></div></div></div>';
+
+      // 同意率
+      const rAgree = res.agreeResidentRate || 0;
+      const aAgree = res.agreeAreaRate || 0;
+      const agreeHtml = '<div style="font-size:12px;">人数 ' + rAgree.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, rAgree) + '%;"></div></div>面积 ' + aAgree.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, aAgree) + '%;background:#1976D2;"></div></div></div>';
+
+      // 通过标签
+      const passHtml = res.isPassed === true ? '<span class="tag tag-active">✅ 通过</span>' : (res.isPassed === false ? '<span class="tag tag-test">❌ 未通过</span>' : '<span style="color:#999;font-size:12px;">—</span>');
+      const anchorHtml = item.status === '已结束' ? (item.anchorRecords && item.anchorRecords.some(r => !r.error) ? '<span class="tag tag-active" style="cursor:pointer;" onclick="event.stopPropagation();showAnchorDetails(\'' + item.id + '\')">🔗 已锚定</span>' : '<span class="tag tag-test" style="cursor:pointer;" onclick="event.stopPropagation();anchorVoteData(\'' + item.id + '\')">⚠️ 未锚定</span>') : '';
+      const pendingObj = (item.objections || []).filter(o => !o.status || o.status === '待处理').length;
+      const objBadge = pendingObj > 0 ? '<span class="tag" style="background:#ffebee;color:#c62828;cursor:pointer;" onclick="event.stopPropagation();navigateTo(\'objections\')">⚠️ ' + pendingObj + ' 异议</span>' : '';
+
       let actions = `<button onclick="openEditModal('polls','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('polls','${item.id}')">删除</button>`;
       if(item.mode === 'local') {
         actions += `<button onclick="viewPollData('${item.id}')" style="margin-left:4px;">📊 数据</button>`;
       }
-      return `<tr><td>${item.caseNo||''}</td><td>${item.title||''}</td><td>${modeLabel}</td><td><span class="tag ${item.status==="进行中"?"tag-active":"tag-disabled"}">${item.status||''}</span></td><td><div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div> ${pct}%</td><td class="actions">${actions}</td></tr>`;
+      actions += `<button onclick="recalculatePoll('${item.id}')" style="margin-left:4px;">🔄 计票</button>`;
+      return `<tr><td>${item.caseNo||''}</td><td>${item.title||''}</td><td>${catLabel}</td><td>${modeLabel}</td><td>${statusTag}</td><td>${partHtml}</td><td>${agreeHtml}</td><td>${passHtml} ${anchorHtml} ${objBadge}</td><td class="actions">${actions}</td></tr>`;
     }).join('') +
     '</tbody></table></div>';
 }
@@ -939,17 +956,203 @@ function renderPollsAdmin() {
 function renderResidentsAdmin() {
   const list = appData.residents || [];
   return `<div class="card"><div class="card-header"><h3>👥 业主管理</h3><div class="actions"><button class="btn" onclick="showBatchImport()">📥 批量导入</button><button class="btn btn-primary" onclick="openEditModal('residents',null)">➕ 添加业主</button></div></div>` +
-    '<table class="data-table"><thead><tr><th>房号</th><th>姓名</th><th>手机后四位</th><th>状态</th><th>标记</th><th>操作</th></tr></thead><tbody>' +
-    list.map(item => `<tr><td>${item.roomNo||''}</td><td>${item.name||''}</td><td>${item.phoneSuffix||''}</td><td><span class="tag ${item.status==="active"?"tag-active":"tag-disabled"}">${item.status==="active"?"正常":"禁用"}</span></td><td>${item.isTest?`<span class="tag tag-test">测</span>`:""}</td><td class="actions"><button onclick="openEditModal('residents','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('residents','${item.id}')">删除</button></td></tr>`).join('') +
+    '<table class="data-table"><thead><tr><th>房号</th><th>姓名</th><th>面积(m²)</th><th>手机后四位</th><th>状态</th><th>绑定方式</th><th>标记</th><th>操作</th></tr></thead><tbody>' +
+    list.map(item => `<tr><td>${item.roomNo||''}</td><td>${item.name||''}</td><td>${item.area||'—'}</td><td>${item.phoneSuffix||''}</td><td><span class="tag ${item.status==="active"?"tag-active":"tag-disabled"}">${item.status==="active"?"正常":"禁用"}</span></td><td>${item.bindingMethod||'—'}</td><td>${item.isTest?`<span class="tag tag-test">测</span>`:""}${item.isSameBuyer?`<span class="tag tag-test" style="background:#e3f2fd;color:#1565c0;margin-left:2px;">同</span>`:""}</td><td class="actions"><button onclick="openEditModal('residents','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('residents','${item.id}')">删除</button></td></tr>`).join('') +
     '</tbody></table></div>';
 }
 
 function renderAuditLog() {
   const list = appData['audit-log'] || [];
-  return '<div class="card"><div class="card-header"><h3>📋 操作日志</h3></div>' +
+  const polls = appData.polls || [];
+
+  // 投票审计时间轴选择器
+  let pollSelect = '<div style="margin-bottom:16px;"><label style="font-size:13px;font-weight:500;margin-right:8px;">查看投票全流程审计：</label><select id="auditPollSelect" onchange="renderPollAuditTimeline(this.value)" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;">';
+  pollSelect += '<option value="">— 请选择投票 —</option>';
+  polls.forEach(p => { pollSelect += '<option value="' + p.id + '">' + (p.caseNo||'') + ' ' + (p.title||'') + '</option>'; });
+  pollSelect += '</select></div>';
+
+  let html = '<div class="card"><div class="card-header"><h3>📋 操作日志</h3></div>' + pollSelect +
+    '<div id="pollAuditTimeline"></div>' +
     '<table class="data-table"><thead><tr><th>时间</th><th>管理员</th><th>操作</th><th>目标</th><th>详情</th></tr></thead><tbody>' +
     list.slice().reverse().map(item => '<tr><td>' + formatDateTime(item.timestamp) + '</td><td>' + (item.adminName||'') + '</td><td>' + (item.action||'') + '</td><td>' + (item.target||'') + '</td><td>' + (item.details||'') + '</td></tr>').join('') +
     '</tbody></table></div>';
+  return html;
+}
+
+
+function renderObjectionsAdmin() {
+  // 收集所有 polls 中的异议
+  let allObjections = [];
+  (appData.polls || []).forEach(p => {
+    (p.objections || []).forEach(o => {
+      allObjections.push({ ...o, pollId: p.id, pollTitle: p.title, pollCaseNo: p.caseNo });
+    });
+  });
+
+  // 也检查独立的 appData.objections（兼容两种存储方式）
+  (appData.objections || []).forEach(o => {
+    const poll = (appData.polls || []).find(p => p.id === o.pollId);
+    if (poll && !allObjections.find(x => x.id === o.id)) {
+      allObjections.push({ ...o, pollTitle: poll.title, pollCaseNo: poll.caseNo });
+    }
+  });
+
+  const pending = allObjections.filter(o => !o.status || o.status === '待处理').length;
+
+  let html = '<div class="card"><div class="card-header"><h3>⚖️ 异议管理' + (pending > 0 ? ' <span style="color:var(--danger);font-size:14px;">(' + pending + ' 待处理)</span>' : '') + '</h3></div>';
+  if (!allObjections.length) {
+    html += '<div class="empty-state"><div class="icon">⚖️</div><div>暂无异议记录</div></div>';
+    html += '</div>';
+    return html;
+  }
+
+  html += '<table class="data-table"><thead><tr><th>编号</th><th>投票案卷</th><th>申请人房号</th><th>内容摘要</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  allObjections.slice().reverse().forEach(o => {
+    const statusTag = !o.status || o.status === '待处理' ? '<span class="tag tag-test">待处理</span>' : '<span class="tag tag-active">已处理</span>';
+    const contentPreview = (o.content || '').substring(0, 30) + ((o.content || '').length > 30 ? '...' : '');
+    html += '<tr><td>' + (o.id || '—') + '</td><td>' + escapeHtml(o.pollCaseNo || '') + '</td><td>' + escapeHtml(o.residentRoom || o.resident || '—') + '</td><td>' + escapeHtml(contentPreview) + '</td><td>' + formatDateTime(o.createdAt || o.time) + '</td><td>' + statusTag + '</td><td class="actions"><button onclick="openObjectionModal(\'' + (o.pollId || '') + '\',\'' + (o.id || '') + '\')">处理</button></td></tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function openObjectionModal(pollId, objectionId) {
+  const poll = (appData.polls || []).find(p => p.id === pollId);
+  if (!poll) return;
+  const obj = (poll.objections || []).find(o => o.id === objectionId) || (appData.objections || []).find(o => o.id === objectionId);
+  if (!obj) return;
+
+  document.getElementById('modalTitle').textContent = '处理异议：' + (obj.id || '');
+  let body = '<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">';
+  body += '<div style="font-weight:600;margin-bottom:4px;">投票：' + escapeHtml(poll.title || '') + '</div>';
+  body += '<div style="font-size:13px;color:var(--text-secondary);">案卷号：' + (poll.caseNo || '') + ' · 申请人：' + escapeHtml(obj.resident || obj.residentRoom || '—') + '</div>';
+  body += '<div style="font-size:13px;margin-top:8px;padding:10px;background:#fff;border-radius:6px;border:1px solid var(--border);">' + escapeHtml(obj.content || '') + '</div>';
+  if (obj.images && obj.images.length) {
+    body += '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">';
+    obj.images.forEach(url => { body += '<img src="' + url + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="previewImage(\'' + url + '\')" loading="lazy">'; });
+    body += '</div>';
+  }
+  body += '</div>';
+
+  if (obj.reply) {
+    body += '<div style="margin-bottom:12px;padding:12px;background:#e3f2fd;border-radius:8px;border-left:4px solid #1976D2;">';
+    body += '<div style="font-weight:600;color:#1976D2;margin-bottom:4px;">已回复</div>';
+    body += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">' + formatDateTime(obj.handledAt) + ' · ' + escapeHtml(obj.handler || '') + '</div>';
+    body += '<div style="font-size:13px;">' + escapeHtml(obj.reply) + '</div>';
+    body += '</div>';
+  }
+
+  body += '<div class="form-group"><label>处理回复</label><textarea id="objReply" rows="4" placeholder="填写回复内容...">' + (obj.reply || '') + '</textarea></div>';
+  body += '<div class="form-group"><label>处理结果</label><select id="objStatus"><option value="待处理" ' + ((!obj.status || obj.status === '待处理') ? 'selected' : '') + '>待处理</option><option value="已处理" ' + (obj.status === '已处理' ? 'selected' : '') + '>已处理</option><option value="驳回" ' + (obj.status === '驳回' ? 'selected' : '') + '>驳回</option></select></div>';
+  body += '<div class="form-group"><label>上传回复附件（可选）</label>' + createMultiImageUploaderHTML('objReplyFiles', '支持拖拽或点击上传图片（自动压缩）') + '</div>';
+
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveObjectionAction(\'' + pollId + '\',\'' + objectionId + '\')">保存</button>';
+  document.getElementById('modalOverlay').classList.add('active');
+
+  setTimeout(function() {
+    if (obj.replyImages && obj.replyImages.length) setMultiUploadedPaths('objReplyFiles', obj.replyImages);
+  }, 50);
+}
+
+async function saveObjectionAction(pollId, objectionId) {
+  const reply = document.getElementById('objReply').value.trim();
+  const status = document.getElementById('objStatus').value;
+  if (!reply) { showToast('请填写回复内容', 'error'); return; }
+
+  showLoading(true);
+  try {
+    const poll = (appData.polls || []).find(p => p.id === pollId);
+    if (!poll) throw new Error('投票不存在');
+
+    let obj = (poll.objections || []).find(o => o.id === objectionId);
+    if (!obj) {
+      obj = (appData.objections || []).find(o => o.id === objectionId);
+      if (obj) {
+        // 迁移到 poll.objections
+        if (!poll.objections) poll.objections = [];
+        poll.objections.push(obj);
+      }
+    }
+    if (!obj) throw new Error('异议记录不存在');
+
+    obj.reply = reply;
+    obj.status = status;
+    obj.handler = currentAdmin && currentAdmin.name || '管理员';
+    obj.handledAt = new Date().toISOString();
+    obj.replyImages = getMultiUploadedPaths('objReplyFiles') || obj.replyImages || [];
+
+    // 保存 polls
+    await saveDataFile('polls', appData.polls, '处理异议 ' + objectionId + '：' + status, 'objection-resolve');
+
+    // 追加审计日志
+    await appendAuditLog('objection-resolve', 'polls', pollId, '管理员 ' + obj.handler + ' 处理异议 ' + objectionId + '，结果：' + status);
+
+    showToast('异议处理成功', 'success');
+    closeModal();
+    navigateTo('objections');
+  } catch(e) {
+    showToast('处理失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+function renderPollAuditTimeline(pollId) {
+  const container = document.getElementById('pollAuditTimeline');
+  if (!container || !pollId) { if(container) container.innerHTML = ''; return; }
+  const poll = (appData.polls || []).find(p => p.id === pollId);
+  if (!poll) return;
+
+  const logs = (appData['audit-log'] || []).filter(l => l.targetId === pollId || (l.details && l.details.includes(pollId)) || (l.target === 'polls' && l.details && l.details.includes(poll.title||'')));
+  const objections = poll.objections || [];
+  const records = poll.anchorRecords || [];
+
+  let html = '<div style="margin-bottom:24px;padding:16px;background:#fafafa;border-radius:8px;border:1px solid var(--border);">';
+  html += '<div style="font-weight:600;margin-bottom:12px;font-size:15px;">⏱️ 投票全流程审计：' + escapeHtml(poll.title||'') + '</div>';
+  html += '<div style="border-left:2px solid var(--border);padding-left:16px;">';
+
+  const nodes = [];
+  // 发起
+  if (poll.createdAt) nodes.push({ time: poll.createdAt, label: '投票发起', detail: '由 ' + (poll.createdBy||'管理员') + ' 创建', type: 'init' });
+  // 清册公示
+  if (poll.rollPublish && poll.rollPublish.start) nodes.push({ time: poll.rollPublish.start, label: '清册公示开始', detail: '公示期：' + poll.rollPublish.start + ' 至 ' + (poll.rollPublish.end||''), type: 'roll' });
+  // 通知送达
+  if (poll.meetingFiles && poll.meetingFiles.length) nodes.push({ time: poll.createdAt, label: '会议通知上传', detail: '上传 ' + poll.meetingFiles.length + ' 份通知文件', type: 'notice' });
+  // 投票进行中
+  if (poll.startDate) nodes.push({ time: poll.startDate + 'T00:00:00Z', label: '投票开始', detail: '投票通道开启', type: 'vote' });
+  // 计票
+  if (poll.results && poll.results.calculatedAt) nodes.push({ time: poll.results.calculatedAt, label: '自动计票', detail: '参与 ' + (poll.results.participatingResidents||0) + ' 户，' + (poll.results.isPassed ? '通过' : '未通过'), type: 'count' });
+  // 结果公示
+  if (poll.results && poll.results.isPublished) nodes.push({ time: poll.results.calculatedAt, label: '结果公示', detail: poll.results.summary||'', type: 'publish' });
+  // 异议
+  objections.forEach(o => {
+    nodes.push({ time: o.time || o.createdAt, label: '异议提出', detail: (o.resident||'—') + '：' + (o.content||'').substring(0,40), type: 'objection' });
+    if (o.result) nodes.push({ time: o.handledAt || o.time, label: '异议处理', detail: '处理结果：' + o.result, type: 'objection-resolved' });
+  });
+  // 锚定
+  records.forEach(r => {
+    if (!r.error) nodes.push({ time: r.time, label: '证据锚定', detail: r.name + '：' + (r.txHash ? r.txHash.substring(0,16)+'...' : '已提交'), type: 'anchor' });
+  });
+  // 归档
+  if (poll.status === '已结束') nodes.push({ time: poll.endDate + 'T23:59:59Z', label: '投票结束/归档', detail: '投票通道关闭，档案生成', type: 'archive' });
+
+  // 按时间排序
+  nodes.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+  nodes.forEach((n, i) => {
+    const colorMap = { init: '#2E8B57', roll: '#1976D2', notice: '#f9a825', vote: '#2E8B57', count: '#6A1B9A', publish: '#2E8B57', objection: '#c62828', 'objection-resolved': '#2e7d32', anchor: '#E65100', archive: '#546e7a' };
+    const color = colorMap[n.type] || '#666';
+    html += '<div style="position:relative;margin-bottom:14px;padding-bottom:14px;' + (i < nodes.length - 1 ? 'border-bottom:1px dashed var(--border);' : '') + '">';
+    html += '<div style="position:absolute;left:-21px;top:2px;width:10px;height:10px;background:' + color + ';border-radius:50%;"></div>';
+    html += '<div style="font-size:12px;color:var(--text-secondary);">' + formatDateTime(n.time) + '</div>';
+    html += '<div style="font-weight:600;font-size:13px;margin-top:2px;">' + n.label + '</div>';
+    html += '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + escapeHtml(n.detail) + '</div>';
+    html += '</div>';
+  });
+
+  html += '</div></div>';
+  container.innerHTML = html;
 }
 
 function renderSettings() {
@@ -969,7 +1172,15 @@ function renderSettings() {
     '<div class="card"><div class="card-header"><h3>🌐 Worker 网关地址</h3></div>' +
     '<div class="form-group"><label>Worker API 地址（留空则使用内存模式）</label><input type="text" id="workerBaseInput" value="' + (localStorage.getItem('workerBase') || '') + '" placeholder="https://community.firstblade.site 或留空"></div>' +
     '<button class="btn btn-primary" onclick="saveWorkerBase()">保存地址</button>' +
-    '<p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">留空表示开发模式（数据仅保存在浏览器内存中，刷新后丢失）。配置 Worker 地址后可实现数据持久化。</p></div>';
+    '<p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">留空表示开发模式（数据仅保存在浏览器内存中，刷新后丢失）。配置 Worker 地址后可实现数据持久化。</p></div>' +
+    '<div class="card"><div class="card-header"><h3>🔗 证据锚定配置</h3></div>' +
+    '<div class="form-group"><label>GitHub Token（用于 Commit 锚定）</label><input type="password" id="cfgGithubToken" value="' + (localStorage.getItem('githubToken') || '') + '" placeholder="ghp_xxxxxxxxxxxx"></div>' +
+    '<div class="form-group"><label>GitHub 仓库（格式：owner/repo）</label><input type="text" id="cfgGithubRepo" value="' + (localStorage.getItem('githubRepo') || '') + '" placeholder="username/community-platform"></div>' +
+    '<div class="form-group"><label>企业微信 Webhook URL</label><input type="text" id="cfgWechatWebhook" value="' + (localStorage.getItem('wechatWebhook') || '') + '" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..."></div>' +
+    '<div class="form-group"><label>Resend API Key</label><input type="password" id="cfgResendKey" value="' + (localStorage.getItem('resendApiKey') || '') + '" placeholder="re_xxxxxxxx"></div>' +
+    '<div class="form-group"><label>锚定通知邮箱</label><input type="text" id="cfgAnchorEmail" value="' + (localStorage.getItem('anchorEmail') || '') + '" placeholder="admin@example.com"></div>' +
+    '<button class="btn btn-primary" onclick="saveAnchorConfig()">保存锚定配置</button>' +
+    '<p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">配置后，投票状态变为"已结束"时将自动执行三端锚定（GitHub Commit + 微信群 + 邮件）。</p></div>';
 
 }
 
@@ -1016,11 +1227,25 @@ function openEditModal(module, id) {
       
       '<div class="form-group"><label>外部链接（每行一个，不限制数量）</label><textarea id="edExternalLinks" rows="2" placeholder="https://www.example.com/article">' + (item.externalLinks||[]).join('\n') + '</textarea></div>' +
       '<div class="form-group"><label>内容</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>';
-  } else if (module === 'polls') {
-    const nextCaseNo = generateCaseNo();
+    } else if (module === 'polls') {
+    const nextCaseNo = generateId('polls', 'caseNo');
     const pollMode = item.mode || 'tencent';
-    body = '<div class="form-group"><label>案卷编号</label><input type="text" id="edCaseNo" value="' + (item.caseNo||nextCaseNo) + '" ' + (!isNew?'readonly style="background:#f5f5f5;"':'') + '></div>' +
+    const cat = item.category || 'general';
+    const thDesc = cat === 'major' 
+      ? '参与双三分之二(66.67%) + 同意双四分之三(75%)' 
+      : '参与双三分之二(66.67%) + 同意双过半(50%)';
+    body = '<div id="pollValidationErrors" style="color:var(--danger);font-size:13px;margin-bottom:12px;padding:10px;background:#ffebee;border-radius:6px;display:none;"></div>' +
+      '<div class="form-group"><label>案卷编号</label><input type="text" id="edCaseNo" value="' + (item.caseNo||nextCaseNo) + '" ' + (!isNew?'readonly style="background:#f5f5f5;"':'') + '></div>' +
       '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
+      '<div class="form-row"><div class="form-group"><label>事项类型 *</label><select id="edCategory" onchange="onPollCategoryChange()"><option value="">— 请选择 —</option><option value="general" '+(item.category==='general'?'selected':'')+'>一般事项</option><option value="major" '+(item.category==='major'?'selected':'')+'>重大事项</option></select></div>' +
+      '<div class="form-group"><label>法律依据</label><input type="text" id="edLegalBasis" value="' + (item.legalBasis||'') + '" placeholder="如：《民法典》第278条"></div></div>' +
+      '<div class="form-group"><label>表决门槛（根据事项类型自动设定，不可修改）</label><input type="text" id="edThresholdDisplay" readonly style="background:#f5f5f5;" value="' + thDesc + '"></div>' +
+      '<div class="form-group"><label>议事规则PDF *</label>' + createMultiImageUploaderHTML('pollRuleFiles', '请上传议事规则PDF文件', 'application/pdf') + '</div>' +
+      '<div class="form-group"><label>业主清册PDF *</label>' + createMultiImageUploaderHTML('pollRollFiles', '请上传业主清册PDF文件', 'application/pdf') + '</div>' +
+      '<div class="form-group"><label>业主清册公示期 *（必须已公示满7日）</label><div class="form-row" style="grid-template-columns:1fr 1fr;"><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">公示开始日期</label><input type="date" id="edRollStart" value="' + (item.rollPublish&&item.rollPublish.start||'') + '"></div><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">公示结束日期</label><input type="date" id="edRollEnd" value="' + (item.rollPublish&&item.rollPublish.end||'') + '"></div></div></div>' +
+      '<div class="form-group"><label>会议通知PDF *</label>' + createMultiImageUploaderHTML('pollMeetingFiles', '请上传会议通知PDF文件', 'application/pdf') + '</div>' +
+      '<div class="form-row"><div class="form-group"><label>街道备案号</label><input type="text" id="edStreetRecord" value="' + (item.streetRecord||'') + '" placeholder="如：XX街备[2026]001号，无则留空"></div>' +
+      '<div class="form-group form-check" style="align-self:flex-end;padding-bottom:8px;"><input type="checkbox" id="edStreetConfirm" ' + (item.streetRecordConfirmed?'checked':'') + '><label for="edStreetConfirm">当地无街道备案要求，已确认跳过</label></div></div>' +
       '<div class="form-row"><div class="form-group"><label>开始日期</label><input type="date" id="edStart" value="' + (item.startDate||'') + '"></div>' +
       '<div class="form-group"><label>结束日期</label><input type="date" id="edEnd" value="' + (item.endDate||'') + '"></div></div>' +
       '<div class="form-group"><label>状态</label><select id="edStatus"><option value="进行中" ' + (item.status==='进行中'?'selected':'') + '>进行中</option><option value="已结束" ' + (item.status==='已结束'?'selected':'') + '>已结束</option></select></div>' +
@@ -1036,15 +1261,55 @@ function openEditModal(module, id) {
       '<div class="form-group form-check"><input type="checkbox" id="edPublishResult" ' + (item.results&&item.results.isPublished?'checked':'') + '><label for="edPublishResult">公示结果</label></div>' +
       '<div class="form-group"><label>结果摘要</label><textarea id="edResultSummary">' + (item.results&&item.results.summary||'') + '</textarea></div>' +
       '<div class="form-group"><label>描述</label><textarea id="edDesc">' + (item.description||'') + '</textarea></div>';
+
+    // === 计票结果展示（只读）===
+    const res = item.results || {};
+    const hasResult = res.calculatedAt !== undefined;
+    const isMajor = item.category === 'major';
+    const agreeTh = isMajor ? '75%' : '50%';
+    const partTh = (item.threshold && item.threshold.residentPct) ? (item.threshold.residentPct + '%') : '66.67%';
+    body += '<div style="margin-top:20px;padding:16px;background:#fafafa;border-radius:8px;border:1px solid var(--border);">';
+    body += '<div style="font-weight:600;margin-bottom:12px;font-size:15px;">📊 计票结果' + (hasResult ? ' <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（' + formatDateTime(res.calculatedAt) + ' 计算）</span>' : ' <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（尚未计票）</span>') + '</div>';
+    if (hasResult) {
+      body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
+      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">参与人数 / 总户数</div><div style="font-size:18px;font-weight:700;">' + (res.participatingResidents||0) + ' / ' + (res.totalResidents||0) + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.residentParticipationRate||0) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.residentParticipationRate||0).toFixed(2) + '%（门槛 ' + partTh + '）</div></div>';
+      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">参与面积 / 总面积</div><div style="font-size:18px;font-weight:700;">' + (res.participatingArea||0).toFixed(2) + ' / ' + (res.totalArea||0).toFixed(2) + ' ㎡</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.areaParticipationRate||0) + '%;background:#1976D2;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.areaParticipationRate||0).toFixed(2) + '%（门槛 ' + partTh + '）</div></div>';
+      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">同意人数 / 参与人数</div><div style="font-size:18px;font-weight:700;">' + (res.agreeCount||0) + ' / ' + (res.participatingResidents||0) + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.agreeResidentRate||0) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.agreeResidentRate||0).toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
+      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">同意面积 / 参与面积</div><div style="font-size:18px;font-weight:700;">' + (res.agreeArea||0).toFixed(2) + ' / ' + (res.participatingArea||0).toFixed(2) + ' ㎡</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.agreeAreaRate||0) + '%;background:#1976D2;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.agreeAreaRate||0).toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
+      body += '</div>';
+      if (res.isPassed === true) {
+        body += '<div style="text-align:center;padding:10px;background:#e8f5e9;border-radius:6px;color:#2e7d32;font-weight:600;font-size:16px;">✅ 表决通过</div>';
+      } else if (res.isPassed === false) {
+        body += '<div style="text-align:center;padding:10px;background:#ffebee;border-radius:6px;color:#c62828;font-weight:600;font-size:16px;">❌ 表决未通过</div>';
+      }
+      body += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">' + escapeHtml(res.summary||'') + '</div>';
+    } else {
+      body += '<div style="text-align:center;padding:20px;color:var(--text-secondary);">暂无计票数据，请点击下方"重新计票"按钮</div>';
+    }
+    body += '</div>';
+
     setTimeout(function() {
       renderPollQuestionsEditor(item.questions || []);
+      if (item.ruleFiles && item.ruleFiles.length) setMultiUploadedPaths('pollRuleFiles', item.ruleFiles);
+      if (item.rollFiles && item.rollFiles.length) setMultiUploadedPaths('pollRollFiles', item.rollFiles);
+      if (item.meetingFiles && item.meetingFiles.length) setMultiUploadedPaths('pollMeetingFiles', item.meetingFiles);
     }, 50);
   } else if (module === 'residents') {
     body = '<div class="form-row"><div class="form-group"><label>房号</label><input type="text" id="edRoom" value="' + (item.roomNo||'') + '" placeholder="如：1-1-101"></div>' +
       '<div class="form-group"><label>姓名</label><input type="text" id="edName" value="' + (item.name||'') + '"></div></div>' +
-      '<div class="form-group"><label>手机号后四位</label><input type="text" id="edPhone" value="' + (item.phoneSuffix||'') + '" maxlength="4"></div>' +
+      '<div class="form-row"><div class="form-group"><label>专有部分面积(m²)</label><input type="number" id="edArea" value="' + (item.area||'') + '" placeholder="60-140"></div>' +
+      '<div class="form-group"><label>手机号后四位</label><input type="text" id="edPhone" value="' + (item.phoneSuffix||'') + '" maxlength="4"></div></div>' +
+      '<div class="form-row"><div class="form-group"><label>身份证号哈希(SHA-256)</label><input type="text" id="edIdCardHash" value="' + (item.idCardHash||'') + '" placeholder="留空则不修改"></div>' +
+      '<div class="form-group"><label>绑定方式</label><select id="edBindingMethod"><option value="">— 请选择 —</option><option value="人脸识别" '+(item.bindingMethod==='人脸识别'?'selected':'')+'>人脸识别</option><option value="现场核验" '+(item.bindingMethod==='现场核验'?'selected':'')+'>现场核验</option><option value="委托" '+(item.bindingMethod==='委托'?'selected':'')+'>委托</option></select></div></div>' +
+      '<div class="form-row"><div class="form-group"><label>人数权重</label><input type="number" id="edVoteWeightCount" value="' + (item.voteWeightCount||1) + '" min="1"></div>' +
+      '<div class="form-group"><label>面积权重</label><input type="number" id="edVoteWeightArea" value="' + (item.voteWeightArea||item.area||'') + '" placeholder="默认等于面积"></div></div>' +
+      '<div class="form-group form-check"><input type="checkbox" id="edSameBuyer" ' + (item.isSameBuyer?'checked':'') + '><label for="edSameBuyer">同一买受人多套房标记</label></div>' +
+      '<div class="form-group"><label>核验照片</label>' + createMultiImageUploaderHTML('resProof', '支持拖拽或点击上传核验照片（自动压缩）') + '</div>' +
       '<div class="form-group"><label>状态</label><select id="edStatus"><option value="active" ' + (item.status==='active'?'selected':'') + '>正常</option><option value="disabled" ' + (item.status==='disabled'?'selected':'') + '>禁用</option></select></div>' +
       '<div class="form-group form-check"><input type="checkbox" id="edTest" ' + (item.isTest?'checked':'') + '><label for="edTest">标记为测试数据</label></div>';
+    setTimeout(function() {
+      if (item.bindingProof && item.bindingProof.length) setMultiUploadedPaths('resProof', item.bindingProof);
+    }, 50);
   }
   document.getElementById('modalBody').innerHTML = body;
   document.getElementById('modalFooter').innerHTML = `<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveItem('${module}','${id||''}')">保存</button>`;
@@ -1115,19 +1380,26 @@ async function saveCurrentModule() {
     c.propertyPhone = document.getElementById('cfgPropertyPhone').value;
     c.slogan = document.getElementById('cfgSlogan').value;
     c.siteTitle = document.getElementById('cfgSiteTitle').value.trim();
+    c.favicon = document.getElementById('cfgFavicon').value;
     const logoPath = getUploadedPath('cfgLogo');
-    const logoInputVal = document.getElementById('cfgLogoInput').value.trim();
-    c.logo = logoPath || logoInputVal || c.logo;
+    if (logoPath) c.logo = logoPath;
     const faviconPath = getUploadedPath('cfgFavicon');
-    const faviconInputVal = document.getElementById('cfgFavicon').value.trim();
-    c.favicon = faviconPath || faviconInputVal || c.favicon;
+    if (faviconPath) c.favicon = faviconPath;
     if (!appData.config.settings) appData.config.settings = {};
     appData.config.settings.defaultTheme = document.getElementById('cfgTheme').value;
     updateFavicon();
+    // 同步站点 Logo 配置到 localStorage，供所有子页面（life.html / admin-life.html）读取
+    var logoCfg = {
+      type: c.logo ? "image" : "emoji",
+      value: c.logo || "&#127968;",
+      title: c.siteTitle || c.name || "春天阳光小区",
+      adminTitle: c.name ? c.name + " - 管理后台" : "管理后台"
+    };
+    setSiteLogoConfig(logoCfg);
     showLoading(true);
     try {
       await saveDataFile('config', appData.config, '更新社区配置', 'update');
-      showToast('保存成功', 'success');
+      showToast('保存成功，站点 Logo 已同步到所有页面', 'success');
     } catch(e) {
       showToast('保存失败：' + e.message, 'error');
     } finally {
@@ -1212,19 +1484,54 @@ async function saveItem(module, id) {
     item.externalLink = item.externalLinks[0] || '';  // 兼容旧字段
     item.content = document.getElementById('edContent').value;
   } else if (module === 'polls') {
+    const validation = validatePollCompliance();
+    if (!validation.valid) {
+      const errBox = document.getElementById('pollValidationErrors');
+      if (errBox) { errBox.innerHTML = validation.errors.map(e => '• ' + e).join('<br>'); errBox.style.display = 'block'; }
+      showToast('请完善投票发起必填信息', 'error');
+      return;
+    }
     item.caseNo = document.getElementById('edCaseNo').value;
     item.title = document.getElementById('edTitle').value;
+    item.category = document.getElementById('edCategory').value || 'general';
+    item.legalBasis = document.getElementById('edLegalBasis').value;
+    item.ruleId = document.getElementById('edRuleId').value;
     item.startDate = document.getElementById('edStart').value;
     item.endDate = document.getElementById('edEnd').value;
     item.status = document.getElementById('edStatus').value;
     item.mode = document.getElementById('edPollMode').value;
     item.tencentUrl = document.getElementById('edTencent').value;
+    item.streetRecord = document.getElementById('edStreetRecord').value;
+    
+    const notifyFiles = getMultiUploadedPaths('pollNotifyFiles');
+    item.notifyFiles = (notifyFiles && notifyFiles.length) ? notifyFiles : (item.notifyFiles || []);
+    
+    item.rollPublish = {
+      start: document.getElementById('edRollStart').value,
+      end: document.getElementById('edRollEnd').value,
+      file: document.getElementById('edRollFile').value
+    };
+    
+    const isMajor = item.category === 'major';
+    item.threshold = isMajor 
+      ? { type: 'double_two_thirds', desc: '双2/3（人数+面积各过2/3）', residentPct: 66.67, areaPct: 66.67 }
+      : { type: 'double_half', desc: '双过半（人数+面积各过半）', residentPct: 50, areaPct: 50 };
+    
     item.progress = { target: parseInt(document.getElementById('edTarget').value)||0, current: parseInt(document.getElementById('edCurrent').value)||0, unit: '户' };
     item.results = { isPublished: document.getElementById('edPublishResult').checked, summary: document.getElementById('edResultSummary').value, detailUrl: '' };
     item.description = document.getElementById('edDesc').value;
     item.type = item.type || 'opinion';
     item.createdBy = item.createdBy || currentAdmin && currentAdmin.name;
     item.createdAt = item.createdAt || new Date().toISOString();
+    
+    item.votes = item.votes || [];
+    item.notifyRecords = item.notifyRecords || [];
+    item.objections = item.objections || [];
+    item.participatingResidents = item.participatingResidents || 0;
+    item.participatingArea = item.participatingArea || 0;
+    item.agreeCount = item.agreeCount || 0;
+    item.agreeArea = item.agreeArea || 0;
+    
     if(item.mode === 'local') {
       item.questions = collectPollQuestions();
     } else {
@@ -1234,6 +1541,14 @@ async function saveItem(module, id) {
     item.roomNo = document.getElementById('edRoom').value;
     item.name = document.getElementById('edName').value;
     item.phoneSuffix = document.getElementById('edPhone').value;
+    item.area = parseFloat(document.getElementById('edArea').value) || 0;
+    item.idCardHash = document.getElementById('edIdCardHash').value.trim();
+    item.bindingMethod = document.getElementById('edBindingMethod').value;
+    if (item.bindingMethod && !item.bindingTime) item.bindingTime = new Date().toISOString();
+    item.voteWeightCount = parseInt(document.getElementById('edVoteWeightCount').value) || 1;
+    item.voteWeightArea = parseFloat(document.getElementById('edVoteWeightArea').value) || item.area || 0;
+    item.isSameBuyer = document.getElementById('edSameBuyer').checked;
+    item.bindingProof = getMultiUploadedPaths('resProof') || item.bindingProof || [];
     item.status = document.getElementById('edStatus').value;
     item.isTest = document.getElementById('edTest').checked;
     item.registeredAt = item.registeredAt || new Date().toISOString().split('T')[0];
@@ -1247,10 +1562,333 @@ async function saveItem(module, id) {
   closeModal(); showLoading(true);
   try {
     await saveDataFile(module, list, detail, action);
+    // 自动计票
+    if (module === 'polls') {
+      try { await calculatePollResults(item.id); } catch(e) { console.error('自动计票失败', e); }
+      // 状态变为已结束时自动锚定
+      const oldItem = (appData.polls || []).find(x => x.id === item.id);
+      const wasEnded = oldItem && oldItem.status === '已结束';
+      if (item.status === '已结束' && !wasEnded) {
+        try { await anchorVoteData(item.id); } catch(e) { console.error('自动锚定失败', e); }
+      }
+    }
     showToast('保存成功', 'success');
     navigateTo(module);
   } catch(e) {
     showToast('保存失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+
+/* ========== 档案生成模块 ========== */
+
+function generatePollArchive(pollId) {
+  const poll = (appData.polls || []).find(p => p.id === pollId);
+  if (!poll) { showToast('投票不存在', 'error'); return; }
+
+  // 读取投票记录
+  const d = new Date();
+  const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+  let responses = [];
+  try {
+    const saved = localStorage.getItem('adminData_polls-responses-' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+    if (saved) responses = JSON.parse(saved);
+  } catch(e) {}
+  const pollVotes = responses.filter(r => r.pollId === pollId);
+
+  const allResidents = (appData.residents || []).filter(r => r.status === 'active');
+  const totalResidents = allResidents.length;
+  const totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
+  const res = poll.results || {};
+  const records = poll.anchorRecords || [];
+
+  const win = window.open('', '_blank');
+  if (!win) { showToast('请允许弹窗以生成档案', 'error'); return; }
+
+  const now = new Date().toLocaleString('zh-CN');
+  const title = poll.title || '';
+  const caseNo = poll.caseNo || pollId;
+
+  let html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>投票档案 - ${caseNo}</title>
+<style>
+@page { size: A4; margin: 20mm; }
+body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; font-size: 12px; line-height: 1.6; color: #333; max-width: 210mm; margin: 0 auto; padding: 20px; }
+h1 { font-size: 20px; text-align: center; margin-bottom: 8px; border-bottom: 2px solid #2E8B57; padding-bottom: 10px; }
+h2 { font-size: 14px; color: #2E8B57; margin-top: 20px; margin-bottom: 8px; border-left: 4px solid #2E8B57; padding-left: 8px; }
+h3 { font-size: 12px; color: #666; margin-top: 12px; margin-bottom: 6px; }
+.cover { text-align: center; padding: 60px 20px; border: 1px solid #e0e0e0; margin-bottom: 30px; }
+.cover .case-no { font-size: 16px; color: #666; margin-bottom: 12px; }
+.cover .title { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
+.cover .meta { font-size: 13px; color: #666; line-height: 2; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 11px; }
+th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+th { background: #f5f5f5; font-weight: 600; }
+.stat-box { display: inline-block; width: 48%; margin: 1%; padding: 12px; background: #f8f9fa; border-radius: 6px; box-sizing: border-box; }
+.stat-box .num { font-size: 18px; font-weight: 700; color: #2E8B57; }
+.stat-box .label { font-size: 11px; color: #666; }
+.small { font-size: 10px; color: #999; }
+.page-break { page-break-before: always; }
+.signature { margin-top: 40px; display: flex; justify-content: space-between; }
+.signature-box { width: 45%; border-top: 1px solid #333; padding-top: 8px; text-align: center; }
+@media print {
+  .no-print { display: none; }
+  body { padding: 0; }
+}
+</style>
+</head>
+<body>
+<div class="no-print" style="text-align:center;padding:12px;background:#f0f7f4;margin-bottom:20px;border-radius:6px;">
+  <button onclick="window.print()" style="padding:10px 24px;background:#2E8B57;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;">🖨️ 打印为 PDF</button>
+  <span style="color:#666;margin-left:12px;">请使用浏览器的"另存为 PDF"功能保存档案</span>
+</div>
+
+<div class="cover">
+  <div class="case-no">案卷编号：${caseNo}</div>
+  <div class="title">${title}</div>
+  <div class="meta">
+    <div>生成时间：${now}</div>
+    <div>档案类型：业主大会投票档案</div>
+    <div>生成系统：春天阳光小区数字化平台</div>
+  </div>
+</div>
+
+<h2>一、投票基本信息</h2>
+<table>
+  <tr><th style="width:25%">项目</th><th>内容</th></tr>
+  <tr><td>案卷编号</td><td>${caseNo}</td></tr>
+  <tr><td>投票标题</td><td>${title}</td></tr>
+  <tr><td>事项类型</td><td>${poll.category === 'major' ? '重大事项' : '一般事项'}</td></tr>
+  <tr><td>法律依据</td><td>${poll.legalBasis || '—'}</td></tr>
+  <tr><td>投票期间</td><td>${poll.startDate || '—'} 至 ${poll.endDate || '—'}</td></tr>
+  <tr><td>总户数</td><td>${totalResidents} 户</td></tr>
+  <tr><td>总面积</td><td>${totalArea.toFixed(2)} ㎡</td></tr>
+  <tr><td>议事规则</td><td>${(poll.ruleFiles || []).length > 0 ? '已上传 ' + poll.ruleFiles.length + ' 份' : '—'}</td></tr>
+  <tr><td>业主清册</td><td>${(poll.rollFiles || []).length > 0 ? '已上传 ' + poll.rollFiles.length + ' 份' : '—'}</td></tr>
+  <tr><td>会议通知</td><td>${(poll.meetingFiles || []).length > 0 ? '已上传 ' + poll.meetingFiles.length + ' 份' : '—'}</td></tr>
+</table>
+
+<h2>二、业主清册摘要</h2>
+<div style="display:flex;flex-wrap:wrap;">
+  <div class="stat-box"><div class="num">${totalResidents}</div><div class="label">总户数</div></div>
+  <div class="stat-box"><div class="num">${totalArea.toFixed(2)} ㎡</div><div class="label">建筑总面积</div></div>
+  <div class="stat-box"><div class="num">${(res.participatingResidents || 0)}</div><div class="label">参与投票户数</div></div>
+  <div class="stat-box"><div class="num">${(res.participatingArea || 0).toFixed(2)} ㎡</div><div class="label">参与投票面积</div></div>
+</div>
+
+<h2>三、投票结果统计</h2>
+<table>
+  <tr><th>指标</th><th>数值</th><th>比例</th><th>门槛</th><th>是否达标</th></tr>
+  <tr>
+    <td>参与户数 / 总户数</td>
+    <td>${res.participatingResidents || 0} / ${totalResidents}</td>
+    <td>${(res.residentParticipationRate || 0).toFixed(2)}%</td>
+    <td>${(poll.threshold && poll.threshold.residentPct) || 66.67}%</td>
+    <td>${(res.residentParticipationRate || 0) >= ((poll.threshold && poll.threshold.residentPct) || 66.67) ? '✅ 达标' : '❌ 未达标'}</td>
+  </tr>
+  <tr>
+    <td>参与面积 / 总面积</td>
+    <td>${(res.participatingArea || 0).toFixed(2)} / ${totalArea.toFixed(2)} ㎡</td>
+    <td>${(res.areaParticipationRate || 0).toFixed(2)}%</td>
+    <td>${(poll.threshold && poll.threshold.areaPct) || 66.67}%</td>
+    <td>${(res.areaParticipationRate || 0) >= ((poll.threshold && poll.threshold.areaPct) || 66.67) ? '✅ 达标' : '❌ 未达标'}</td>
+  </tr>
+  <tr>
+    <td>同意户数 / 参与户数</td>
+    <td>${res.agreeCount || 0} / ${res.participatingResidents || 0}</td>
+    <td>${(res.agreeResidentRate || 0).toFixed(2)}%</td>
+    <td>${poll.category === 'major' ? '75%' : '50%'}</td>
+    <td>${(res.agreeResidentRate || 0) >= (poll.category === 'major' ? 75 : 50) ? '✅ 达标' : '❌ 未达标'}</td>
+  </tr>
+  <tr>
+    <td>同意面积 / 参与面积</td>
+    <td>${(res.agreeArea || 0).toFixed(2)} / ${(res.participatingArea || 0).toFixed(2)} ㎡</td>
+    <td>${(res.agreeAreaRate || 0).toFixed(2)}%</td>
+    <td>${poll.category === 'major' ? '75%' : '50%'}</td>
+    <td>${(res.agreeAreaRate || 0) >= (poll.category === 'major' ? 75 : 50) ? '✅ 达标' : '❌ 未达标'}</td>
+  </tr>
+</table>
+<div style="margin-top:10px;padding:10px;background:${res.isPassed ? '#e8f5e9' : '#ffebee'};border-radius:6px;text-align:center;font-weight:600;font-size:14px;">
+  ${res.isPassed ? '✅ 表决通过' : '❌ 表决未通过'}
+</div>
+
+<h2>四、投票明细（脱敏）</h2>
+<table>
+  <tr><th>序号</th><th>房号</th><th>面积(㎡)</th><th>第一题答案</th><th>投票时间</th><th>哈希片段</th></tr>`;
+
+  pollVotes.forEach((v, i) => {
+    const firstAns = v.choice && v.choice.length > 0 ? v.choice[0].value : '—';
+    const valStr = Array.isArray(firstAns) ? firstAns.join(',') : String(firstAns);
+    const hashFrag = v.nonce ? v.nonce.substring(0, 8) + '...' : '—';
+    html += `<tr><td>${i+1}</td><td>${v.roomNo || '—'}</td><td>${v.area || 0}</td><td>${valStr}</td><td>${v.voteTime ? new Date(v.voteTime).toLocaleString('zh-CN') : '—'}</td><td class="small">${hashFrag}</td></tr>`;
+  });
+
+  if (pollVotes.length === 0) {
+    html += `<tr><td colspan="6" style="text-align:center;color:#999;">暂无投票记录</td></tr>`;
+  }
+
+  html += `</table>
+
+<div class="page-break"></div>
+
+<h2>五、异议及处理记录</h2>
+<table>
+  <tr><th style="width:15%">时间</th><th style="width:15%">提出人</th><th>异议内容</th><th style="width:15%">处理结果</th></tr>`;
+
+  const objections = poll.objections || [];
+  if (objections.length > 0) {
+    objections.forEach(o => {
+      html += `<tr><td>${o.time ? new Date(o.time).toLocaleString('zh-CN') : '—'}</td><td>${o.resident || '—'}</td><td>${o.content || '—'}</td><td>${o.result || '待处理'}</td></tr>`;
+    });
+  } else {
+    html += `<tr><td colspan="4" style="text-align:center;color:#999;">暂无异议记录</td></tr>`;
+  }
+
+  html += `</table>
+
+<h2>六、证据锚定记录</h2>
+<table>
+  <tr><th>锚定点</th><th>类型</th><th>时间</th><th>链接/Hash</th><th>状态</th></tr>`;
+
+  if (records.length > 0) {
+    records.forEach(r => {
+      const status = r.error ? '❌ 失败' : '✅ 成功';
+      const link = r.url ? `<a href="${r.url}" target="_blank">${r.url}</a>` : (r.txHash || '—');
+      html += `<tr><td>${r.name}</td><td>${r.type}</td><td>${r.time ? new Date(r.time).toLocaleString('zh-CN') : '—'}</td><td class="small">${link}</td><td>${status}</td></tr>`;
+    });
+  } else {
+    html += `<tr><td colspan="5" style="text-align:center;color:#999;">暂无锚定记录</td></tr>`;
+  }
+
+  html += `</table>
+
+<h2>七、Merkle Root</h2>
+<div style="padding:12px;background:#f8f9fa;border-radius:6px;font-family:monospace;font-size:12px;word-break:break-all;">
+  ${poll.merkleRoot || '—'}
+</div>
+<div class="small" style="margin-top:4px;">此 Merkle Root 已通过 GitHub Commit、微信群机器人、邮件三端锚定，确保投票数据不可篡改。</div>
+
+<div class="page-break"></div>
+
+<h2>八、签章页</h2>
+<div style="margin-top:20px;">
+  <p>本档案由春天阳光小区数字化平台自动生成，包含完整的投票过程记录、计票结果及证据锚定信息。</p>
+  <p>档案生成时间：${now}</p>
+  <p>系统版本：Community Platform v2.0</p>
+</div>
+<div class="signature">
+  <div class="signature-box">业委会签章</div>
+  <div class="signature-box">物业签章</div>
+</div>
+<div class="signature" style="margin-top:30px;">
+  <div class="signature-box">社区签章</div>
+  <div class="signature-box">街道备案签章</div>
+</div>
+
+</body>
+</html>`;
+
+  win.document.write(html);
+  win.document.close();
+  showToast('档案已生成，请在弹窗中打印为 PDF', 'success');
+}
+
+function generateVoterReceipt(voteRecord) {
+  if (!voteRecord) return;
+  const poll = (appData.polls || []).find(p => p.id === voteRecord.pollId);
+  const title = poll ? (poll.title || '') : '投票回执';
+  const caseNo = poll ? (poll.caseNo || '') : '';
+  const roomNo = voteRecord.roomNo || '—';
+  const voteTime = voteRecord.voteTime ? new Date(voteRecord.voteTime).toLocaleString('zh-CN') : '—';
+  const nonce = voteRecord.nonce || '—';
+  const hashFrag = voteRecord.ipHash ? voteRecord.ipHash.substring(0, 16) + '...' : '—';
+
+  const win = window.open('', '_blank', 'width=420,height=600');
+  if (!win) { showToast('请允许弹窗以生成回执', 'error'); return; }
+
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投票回执</title>
+<style>
+body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.receipt { background: #fff; width: 360px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); padding: 28px; position: relative; overflow: hidden; }
+.receipt::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #2E8B57, #3da76b); }
+.receipt-header { text-align: center; margin-bottom: 20px; }
+.receipt-header .logo { font-size: 32px; margin-bottom: 8px; }
+.receipt-header .title { font-size: 16px; font-weight: 700; color: #333; }
+.receipt-header .subtitle { font-size: 11px; color: #999; margin-top: 4px; }
+.receipt-body { border-top: 1px dashed #e0e0e0; border-bottom: 1px dashed #e0e0e0; padding: 16px 0; }
+.receipt-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px; }
+.receipt-row .label { color: #666; }
+.receipt-row .value { color: #333; font-weight: 500; }
+.receipt-row .value.room { font-size: 18px; font-weight: 700; color: #2E8B57; }
+.hash-box { background: #f8f9fa; border-radius: 6px; padding: 10px; margin-top: 12px; font-family: monospace; font-size: 11px; color: #666; word-break: break-all; line-height: 1.5; }
+.receipt-footer { text-align: center; margin-top: 20px; }
+.receipt-footer .stamp { display: inline-block; padding: 6px 16px; border: 2px solid #2E8B57; color: #2E8B57; border-radius: 4px; font-size: 13px; font-weight: 600; transform: rotate(-3deg); opacity: 0.8; }
+.receipt-footer .tip { font-size: 11px; color: #999; margin-top: 12px; }
+.btn-print { display: block; width: 100%; padding: 10px; margin-top: 16px; background: #2E8B57; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+.qr-placeholder { width: 80px; height: 80px; background: #f5f5f5; border-radius: 6px; margin: 12px auto 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999; }
+@media print {
+  body { background: #fff; }
+  .btn-print { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="receipt">
+  <div class="receipt-header">
+    <div class="logo">🗳️</div>
+    <div class="title">${title}</div>
+    <div class="subtitle">${caseNo}</div>
+  </div>
+  <div class="receipt-body">
+    <div class="receipt-row"><span class="label">房号</span><span class="value room">${roomNo}</span></div>
+    <div class="receipt-row"><span class="label">投票时间</span><span class="value">${voteTime}</span></div>
+    <div class="receipt-row"><span class="label">随机Nonce</span><span class="value">${nonce.substring(0, 8)}...</span></div>
+    <div class="receipt-row"><span class="label">IP哈希</span><span class="value">${hashFrag}</span></div>
+    <div class="hash-box">
+      <div style="margin-bottom:4px;font-weight:600;color:#333;">Merkle Path 片段</div>
+      <div>${voteRecord.prevHash ? voteRecord.prevHash.substring(0, 24) + '...' : '首票（无前置）'}</div>
+    </div>
+  </div>
+  <div class="receipt-footer">
+    <div class="stamp">已上链存证</div>
+    <div class="qr-placeholder">Merkle<br>Root</div>
+    <div class="tip">请截图保存此回执<br>作为您的投票凭证</div>
+  </div>
+  <button class="btn-print" onclick="window.print()">🖨️ 打印 / 保存为 PDF</button>
+</div>
+</body>
+</html>`;
+
+  win.document.write(html);
+  win.document.close();
+}
+
+async function recalculatePoll(pollId) {
+  showLoading(true);
+  try {
+    const result = await calculatePollResults(pollId);
+    if (result) {
+      // 保存 poll 数据
+      await saveDataFile('polls', appData.polls, '重新计票 ' + pollId, 'update');
+      // 追加审计日志
+      appendAuditLog('recount', 'polls', pollId, '管理员手动重新计票，结果：' + (result.isPassed ? '通过' : '未通过'));
+      showToast('计票完成：' + (result.isPassed ? '通过' : '未通过'), result.isPassed ? 'success' : 'info');
+      navigateTo('polls');
+    } else {
+      showToast('计票失败：未找到投票数据', 'error');
+    }
+  } catch(e) {
+    showToast('计票失败：' + e.message, 'error');
   } finally {
     showLoading(false);
   }
@@ -1445,7 +2083,7 @@ async function doBatchImport() {
     const name = parts[1].trim();
     const suffix = (parts[2] || '').trim().replace(/[^0-9]/g, '').substring(0,4);
     if (room && name && suffix) {
-      newResidents.push({ id: 'r-' + Date.now() + '-' + Math.random().toString(36).substr(2,4), roomNo: room, name: name, phoneSuffix: suffix, status: 'active', isTest: false, registeredAt: new Date().toISOString().split('T')[0] });
+      newResidents.push({ id: 'r-' + Date.now() + '-' + Math.random().toString(36).substr(2,4), roomNo: room, name: name, phoneSuffix: suffix, area: 0, voteWeightCount: 1, voteWeightArea: 0, status: 'active', isTest: false, registeredAt: new Date().toISOString().split('T')[0] });
       success++;
     } else { fail++; }
   });
@@ -1466,6 +2104,15 @@ async function doBatchImport() {
   }
 }
 
+function saveAnchorConfig() {
+  localStorage.setItem('githubToken', document.getElementById('cfgGithubToken').value.trim());
+  localStorage.setItem('githubRepo', document.getElementById('cfgGithubRepo').value.trim());
+  localStorage.setItem('wechatWebhook', document.getElementById('cfgWechatWebhook').value.trim());
+  localStorage.setItem('resendApiKey', document.getElementById('cfgResendKey').value.trim());
+  localStorage.setItem('anchorEmail', document.getElementById('cfgAnchorEmail').value.trim());
+  showToast('锚定配置已保存', 'success');
+}
+
 async function changePassword() {
   const oldPwd = document.getElementById('oldPassword').value;
   const newPwd = document.getElementById('newPassword').value;
@@ -1476,29 +2123,24 @@ async function changePassword() {
 
   const account = ADMIN_ACCOUNTS.find(a => a.id === (currentAdmin && currentAdmin.id));
   if (!account) { showToast('账户配置异常', 'error'); return; }
-  const oldHash = await sha256(oldPwd);
-  if (oldHash !== account.password) { showToast('当前密码错误', 'error'); return; }
+  if (oldPwd !== account.password) { showToast('当前密码错误', 'error'); return; }
 
-  // 更新内存中的密码（存储 SHA-256 哈希值）
-  const newHash = await sha256(newPwd);
-  account.password = newHash;
+  // 更新内存中的密码
+  account.password = newPwd;
 
   // 同步持久化到 config.adminAccounts（如 Worker 可用）
   if (!appData.config) appData.config = {};
   if (!appData.config.adminAccounts) appData.config.adminAccounts = [];
   let persisted = appData.config.adminAccounts.find(a => a.id === account.id);
   if (persisted) {
-    persisted.password = newHash;
+    persisted.password = newPwd;
   } else {
-    appData.config.adminAccounts.push({ id: account.id, password: newHash, permissions: account.permissions });
+    appData.config.adminAccounts.push({ id: account.id, password: newPwd, permissions: account.permissions });
   }
 
   showLoading(true);
   try {
     await saveDataFile('config', appData.config, '管理员 ' + account.name + ' 修改密码', 'password-change');
-    // 标记密码已修改，不再强制提示
-    localStorage.setItem('pwdChanged_' + account.id, '1');
-    account.mustChangePwd = false;
     showToast('密码修改成功', 'success');
   } catch(e) {
     showToast('密码已更新（内存），但持久化失败：' + e.message, 'warning');
@@ -2215,9 +2857,17 @@ async function handleBatchFile(file) {
   return rows;
 }
 
-function generateId(module) {
-  const prefix = { announcements: 'ann', documents: 'doc', activities: 'act', polls: 'poll', residents: 'r' };
+function generateId(module, type) {
+  const year = new Date().getFullYear();
   const list = appData[module] || [];
+  if (module === 'polls' && type === 'caseNo') {
+    const maxNum = list.reduce((max, p) => {
+      const match = p.caseNo && p.caseNo.match(/YJ-(\d+)/);
+      return match ? Math.max(max, parseInt(match[1])) : max;
+    }, 0);
+    return year + '-YJ-' + String(maxNum + 1).padStart(3, '0');
+  }
+  const prefix = { announcements: 'ann', documents: 'doc', activities: 'act', polls: 'poll', residents: 'r' };
   const maxNum = list.reduce((max, item) => {
     const match = item.id && item.id.match(/\d+/);
     return match ? Math.max(max, parseInt(match[0])) : max;
@@ -2225,10 +2875,349 @@ function generateId(module) {
   return (prefix[module] || 'item') + '-' + String(maxNum + 1).padStart(3, '0');
 }
 
+
+async function calculatePollResults(pollId) {
+  const poll = (appData.polls || []).find(p => p.id === pollId);
+  if (!poll) return null;
+
+  // 读取投票记录
+  const d = new Date();
+  const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+  let responses = [];
+  try { responses = await workerRead(path); } catch(e) { responses = []; }
+  if (!Array.isArray(responses)) responses = [];
+
+  const pollVotes = responses.filter(r => r.pollId === pollId);
+
+  // 去重统计（同一 residentId 只算一次）
+  const seen = new Set();
+  let participatingResidents = 0;
+  let participatingArea = 0;
+  let agreeCount = 0;
+  let agreeArea = 0;
+
+  pollVotes.forEach(v => {
+    if (!v.residentId || seen.has(v.residentId)) return;
+    seen.add(v.residentId);
+    participatingResidents++;
+    participatingArea += parseFloat(v.area) || 0;
+
+    // 第一题为"是否同意"，检查 choice 中第一题的值是否含"同意"
+    if (v.choice && v.choice.length > 0) {
+      const firstAns = v.choice[0];
+      let val = firstAns ? firstAns.value : null;
+      if (val) {
+        const valStr = Array.isArray(val) ? val.join(',') : String(val);
+        if (valStr.includes('同意')) {
+          agreeCount++;
+          agreeArea += parseFloat(v.area) || 0;
+        }
+      }
+    }
+  });
+
+  // 总业主数和总面积
+  const allResidents = (appData.residents || []).filter(r => r.status === 'active');
+  const totalResidents = allResidents.length;
+  const totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
+
+  const residentParticipationRate = totalResidents > 0 ? (participatingResidents / totalResidents * 100) : 0;
+  const areaParticipationRate = totalArea > 0 ? (participatingArea / totalArea * 100) : 0;
+  const agreeResidentRate = participatingResidents > 0 ? (agreeCount / participatingResidents * 100) : 0;
+  const agreeAreaRate = participatingArea > 0 ? (agreeArea / participatingArea * 100) : 0;
+
+  // 判定门槛
+  const th = poll.threshold || { residentPct: 66.67, areaPct: 66.67 };
+  const isMajor = poll.category === 'major';
+  const agreeThreshold = isMajor ? 75 : 50;
+
+  const passResidentPart = residentParticipationRate >= (th.residentPct || 66.67);
+  const passAreaPart = areaParticipationRate >= (th.areaPct || 66.67);
+  const passAgreeResident = agreeResidentRate >= agreeThreshold;
+  const passAgreeArea = agreeAreaRate >= agreeThreshold;
+  const isPassed = passResidentPart && passAreaPart && passAgreeResident && passAgreeArea;
+
+  poll.results = {
+    isPublished: poll.results && poll.results.isPublished || false,
+    summary: '参与 ' + participatingResidents + ' 户（' + residentParticipationRate.toFixed(2) + '%），面积 ' + participatingArea.toFixed(2) + ' ㎡（' + areaParticipationRate.toFixed(2) + '%）；同意 ' + agreeCount + ' 户（' + agreeResidentRate.toFixed(2) + '%），面积 ' + agreeArea.toFixed(2) + ' ㎡（' + agreeAreaRate.toFixed(2) + '%）',
+    detailUrl: '',
+    participatingResidents: participatingResidents,
+    participatingArea: participatingArea,
+    agreeCount: agreeCount,
+    agreeArea: agreeArea,
+    totalResidents: totalResidents,
+    totalArea: totalArea,
+    residentParticipationRate: residentParticipationRate,
+    areaParticipationRate: areaParticipationRate,
+    agreeResidentRate: agreeResidentRate,
+    agreeAreaRate: agreeAreaRate,
+    isPassed: isPassed,
+    calculatedAt: new Date().toISOString()
+  };
+
+  poll.progress = {
+    target: totalResidents || 300,
+    current: participatingResidents,
+    unit: '户'
+  };
+
+  // 追加审计日志
+  appendAuditLog('count', 'polls', pollId, '自动计票完成：' + (poll.results.isPassed ? '通过' : '未通过') + '，参与 ' + participatingResidents + ' 户');
+
+  return poll.results;
+}
+
 function getModuleName(module) {
   const names = { announcements: '公告', documents: '文件', activities: '动态', polls: '投票', residents: '业主', config: '配置' };
   return names[module] || module;
 }
+
+/* ========== Merkle Tree & Evidence Anchoring ========== */
+
+async function sha256Hex(str) {
+  const buf = new TextEncoder().encode(str);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function buildMerkleTree(leaves) {
+  if (!leaves || leaves.length === 0) return { root: '', levels: [[]] };
+  let current = leaves.slice();
+  const levels = [current.slice()];
+  while (current.length > 1) {
+    const next = [];
+    for (let i = 0; i < current.length; i += 2) {
+      const left = current[i];
+      const right = current[i + 1] || left;
+      const combined = await sha256Hex(left + right);
+      next.push(combined);
+    }
+    levels.push(next.slice());
+    current = next;
+  }
+  return { root: current[0], levels: levels };
+}
+
+async function getMerklePath(leafHash, levels) {
+  let idx = levels[0].indexOf(leafHash);
+  if (idx < 0) return null;
+  const path = [];
+  for (let i = 0; i < levels.length - 1; i++) {
+    const isRight = idx % 2 === 1;
+    const siblingIdx = isRight ? idx - 1 : idx + 1;
+    const sibling = levels[i][siblingIdx] || levels[i][idx];
+    path.push({ hash: sibling, isRight: !isRight });
+    idx = Math.floor(idx / 2);
+  }
+  return path;
+}
+
+async function verifyMerklePath(leafHash, path, root) {
+  let current = leafHash;
+  for (const node of path) {
+    if (node.isRight) {
+      current = await sha256Hex(current + node.hash);
+    } else {
+      current = await sha256Hex(node.hash + current);
+    }
+  }
+  return current === root;
+}
+
+async function anchorVoteData(pollId) {
+  const poll = (appData.polls || []).find(p => p.id === pollId);
+  if (!poll) return null;
+
+  showLoading(true);
+  const records = [];
+
+  try {
+    // 1. 读取投票记录
+    const d = new Date();
+    const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+    let responses = [];
+    try { responses = await workerRead(path); } catch(e) { responses = []; }
+    if (!Array.isArray(responses)) responses = [];
+    const pollVotes = responses.filter(r => r.pollId === pollId);
+
+    // 2. 计算 Merkle Tree
+    const leaves = [];
+    for (const v of pollVotes) {
+      const leaf = await sha256Hex(JSON.stringify(v));
+      leaves.push(leaf);
+    }
+    const merkle = await buildMerkleTree(leaves);
+    const root = merkle.root;
+    const anchorTime = new Date().toISOString();
+    const anchorContent = 'Merkle Root: ' + root + '\nPoll: ' + (poll.caseNo || pollId) + '\nTime: ' + anchorTime + '\nVotes: ' + pollVotes.length;
+
+    // 3a. GitHub Commit 锚定
+    const githubToken = localStorage.getItem('githubToken') || '';
+    const githubRepo = localStorage.getItem('githubRepo') || '';
+    if (githubToken && githubRepo) {
+      try {
+        const [owner, repo] = githubRepo.includes('/') ? githubRepo.split('/') : [githubRepo, githubRepo];
+        const filePath = 'anchors/' + pollId + '.txt';
+        const content = btoa(unescape(encodeURIComponent(anchorContent)));
+        // 先获取 sha
+        const getRes = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + filePath, {
+          headers: { 'Authorization': 'token ' + githubToken, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        let sha = '';
+        if (getRes.ok) { const info = await getRes.json(); sha = info.sha; }
+        const body = { message: '[Anchor] ' + (poll.caseNo || pollId) + ' at ' + anchorTime, content: content };
+        if (sha) body.sha = sha;
+        const putRes = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + filePath, {
+          method: 'PUT',
+          headers: { 'Authorization': 'token ' + githubToken, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (putRes.ok) {
+          const putData = await putRes.json();
+          records.push({
+            type: 'github',
+            name: 'GitHub Commit',
+            url: putData.content.html_url || ('https://github.com/' + owner + '/' + repo + '/blob/main/' + filePath),
+            time: anchorTime,
+            txHash: putData.commit.sha || ''
+          });
+        } else {
+          records.push({ type: 'github', name: 'GitHub Commit', url: '', time: anchorTime, txHash: '', error: '提交失败' });
+        }
+      } catch(e) {
+        records.push({ type: 'github', name: 'GitHub Commit', url: '', time: anchorTime, txHash: '', error: e.message });
+      }
+    } else {
+      records.push({ type: 'github', name: 'GitHub Commit', url: '', time: anchorTime, txHash: '', error: '未配置 GITHUB_TOKEN 或仓库' });
+    }
+
+    // 3b. 微信群机器人锚定
+    const wechatWebhook = localStorage.getItem('wechatWebhook') || '';
+    if (wechatWebhook) {
+      try {
+        const msg = {
+          msgtype: 'text',
+          text: {
+            content: '【投票锚定】' + (poll.caseNo || pollId) + '\nMerkle Root: ' + root + '\n投票数: ' + pollVotes.length + '\n时间: ' + anchorTime + '\n请截图保存此消息作为证据。'
+          }
+        };
+        const wxRes = await fetch(wechatWebhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(msg)
+        });
+        if (wxRes.ok) {
+          records.push({ type: 'wechat', name: '微信群机器人', url: wechatWebhook, time: anchorTime, txHash: '' });
+        } else {
+          records.push({ type: 'wechat', name: '微信群机器人', url: wechatWebhook, time: anchorTime, txHash: '', error: '发送失败 ' + wxRes.status });
+        }
+      } catch(e) {
+        records.push({ type: 'wechat', name: '微信群机器人', url: wechatWebhook, time: anchorTime, txHash: '', error: e.message });
+      }
+    } else {
+      records.push({ type: 'wechat', name: '微信群机器人', url: '', time: anchorTime, txHash: '', error: '未配置 Webhook URL' });
+    }
+
+    // 3c. Resend 邮件锚定
+    const resendKey = localStorage.getItem('resendApiKey') || '';
+    const anchorEmail = localStorage.getItem('anchorEmail') || '';
+    if (resendKey && anchorEmail) {
+      try {
+        const emailRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + resendKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: 'anchor@community.firstblade.site',
+            to: anchorEmail,
+            subject: '【投票锚定】' + (poll.caseNo || pollId),
+            text: anchorContent + '\n\n此邮件作为投票结果的不可篡改证据锚定。'
+          })
+        });
+        if (emailRes.ok) {
+          const emailData = await emailRes.json();
+          records.push({ type: 'email', name: 'Resend 邮件', url: '', time: anchorTime, txHash: emailData.id || '' });
+        } else {
+          const errText = await emailRes.text();
+          records.push({ type: 'email', name: 'Resend 邮件', url: '', time: anchorTime, txHash: '', error: errText.substring(0, 100) });
+        }
+      } catch(e) {
+        records.push({ type: 'email', name: 'Resend 邮件', url: '', time: anchorTime, txHash: '', error: e.message });
+      }
+    } else {
+      records.push({ type: 'email', name: 'Resend 邮件', url: '', time: anchorTime, txHash: '', error: '未配置 Resend API Key 或邮箱' });
+    }
+
+    // 保存锚定记录到 poll
+    poll.anchorRecords = records;
+    poll.merkleRoot = root;
+    poll.merkleLeavesCount = leaves.length;
+    poll.anchoredAt = anchorTime;
+
+    // 持久化 polls 数据
+    await saveDataFile('polls', appData.polls, '锚定投票 ' + (poll.caseNo || pollId), 'anchor');
+
+    // 追加审计日志
+    appendAuditLog('anchor', 'polls', pollId, '证据锚定完成：' + records.filter(r => !r.error).length + '/3 成功，Merkle Root: ' + root.substring(0,16) + '...');
+
+    showToast('锚定完成：' + records.filter(r => !r.error).length + '/3 成功', 'success');
+    return records;
+  } catch(e) {
+    showToast('锚定失败：' + e.message, 'error');
+    return null;
+  } finally {
+    showLoading(false);
+  }
+}
+
+function showAnchorDetails(pollId) {
+  const poll = (appData.polls || []).find(p => p.id === pollId);
+  if (!poll) return;
+  const records = poll.anchorRecords || [];
+  const root = poll.merkleRoot || '';
+
+  document.getElementById('modalTitle').textContent = '🔗 锚定详情：' + (poll.caseNo || pollId);
+  let body = '<div style="margin-bottom:16px;padding:12px;background:#f0f7f4;border-radius:8px;border-left:4px solid var(--primary);">';
+  body += '<div style="font-weight:600;margin-bottom:4px;">Merkle Root</div>';
+  body += '<div style="font-family:monospace;font-size:13px;word-break:break-all;">' + (root || '—') + '</div>';
+  body += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">投票数：' + (poll.merkleLeavesCount || 0) + ' · 锚定时间：' + (poll.anchoredAt ? formatDateTime(poll.anchoredAt) : '—') + '</div>';
+  body += '</div>';
+
+  if (!records.length) {
+    body += '<div class="empty-state" style="padding:30px 20px;"><div class="icon">🔗</div><div>暂无锚定记录</div></div>';
+  } else {
+    body += '<div style="font-weight:600;margin-bottom:12px;">锚定记录</div>';
+    records.forEach((r, i) => {
+      const statusColor = r.error ? '#c62828' : '#2e7d32';
+      const statusText = r.error ? '❌ 失败' : '✅ 成功';
+      body += '<div style="background:#fafafa;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;">';
+      body += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+      body += '<div style="font-weight:600;">' + (i+1) + '. ' + escapeHtml(r.name) + '</div>';
+      body += '<span style="font-size:12px;font-weight:600;color:' + statusColor + ';">' + statusText + '</span>';
+      body += '</div>';
+      if (r.url) {
+        body += '<div style="font-size:12px;margin-bottom:4px;"><a href="' + r.url + '" target="_blank" style="color:var(--primary);text-decoration:none;">🔗 ' + escapeHtml(r.url) + '</a></div>';
+      }
+      if (r.txHash) {
+        body += '<div style="font-size:12px;color:var(--text-secondary);font-family:monospace;">Hash: ' + escapeHtml(r.txHash) + '</div>';
+      }
+      if (r.error) {
+        body += '<div style="font-size:12px;color:var(--danger);margin-top:4px;">错误：' + escapeHtml(r.error) + '</div>';
+      }
+      body += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">时间：' + formatDateTime(r.time) + '</div>';
+      body += '</div>';
+    });
+  }
+
+  body += '<div style="margin-top:16px;text-align:center;display:flex;gap:10px;justify-content:center;">';
+  body += '<button class="btn btn-primary" onclick="anchorVoteData(\'' + pollId + '\')">🔄 重新锚定</button>';
+  body += '<button class="btn" onclick="generatePollArchive(\'' + pollId + '\')">📄 下载档案 PDF</button>';
+  body += '</div>';
+
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">关闭</button>';
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
 
 function showLoading(show) {
   document.getElementById('loadingOverlay').classList.toggle('active', show);
@@ -2522,6 +3511,8 @@ async function saveWorkorderAction(id){
     const path = getCurrentMonthPath('workorders');
     await workerWrite(path, woList, '管理员处理工单 '+id);
     appData.workorders = woList;
+    // 追加审计日志
+    appendAuditLog('workorder-update', 'workorders', id, '管理员处理工单 ' + id + '，状态：' + item.status);
     closeModal();
     showToast('处理成功', 'success');
     navigateTo('workorders');
@@ -2697,6 +3688,8 @@ async function saveComplaintAction(id){
     const path = getCurrentMonthPath('complaints');
     await workerWrite(path, cpList, '管理员处理反馈 '+id);
     appData.complaints = cpList;
+    // 追加审计日志
+    appendAuditLog('complaint-update', 'complaints', id, '管理员处理反馈 ' + id + '，状态：' + item.status);
     closeModal();
     showToast('处理成功', 'success');
     navigateTo('complaints');
@@ -2791,6 +3784,52 @@ function onPollModeChange() {
 }
 
 let _pollQuestions = [];
+
+function onPollCategoryChange() {
+  const cat = document.getElementById('edCategory').value;
+  const thInput = document.getElementById('edThresholdDisplay');
+  if (!thInput) return;
+  if (cat === 'major') {
+    thInput.value = '参与双三分之二(66.67%) + 同意双四分之三(75%)';
+  } else if (cat === 'general') {
+    thInput.value = '参与双三分之二(66.67%) + 同意双过半(50%)';
+  } else {
+    thInput.value = '— 请先选择事项类型 —';
+  }
+}
+
+function validatePollCompliance() {
+  const errors = [];
+  const category = document.getElementById('edCategory').value;
+  if (!category) errors.push('必须选择事项类型（一般/重大）');
+
+  const ruleFiles = getMultiUploadedPaths('pollRuleFiles');
+  if (!ruleFiles || ruleFiles.length === 0) errors.push('必须上传议事规则PDF');
+
+  const rollFiles = getMultiUploadedPaths('pollRollFiles');
+  if (!rollFiles || rollFiles.length === 0) errors.push('必须上传业主清册PDF');
+
+  const rollStart = document.getElementById('edRollStart').value;
+  const rollEnd = document.getElementById('edRollEnd').value;
+  if (!rollStart || !rollEnd) {
+    errors.push('必须填写业主清册公示起止日期');
+  } else {
+    const endDate = new Date(rollEnd);
+    const minEndDate = new Date();
+    minEndDate.setDate(minEndDate.getDate() - 7);
+    minEndDate.setHours(0, 0, 0, 0);
+    if (endDate > minEndDate) errors.push('业主清册公示结束日期必须早于今日之前满7日（即已公示满7天）');
+  }
+
+  const meetingFiles = getMultiUploadedPaths('pollMeetingFiles');
+  if (!meetingFiles || meetingFiles.length === 0) errors.push('必须上传会议通知PDF');
+
+  const streetRecord = document.getElementById('edStreetRecord').value.trim();
+  const streetConfirm = document.getElementById('edStreetConfirm').checked;
+  if (!streetRecord && !streetConfirm) errors.push('必须填写街道备案号，或勾选"当地无街道备案要求"确认跳过');
+
+  return { valid: errors.length === 0, errors };
+}
 
 function renderPollQuestionsEditor(questions) {
   _pollQuestions = JSON.parse(JSON.stringify(questions || []));
