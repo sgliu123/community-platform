@@ -1278,7 +1278,7 @@ function openEditModal(module, id) {
     body += '<div style="font-weight:600;margin-bottom:12px;font-size:15px;">📊 计票结果' + (hasResult ? ' <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（' + formatDateTime(res.calculatedAt) + ' 计算）</span>' : ' <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（尚未计票）</span>') + '</div>';
     if (hasResult) {
       body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
-      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">参与人数 / 总户数</div><div style="font-size:18px;font-weight:700;">' + (res.participatingResidents||0) + ' / ' + (res.totalResidents||0) + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.residentParticipationRate||0) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.residentParticipationRate||0).toFixed(2) + '%（门槛 ' + partTh + '）</div></div>';
+      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">参与人数 / 目标户数</div><div style="font-size:18px;font-weight:700;">' + (res.participatingResidents||0) + ' / ' + (res.totalResidents||0) + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.residentParticipationRate||0) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.residentParticipationRate||0).toFixed(2) + '%（门槛 ' + partTh + '）</div></div>';
       body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">参与面积 / 总面积</div><div style="font-size:18px;font-weight:700;">' + (res.participatingArea||0).toFixed(2) + ' / ' + (res.totalArea||0).toFixed(2) + ' ㎡</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.areaParticipationRate||0) + '%;background:#1976D2;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.areaParticipationRate||0).toFixed(2) + '%（门槛 ' + partTh + '）</div></div>';
       body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">同意人数 / 参与人数</div><div style="font-size:18px;font-weight:700;">' + (res.agreeCount||0) + ' / ' + (res.participatingResidents||0) + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.agreeResidentRate||0) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.agreeResidentRate||0).toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
       body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">同意面积 / 参与面积</div><div style="font-size:18px;font-weight:700;">' + (res.agreeArea||0).toFixed(2) + ' / ' + (res.participatingArea||0).toFixed(2) + ' ㎡</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.agreeAreaRate||0) + '%;background:#1976D2;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.agreeAreaRate||0).toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
@@ -1622,7 +1622,9 @@ function generatePollArchive(pollId) {
   const pollVotes = responses.filter(r => r.pollId === pollId);
 
   const allResidents = (appData.residents || []).filter(r => r.status === 'active');
-  const totalResidents = allResidents.length;
+  const totalResidents = (poll.progress && poll.progress.target !== undefined && poll.progress.target > 0)
+    ? poll.progress.target
+    : allResidents.length;
   const totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
   const res = poll.results || {};
   const records = poll.anchorRecords || [];
@@ -1689,7 +1691,7 @@ th { background: #f5f5f5; font-weight: 600; }
   <tr><td>事项类型</td><td>${poll.category === 'major' ? '重大事项' : '一般事项'}</td></tr>
   <tr><td>法律依据</td><td>${poll.legalBasis || '—'}</td></tr>
   <tr><td>投票期间</td><td>${poll.startDate || '—'} 至 ${poll.endDate || '—'}</td></tr>
-  <tr><td>总户数</td><td>${totalResidents} 户</td></tr>
+  <tr><td>目标户数</td><td>${totalResidents} 户</td></tr>
   <tr><td>总面积</td><td>${totalArea.toFixed(2)} ㎡</td></tr>
   <tr><td>议事规则</td><td>${(poll.ruleFiles || []).length > 0 ? '已上传 ' + poll.ruleFiles.length + ' 份' : '—'}</td></tr>
   <tr><td>业主清册</td><td>${(poll.rollFiles || []).length > 0 ? '已上传 ' + poll.rollFiles.length + ' 份' : '—'}</td></tr>
@@ -1698,7 +1700,7 @@ th { background: #f5f5f5; font-weight: 600; }
 
 <h2>二、业主清册摘要</h2>
 <div style="display:flex;flex-wrap:wrap;">
-  <div class="stat-box"><div class="num">${totalResidents}</div><div class="label">总户数</div></div>
+  <div class="stat-box"><div class="num">${totalResidents}</div><div class="label">目标户数</div></div>
   <div class="stat-box"><div class="num">${totalArea.toFixed(2)} ㎡</div><div class="label">建筑总面积</div></div>
   <div class="stat-box"><div class="num">${(res.participatingResidents || 0)}</div><div class="label">参与投票户数</div></div>
   <div class="stat-box"><div class="num">${(res.participatingArea || 0).toFixed(2)} ㎡</div><div class="label">参与投票面积</div></div>
@@ -1708,7 +1710,7 @@ th { background: #f5f5f5; font-weight: 600; }
 <table>
   <tr><th>指标</th><th>数值</th><th>比例</th><th>门槛</th><th>是否达标</th></tr>
   <tr>
-    <td>参与户数 / 总户数</td>
+    <td>参与户数 / 目标户数</td>
     <td>${res.participatingResidents || 0} / ${totalResidents}</td>
     <td>${(res.residentParticipationRate || 0).toFixed(2)}%</td>
     <td>${(poll.threshold && poll.threshold.residentPct) || 66.67}%</td>
@@ -2941,7 +2943,9 @@ async function calculatePollResults(pollId) {
 
   // 总业主数和总面积
   const allResidents = (appData.residents || []).filter(r => r.status === 'active');
-  const totalResidents = allResidents.length;
+  const totalResidents = (poll.progress && poll.progress.target !== undefined && poll.progress.target > 0)
+    ? poll.progress.target
+    : allResidents.length;
   const totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
 
   const residentParticipationRate = totalResidents > 0 ? (participatingResidents / totalResidents * 100) : 0;
