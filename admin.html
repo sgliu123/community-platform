@@ -1510,24 +1510,37 @@ async function saveItem(module, id) {
     item.status = document.getElementById('edStatus').value;
     item.mode = document.getElementById('edPollMode').value;
     item.tencentUrl = document.getElementById('edTencent').value;
-    item.streetRecord = document.getElementById('edStreetRecord').value;
-    
+    item.streetRecord = document.getElementById('edStreetRecord').value.trim();
+    item.streetRecordConfirmed = document.getElementById('edStreetConfirm').checked;
+
+    // 读取上传的PDF文件路径（编辑时组件已通过 setMultiUploadedPaths 初始化，可直接读取）
+    const ruleFiles = getMultiUploadedPaths('pollRuleFiles');
+    item.ruleFiles = ruleFiles.length ? ruleFiles : (item.ruleFiles || []);
+    const rollFiles = getMultiUploadedPaths('pollRollFiles');
+    item.rollFiles = rollFiles.length ? rollFiles : (item.rollFiles || []);
+    const meetingFiles = getMultiUploadedPaths('pollMeetingFiles');
+    item.meetingFiles = meetingFiles.length ? meetingFiles : (item.meetingFiles || []);
+
     // pollNotifyFiles 上传组件未在表单中配置，使用已有数据或空数组
     item.notifyFiles = item.notifyFiles || [];
-    
+
     item.rollPublish = {
       start: document.getElementById('edRollStart').value,
       end: document.getElementById('edRollEnd').value
       // file 字段未在表单中配置，暂不保存
     };
-    
+
     const isMajor = item.category === 'major';
     item.threshold = isMajor 
       ? { type: 'double_two_thirds', desc: '双2/3（人数+面积各过2/3）', residentPct: 66.67, areaPct: 66.67 }
       : { type: 'double_half', desc: '双过半（人数+面积各过半）', residentPct: 50, areaPct: 50 };
-    
+
     item.progress = { target: parseInt(document.getElementById('edTarget').value)||0, current: parseInt(document.getElementById('edCurrent').value)||0, unit: '户' };
-    item.results = { isPublished: document.getElementById('edPublishResult').checked, summary: document.getElementById('edResultSummary').value, detailUrl: '' };
+    // 合并 results，避免覆盖已有的计票结果字段
+    item.results = item.results || {};
+    item.results.isPublished = document.getElementById('edPublishResult').checked;
+    item.results.summary = document.getElementById('edResultSummary').value;
+    if (!item.results.detailUrl) item.results.detailUrl = '';
     item.description = document.getElementById('edDesc').value;
     item.type = item.type || 'opinion';
     item.createdBy = item.createdBy || currentAdmin && currentAdmin.name;
