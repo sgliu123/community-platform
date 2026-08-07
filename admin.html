@@ -2970,11 +2970,11 @@ async function calculatePollResults(pollId) {
     calculatedAt: new Date().toISOString()
   };
 
-  poll.progress = {
-    target: totalResidents || 300,
-    current: participatingResidents,
-    unit: '户'
-  };
+  // 只更新 current（实际参与数），保留用户手动设置的 target
+  poll.progress = poll.progress || {};
+  poll.progress.target = poll.progress.target || totalResidents || 300;
+  poll.progress.current = participatingResidents;
+  poll.progress.unit = '户';
 
   // 追加审计日志
   appendAuditLog('count', 'polls', pollId, '自动计票完成：' + (poll.results.isPassed ? '通过' : '未通过') + '，参与 ' + participatingResidents + ' 户');
