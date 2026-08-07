@@ -1242,7 +1242,7 @@ function openEditModal(module, id) {
       '<div class="form-group"><label>表决门槛（根据事项类型自动设定，不可修改）</label><input type="text" id="edThresholdDisplay" readonly style="background:#f5f5f5;" value="' + thDesc + '"></div>' +
       '<div class="form-group"><label>议事规则PDF *</label>' + createMultiImageUploaderHTML('pollRuleFiles', '请上传议事规则PDF文件', 'application/pdf') + '</div>' +
       '<div class="form-group"><label>业主清册PDF *</label>' + createMultiImageUploaderHTML('pollRollFiles', '请上传业主清册PDF文件', 'application/pdf') + '</div>' +
-      '<div class="form-group"><label>业主清册公示期 *（必须已公示满7日）</label><div class="form-row" style="grid-template-columns:1fr 1fr;"><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">公示开始日期</label><input type="date" id="edRollStart" value="' + (item.rollPublish&&item.rollPublish.start||'') + '"></div><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">公示结束日期</label><input type="date" id="edRollEnd" value="' + (item.rollPublish&&item.rollPublish.end||'') + '"></div></div></div>' +
+      '<div class="form-group"><label>业主清册公示期 *（必须在投票开始日期前7日结束公示）</label><div class="form-row" style="grid-template-columns:1fr 1fr;"><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">公示开始日期</label><input type="date" id="edRollStart" value="' + (item.rollPublish&&item.rollPublish.start||'') + '"></div><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">公示结束日期</label><input type="date" id="edRollEnd" value="' + (item.rollPublish&&item.rollPublish.end||'') + '"></div></div></div>' +
       '<div class="form-group"><label>会议通知PDF *</label>' + createMultiImageUploaderHTML('pollMeetingFiles', '请上传会议通知PDF文件', 'application/pdf') + '</div>' +
       '<div class="form-row"><div class="form-group"><label>街道备案号</label><input type="text" id="edStreetRecord" value="' + (item.streetRecord||'') + '" placeholder="如：XX街备[2026]001号，无则留空"></div>' +
       '<div class="form-group form-check" style="align-self:flex-end;padding-bottom:8px;"><input type="checkbox" id="edStreetConfirm" ' + (item.streetRecordConfirmed?'checked':'') + '><label for="edStreetConfirm">当地无街道备案要求，已确认跳过</label></div></div>' +
@@ -3811,14 +3811,21 @@ function validatePollCompliance() {
 
   const rollStart = document.getElementById('edRollStart').value;
   const rollEnd = document.getElementById('edRollEnd').value;
+  const startDate = document.getElementById('edStart').value;
   if (!rollStart || !rollEnd) {
     errors.push('必须填写业主清册公示起止日期');
+  } else if (!startDate) {
+    errors.push('必须填写投票开始日期，才能校验公示期');
   } else {
     const endDate = new Date(rollEnd);
-    const minEndDate = new Date();
-    minEndDate.setDate(minEndDate.getDate() - 7);
-    minEndDate.setHours(0, 0, 0, 0);
-    if (endDate > minEndDate) errors.push('业主清册公示结束日期必须早于今日之前满7日（即已公示满7天）');
+    const voteStart = new Date(startDate);
+    // 公示结束日期必须在投票开始日期前至少7天
+    const minStartDate = new Date(endDate);
+    minStartDate.setDate(minStartDate.getDate() + 7);
+    minStartDate.setHours(0, 0, 0, 0);
+    if (minStartDate > voteStart) {
+      errors.push('业主清册公示结束日期必须在投票开始日期前至少7日（公示结束日 + 7天 ≤ 投票开始日）');
+    }
   }
 
   const meetingFiles = getMultiUploadedPaths('pollMeetingFiles');
