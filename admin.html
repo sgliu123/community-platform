@@ -920,7 +920,7 @@ function renderActivitiesAdmin() {
 function renderPollsAdmin() {
   const list = appData.polls || [];
   return `<div class="card"><div class="card-header"><h3>🗳️ 投票管理</h3><button class="btn btn-primary" onclick="openEditModal('polls',null)">➕ 新增投票</button></div>` +
-    '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>类型</th><th>模式</th><th>状态</th><th>参与率</th><th>同意率</th><th>结果</th><th>操作</th></tr></thead><tbody>' +
+    '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>类型</th><th>模式</th><th>状态</th><th>进度</th><th>参与率</th><th>同意率</th><th>结果</th><th>操作</th></tr></thead><tbody>' +
     list.map(item => {
       const res = item.results || {};
       const modeLabel = item.mode === 'local' ? '<span class="tag tag-active">本地问卷</span>' : '<span class="tag tag-test">腾讯问卷</span>';
@@ -948,12 +948,13 @@ function renderPollsAdmin() {
       const pendingObj = (item.objections || []).filter(o => !o.status || o.status === '待处理').length;
       const objBadge = pendingObj > 0 ? '<span class="tag" style="background:#ffebee;color:#c62828;cursor:pointer;" onclick="event.stopPropagation();navigateTo(\'objections\')">⚠️ ' + pendingObj + ' 异议</span>' : '';
 
+      const progressHtml = '<div style="font-size:12px;">' + (item.progress && item.progress.current !== undefined ? item.progress.current : 0) + ' / ' + (item.progress && item.progress.target !== undefined ? item.progress.target : 300) + ' 户</div>';
       let actions = `<button onclick="openEditModal('polls','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('polls','${item.id}')">删除</button>`;
       if(item.mode === 'local') {
         actions += `<button onclick="viewPollData('${item.id}')" style="margin-left:4px;">📊 数据</button>`;
       }
       actions += `<button onclick="recalculatePoll('${item.id}')" style="margin-left:4px;">🔄 计票</button>`;
-      return `<tr><td>${item.caseNo||''}</td><td>${item.title||''}</td><td>${catLabel}</td><td>${modeLabel}</td><td>${statusTag}</td><td>${partHtml}</td><td>${agreeHtml}</td><td>${passHtml} ${anchorHtml} ${objBadge}</td><td class="actions">${actions}</td></tr>`;
+      return `<tr><td>${item.caseNo||''}</td><td>${item.title||''}</td><td>${catLabel}</td><td>${modeLabel}</td><td>${statusTag}</td><td>${progressHtml}</td><td>${partHtml}</td><td>${agreeHtml}</td><td>${passHtml} ${anchorHtml} ${objBadge}</td><td class="actions">${actions}</td></tr>`;
     }).join('') +
     '</tbody></table></div>';
 }
@@ -1120,11 +1121,6 @@ function renderPollAuditTimeline(pollId) {
   const nodes = [];
   // 发起
   if (poll.createdAt) nodes.push({ time: poll.createdAt, label: '投票发起', detail: '由 ' + (poll.createdBy||'管理员') + ' 创建', type: 'init' });
-  // 征求意见
-  if (poll.consultationPeriod && poll.consultationPeriod.start) nodes.push({ time: poll.consultationPeriod.start, label: '征求意见开始', detail: '征求意见期：' + poll.consultationPeriod.start + ' 至 ' + (poll.consultationPeriod.end||''), type: 'consult' });
-  if (poll.consultationPeriod && poll.consultationPeriod.end) nodes.push({ time: poll.consultationPeriod.end, label: '征求意见结束', detail: '征求意见期结束', type: 'consult-end' });
-  // 发布公告
-  if (poll.announcementDate) nodes.push({ time: poll.announcementDate, label: '正式公告发布', detail: '公告发布日期：' + poll.announcementDate, type: 'announce' });
   // 清册公示
   if (poll.rollPublish && poll.rollPublish.start) nodes.push({ time: poll.rollPublish.start, label: '清册公示开始', detail: '公示期：' + poll.rollPublish.start + ' 至 ' + (poll.rollPublish.end||''), type: 'roll' });
   // 通知送达
@@ -1151,7 +1147,7 @@ function renderPollAuditTimeline(pollId) {
   nodes.sort((a, b) => new Date(a.time) - new Date(b.time));
 
   nodes.forEach((n, i) => {
-    const colorMap = { init: '#2E8B57', consult: '#8E24AA', 'consult-end': '#8E24AA', announce: '#1976D2', roll: '#1976D2', notice: '#f9a825', vote: '#2E8B57', count: '#6A1B9A', publish: '#2E8B57', objection: '#c62828', 'objection-resolved': '#2e7d32', anchor: '#E65100', archive: '#546e7a' };
+    const colorMap = { init: '#2E8B57', roll: '#1976D2', notice: '#f9a825', vote: '#2E8B57', count: '#6A1B9A', publish: '#2E8B57', objection: '#c62828', 'objection-resolved': '#2e7d32', anchor: '#E65100', archive: '#546e7a' };
     const color = colorMap[n.type] || '#666';
     html += '<div style="position:relative;margin-bottom:14px;padding-bottom:14px;' + (i < nodes.length - 1 ? 'border-bottom:1px dashed var(--border);' : '') + '">';
     html += '<div style="position:absolute;left:-21px;top:2px;width:10px;height:10px;background:' + color + ';border-radius:50%;"></div>';
@@ -1256,12 +1252,8 @@ function openEditModal(module, id) {
       '<div class="form-group"><label>会议通知PDF *</label>' + createMultiImageUploaderHTML('pollMeetingFiles', '请上传会议通知PDF文件', 'application/pdf') + '</div>' +
       '<div class="form-row"><div class="form-group"><label>街道备案号</label><input type="text" id="edStreetRecord" value="' + (item.streetRecord||'') + '" placeholder="如：XX街备[2026]001号，无则留空"></div>' +
       '<div class="form-group form-check" style="align-self:flex-end;padding-bottom:8px;"><input type="checkbox" id="edStreetConfirm" ' + (item.streetRecordConfirmed?'checked':'') + '><label for="edStreetConfirm">当地无街道备案要求，已确认跳过</label></div></div>' +
-      '<div class="form-row"><div class="form-group"><label>征求意见开始日期 *（公告方案发布前，不少于7日）</label><input type="date" id="edConsultStart" value="' + (item.consultationPeriod&&item.consultationPeriod.start||'') + '"></div>' +
-      '<div class="form-group"><label>征求意见结束日期 *</label><input type="date" id="edConsultEnd" value="' + (item.consultationPeriod&&item.consultationPeriod.end||'') + '"></div></div>' +
-      '<div class="form-group"><label>正式公告发布日期 *（必须在投票开始日期15日以上）</label><input type="date" id="edAnnounceDate" value="' + (item.announcementDate||'') + '"></div>' +
-      '<div style="margin-bottom:16px;"><button type="button" class="btn btn-sm" onclick="autoGeneratePollDates()">📅 根据投票开始日自动生成法定时间节点</button><span style="font-size:12px;color:var(--text-secondary);margin-left:8px;">自动生成后仍可按实际情况微调</span></div>' +
-      '<div class="form-row"><div class="form-group"><label>投票开始日期</label><input type="date" id="edStart" value="' + (item.startDate||'') + '" onchange="onPollStartDateChange()"></div>' +
-      '<div class="form-group"><label>投票结束日期</label><input type="date" id="edEnd" value="' + (item.endDate||'') + '"></div></div>' +
+      '<div class="form-row"><div class="form-group"><label>开始日期</label><input type="date" id="edStart" value="' + (item.startDate||'') + '"></div>' +
+      '<div class="form-group"><label>结束日期</label><input type="date" id="edEnd" value="' + (item.endDate||'') + '"></div></div>' +
       '<div class="form-group"><label>状态</label><select id="edStatus"><option value="进行中" ' + (item.status==='进行中'?'selected':'') + '>进行中</option><option value="已结束" ' + (item.status==='已结束'?'selected':'') + '>已结束</option></select></div>' +
       '<div class="form-group"><label>问卷模式</label><select id="edPollMode" onchange="onPollModeChange()"><option value="tencent" ' + (pollMode==='tencent'?'selected':'') + '>腾讯问卷（外部链接）</option><option value="local" ' + (pollMode==='local'?'selected':'') + '>本地问卷（前端直接填写）</option></select></div>' +
       '<div id="tencentSection" style="' + (pollMode==='local'?'display:none;':'') + '"><div class="form-group"><label>腾讯问卷链接</label><input type="text" id="edTencent" value="' + (item.tencentUrl||'') + '"></div></div>' +
@@ -1270,8 +1262,8 @@ function openEditModal(module, id) {
       '<div id="pollQuestionsEditor"></div>' +
       '<button type="button" class="btn" onclick="addPollQuestion()" style="margin-top:8px;">➕ 添加题目</button>' +
       '</div>' +
-      '<div class="form-row"><div class="form-group"><label>目标户数</label><input type="number" id="edTarget" value="' + (item.progress&&item.progress.target||300) + '"></div>' +
-      '<div class="form-group"><label>当前参与</label><input type="number" id="edCurrent" value="' + (item.progress&&item.progress.current||0) + '"></div></div>' +
+      '<div class="form-row"><div class="form-group"><label>目标户数</label><input type="number" id="edTarget" value="' + (item.progress && item.progress.target !== undefined ? item.progress.target : 300) + '"></div>' +
+      '<div class="form-group"><label>当前参与</label><input type="number" id="edCurrent" value="' + (item.progress && item.progress.current !== undefined ? item.progress.current : 0) + '"></div></div>' +
       '<div class="form-group form-check"><input type="checkbox" id="edPublishResult" ' + (item.results&&item.results.isPublished?'checked':'') + '><label for="edPublishResult">公示结果</label></div>' +
       '<div class="form-group"><label>结果摘要</label><textarea id="edResultSummary">' + (item.results&&item.results.summary||'') + '</textarea></div>' +
       '<div class="form-group"><label>描述</label><textarea id="edDesc">' + (item.description||'') + '</textarea></div>';
@@ -1535,13 +1527,14 @@ async function saveItem(module, id) {
       ? { type: 'double_two_thirds', desc: '双2/3（人数+面积各过2/3）', residentPct: 66.67, areaPct: 66.67 }
       : { type: 'double_half', desc: '双过半（人数+面积各过半）', residentPct: 50, areaPct: 50 };
     
-    const targetVal = document.getElementById('edTarget').value;
-    item.progress = { target: targetVal === '' ? 0 : parseInt(targetVal), current: parseInt(document.getElementById('edCurrent').value)||0, unit: '户' };
-    item.consultationPeriod = {
-      start: document.getElementById('edConsultStart').value,
-      end: document.getElementById('edConsultEnd').value
+    const edTargetVal = document.getElementById('edTarget').value.trim();
+    const edCurrentVal = document.getElementById('edCurrent').value.trim();
+    const oldProgress = item.progress || {};
+    item.progress = {
+      target: edTargetVal !== '' ? parseInt(edTargetVal) : (oldProgress.target !== undefined ? oldProgress.target : 300),
+      current: edCurrentVal !== '' ? parseInt(edCurrentVal) : (oldProgress.current !== undefined ? oldProgress.current : 0),
+      unit: '户'
     };
-    item.announcementDate = document.getElementById('edAnnounceDate').value;
     // 只更新用户可编辑的结果字段，保留 calculatePollResults 生成的计票数据
     item.results = item.results || {};
     item.results.isPublished = document.getElementById('edPublishResult').checked;
@@ -2948,14 +2941,11 @@ async function calculatePollResults(pollId) {
 
   // 总业主数和总面积
   const allResidents = (appData.residents || []).filter(r => r.status === 'active');
-  const actualTotalResidents = allResidents.length;
+  const totalResidents = allResidents.length;
   const totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
-  // 参与率分母优先使用用户设定的目标户数（若 >0），否则回退到实际在册户数
-  const denomResidents = (poll.progress && poll.progress.target > 0) ? poll.progress.target : actualTotalResidents;
-  const denomArea = totalArea > 0 ? totalArea : 1;
 
-  const residentParticipationRate = denomResidents > 0 ? (participatingResidents / denomResidents * 100) : 0;
-  const areaParticipationRate = denomArea > 0 ? (participatingArea / denomArea * 100) : 0;
+  const residentParticipationRate = totalResidents > 0 ? (participatingResidents / totalResidents * 100) : 0;
+  const areaParticipationRate = totalArea > 0 ? (participatingArea / totalArea * 100) : 0;
   const agreeResidentRate = participatingResidents > 0 ? (agreeCount / participatingResidents * 100) : 0;
   const agreeAreaRate = participatingArea > 0 ? (agreeArea / participatingArea * 100) : 0;
 
@@ -2978,8 +2968,7 @@ async function calculatePollResults(pollId) {
     participatingArea: participatingArea,
     agreeCount: agreeCount,
     agreeArea: agreeArea,
-    totalResidents: actualTotalResidents,
-    targetResidents: poll.progress && poll.progress.target > 0 ? poll.progress.target : actualTotalResidents,
+    totalResidents: totalResidents,
     totalArea: totalArea,
     residentParticipationRate: residentParticipationRate,
     areaParticipationRate: areaParticipationRate,
@@ -2989,11 +2978,10 @@ async function calculatePollResults(pollId) {
     calculatedAt: new Date().toISOString()
   };
 
-  // 只更新 current（实际参与数），绝不覆盖用户手动设置的 target
+  // 只更新 current（实际参与数），保留用户手动设置的 target
   poll.progress = poll.progress || {};
-  // 如果 target 从未设置过（新建时），用实际户数作为默认值；已有值则保留
-  if (!poll.progress.target && poll.progress.target !== 0) {
-    poll.progress.target = actualTotalResidents || 300;
+  if (poll.progress.target === undefined || poll.progress.target === null || Number.isNaN(poll.progress.target)) {
+    poll.progress.target = 300;
   }
   poll.progress.current = participatingResidents;
   poll.progress.unit = '户';
@@ -3812,64 +3800,6 @@ function downloadComplaintSummary(id){
 
 /* ========== 本地问卷后台管理功能 ========== */
 
-function formatDateLocal(d) {
-  if (!d) return '';
-  const date = new Date(d);
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return y + '-' + m + '-' + day;
-}
-
-function onPollStartDateChange() {
-  const voteStart = document.getElementById('edStart').value;
-  if (!voteStart) return;
-  const vs = new Date(voteStart);
-  // 自动计算并填充前置节点（仅当对应字段为空时）
-  const announceEl = document.getElementById('edAnnounceDate');
-  if (announceEl && !announceEl.value) {
-    const ad = new Date(vs);
-    ad.setDate(ad.getDate() - 15);
-    announceEl.value = formatDateLocal(ad);
-  }
-  const consultEndEl = document.getElementById('edConsultEnd');
-  if (consultEndEl && !consultEndEl.value) {
-    const ce = new Date(vs);
-    ce.setDate(ce.getDate() - 16);
-    consultEndEl.value = formatDateLocal(ce);
-  }
-  const consultStartEl = document.getElementById('edConsultStart');
-  if (consultStartEl && !consultStartEl.value && consultEndEl && consultEndEl.value) {
-    const ce = new Date(consultEndEl.value);
-    const cs = new Date(ce);
-    cs.setDate(cs.getDate() - 6);
-    consultStartEl.value = formatDateLocal(cs);
-  }
-  const rollEndEl = document.getElementById('edRollEnd');
-  if (rollEndEl && !rollEndEl.value) {
-    const re = new Date(vs);
-    re.setDate(re.getDate() - 8);
-    rollEndEl.value = formatDateLocal(re);
-  }
-  const rollStartEl = document.getElementById('edRollStart');
-  if (rollStartEl && !rollStartEl.value && rollEndEl && rollEndEl.value) {
-    const re = new Date(rollEndEl.value);
-    const rs = new Date(re);
-    rs.setDate(rs.getDate() - 6);
-    rollStartEl.value = formatDateLocal(rs);
-  }
-}
-
-function autoGeneratePollDates() {
-  const voteStart = document.getElementById('edStart').value;
-  if (!voteStart) {
-    showToast('请先填写投票开始日期', 'error');
-    return;
-  }
-  onPollStartDateChange();
-  showToast('法定时间节点已自动生成，请检查并微调', 'success');
-}
-
 function onPollModeChange() {
   const mode = document.getElementById('edPollMode').value;
   const tencentSec = document.getElementById('tencentSection');
@@ -3929,50 +3859,6 @@ function validatePollCompliance() {
   const streetRecord = document.getElementById('edStreetRecord').value.trim();
   const streetConfirm = document.getElementById('edStreetConfirm').checked;
   if (!streetRecord && !streetConfirm) errors.push('必须填写街道备案号，或勾选"当地无街道备案要求"确认跳过');
-
-  // ===== 法定时间约束校验 =====
-  const consultStart = document.getElementById('edConsultStart').value;
-  const consultEnd = document.getElementById('edConsultEnd').value;
-  const announceDate = document.getElementById('edAnnounceDate').value;
-  const voteStart = document.getElementById('edStart').value;
-  const voteEnd = document.getElementById('edEnd').value;
-
-  if (!consultStart || !consultEnd) {
-    errors.push('必须填写征求意见起止日期');
-  } else {
-    const cs = new Date(consultStart), ce = new Date(consultEnd);
-    if (ce <= cs) errors.push('征求意见结束日期必须晚于开始日期');
-    const consultDays = Math.ceil((ce - cs) / (1000 * 60 * 60 * 24)) + 1;
-    if (consultDays < 7) errors.push('征求意见期不得少于7日（当前 ' + consultDays + ' 日）');
-  }
-
-  if (!announceDate) {
-    errors.push('必须填写正式公告发布日期');
-  } else {
-    if (consultEnd) {
-      const ce = new Date(consultEnd), ad = new Date(announceDate);
-      if (ad <= ce) errors.push('正式公告发布日期必须在征求意见结束日期之后');
-    }
-    if (voteStart) {
-      const ad = new Date(announceDate), vs = new Date(voteStart);
-      const daysBeforeVote = Math.ceil((vs - ad) / (1000 * 60 * 60 * 24));
-      if (daysBeforeVote < 15) errors.push('正式公告发布日期必须在投票开始日期15日以上（当前仅 ' + daysBeforeVote + ' 日）');
-    }
-  }
-
-  if (!voteStart || !voteEnd) {
-    errors.push('必须填写投票起止日期');
-  } else {
-    const vs = new Date(voteStart), ve = new Date(voteEnd);
-    if (ve <= vs) errors.push('投票结束日期必须晚于开始日期');
-  }
-
-  // 清册公示在投票7日前（已有校验，保留）
-  if (rollStart && rollEnd && voteStart) {
-    const re = new Date(rollEnd), vs = new Date(voteStart);
-    const gap = Math.ceil((vs - re) / (1000 * 60 * 60 * 24));
-    if (gap < 7) errors.push('业主清册公示结束日期必须在投票开始日期前至少7日（当前仅 ' + gap + ' 日）');
-  }
 
   return { valid: errors.length === 0, errors };
 }
