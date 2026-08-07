@@ -1495,7 +1495,7 @@ async function saveItem(module, id) {
     item.title = document.getElementById('edTitle').value;
     item.category = document.getElementById('edCategory').value || 'general';
     item.legalBasis = document.getElementById('edLegalBasis').value;
-    item.ruleId = document.getElementById('edRuleId').value;
+    // item.ruleId 字段未在表单中配置，暂不保存
     item.startDate = document.getElementById('edStart').value;
     item.endDate = document.getElementById('edEnd').value;
     item.status = document.getElementById('edStatus').value;
@@ -1503,13 +1503,13 @@ async function saveItem(module, id) {
     item.tencentUrl = document.getElementById('edTencent').value;
     item.streetRecord = document.getElementById('edStreetRecord').value;
     
-    const notifyFiles = getMultiUploadedPaths('pollNotifyFiles');
-    item.notifyFiles = (notifyFiles && notifyFiles.length) ? notifyFiles : (item.notifyFiles || []);
+    // pollNotifyFiles 上传组件未在表单中配置，使用已有数据或空数组
+    item.notifyFiles = item.notifyFiles || [];
     
     item.rollPublish = {
       start: document.getElementById('edRollStart').value,
-      end: document.getElementById('edRollEnd').value,
-      file: document.getElementById('edRollFile').value
+      end: document.getElementById('edRollEnd').value
+      // file 字段未在表单中配置，暂不保存
     };
     
     const isMajor = item.category === 'major';
