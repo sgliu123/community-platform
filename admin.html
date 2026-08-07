@@ -1512,6 +1512,10 @@ async function saveItem(module, id) {
     item.mode = document.getElementById('edPollMode').value;
     item.tencentUrl = document.getElementById('edTencent').value;
     item.streetRecord = document.getElementById('edStreetRecord').value;
+    item.streetRecordConfirmed = document.getElementById('edStreetConfirm').checked;
+    item.ruleFiles = getMultiUploadedPaths('pollRuleFiles');
+    item.rollFiles = getMultiUploadedPaths('pollRollFiles');
+    item.meetingFiles = getMultiUploadedPaths('pollMeetingFiles');
     
     // pollNotifyFiles 上传组件未在表单中配置，使用已有数据或空数组
     item.notifyFiles = item.notifyFiles || [];
