@@ -937,8 +937,13 @@ function renderPollsAdmin() {
       const aAgree = res.agreeAreaRate || 0;
       const agreeHtml = '<div style="font-size:12px;">人数 ' + rAgree.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, rAgree) + '%;"></div></div>面积 ' + aAgree.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, aAgree) + '%;background:#1976D2;"></div></div></div>';
 
-      // 通过标签
-      const passHtml = res.isPassed === true ? '<span class="tag tag-active">✅ 通过</span>' : (res.isPassed === false ? '<span class="tag tag-test">❌ 未通过</span>' : '<span style="color:#999;font-size:12px;">—</span>');
+      // 通过标签（只有已结束才显示最终判定）
+      let passHtml = '<span style="color:#999;font-size:12px;">—</span>';
+      if (item.status === '已结束') {
+        passHtml = res.isPassed === true ? '<span class="tag tag-active">✅ 通过</span>' : (res.isPassed === false ? '<span class="tag tag-test">❌ 未通过</span>' : '<span style="color:#999;font-size:12px;">—</span>');
+      } else if (item.status === '进行中') {
+        passHtml = '<span class="tag" style="background:#fff3e0;color:#e65100;">🗳️ 进行中</span>';
+      }
       const anchorHtml = item.status === '已结束' ? (item.anchorRecords && item.anchorRecords.some(r => !r.error) ? '<span class="tag tag-active" style="cursor:pointer;" onclick="event.stopPropagation();showAnchorDetails(\'' + item.id + '\')">🔗 已锚定</span>' : '<span class="tag tag-test" style="cursor:pointer;" onclick="event.stopPropagation();anchorVoteData(\'' + item.id + '\')">⚠️ 未锚定</span>') : '';
       const pendingObj = (item.objections || []).filter(o => !o.status || o.status === '待处理').length;
       const objBadge = pendingObj > 0 ? '<span class="tag" style="background:#ffebee;color:#c62828;cursor:pointer;" onclick="event.stopPropagation();navigateTo(\'objections\')">⚠️ ' + pendingObj + ' 异议</span>' : '';
@@ -1277,10 +1282,14 @@ function openEditModal(module, id) {
       body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">同意人数 / 参与人数</div><div style="font-size:18px;font-weight:700;">' + (res.agreeCount||0) + ' / ' + (res.participatingResidents||0) + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.agreeResidentRate||0) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.agreeResidentRate||0).toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
       body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">同意面积 / 参与面积</div><div style="font-size:18px;font-weight:700;">' + (res.agreeArea||0).toFixed(2) + ' / ' + (res.participatingArea||0).toFixed(2) + ' ㎡</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.agreeAreaRate||0) + '%;background:#1976D2;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.agreeAreaRate||0).toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
       body += '</div>';
-      if (res.isPassed === true) {
-        body += '<div style="text-align:center;padding:10px;background:#e8f5e9;border-radius:6px;color:#2e7d32;font-weight:600;font-size:16px;">✅ 表决通过</div>';
-      } else if (res.isPassed === false) {
-        body += '<div style="text-align:center;padding:10px;background:#ffebee;border-radius:6px;color:#c62828;font-weight:600;font-size:16px;">❌ 表决未通过</div>';
+      if (item.status === '已结束') {
+        if (res.isPassed === true) {
+          body += '<div style="text-align:center;padding:10px;background:#e8f5e9;border-radius:6px;color:#2e7d32;font-weight:600;font-size:16px;">✅ 表决通过</div>';
+        } else if (res.isPassed === false) {
+          body += '<div style="text-align:center;padding:10px;background:#ffebee;border-radius:6px;color:#c62828;font-weight:600;font-size:16px;">❌ 表决未通过</div>';
+        }
+      } else {
+        body += '<div style="text-align:center;padding:10px;background:#fff3e0;border-radius:6px;color:#e65100;font-weight:600;font-size:16px;">🗳️ 投票进行中，尚未结束</div>';
       }
       body += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">' + escapeHtml(res.summary||'') + '</div>';
     } else {
@@ -1561,8 +1570,7 @@ async function saveItem(module, id) {
   const detail = (isNew ? '新增' : '更新') + getModuleName(module) + '《' + (item.title || item.name || '') + '》';
   closeModal(); showLoading(true);
   try {
-    await saveDataFile(module, list, detail, action);
-    // 自动计票
+    // 自动计票（在保存之前，确保计票结果一并持久化）
     if (module === 'polls') {
       try { await calculatePollResults(item.id); } catch(e) { console.error('自动计票失败', e); }
       // 状态变为已结束时自动锚定
@@ -1572,6 +1580,7 @@ async function saveItem(module, id) {
         try { await anchorVoteData(item.id); } catch(e) { console.error('自动锚定失败', e); }
       }
     }
+    await saveDataFile(module, list, detail, action);
     showToast('保存成功', 'success');
     navigateTo(module);
   } catch(e) {
@@ -2951,7 +2960,7 @@ async function calculatePollResults(pollId) {
     areaParticipationRate: areaParticipationRate,
     agreeResidentRate: agreeResidentRate,
     agreeAreaRate: agreeAreaRate,
-    isPassed: isPassed,
+    isPassed: poll.status === '已结束' ? isPassed : null,
     calculatedAt: new Date().toISOString()
   };
 
