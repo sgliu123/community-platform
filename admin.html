@@ -949,7 +949,7 @@ function renderActivitiesAdmin() {
 function renderPollsAdmin() {
   const list = appData.polls || [];
   return `<div class="card"><div class="card-header"><h3>🗳️ 投票管理</h3><button class="btn btn-primary" onclick="openEditModal('polls',null)">➕ 新增投票</button></div>` +
-    '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>类型</th><th>模式</th><th>状态</th><th>进度</th><th>参与率</th><th>同意率</th><th>结果</th><th>操作</th></tr></thead><tbody>' +
+    '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>类型</th><th>模式</th><th>状态</th><th>时间合规</th><th>进度</th><th>参与率</th><th>同意率</th><th>结果</th><th>操作</th></tr></thead><tbody>' +
     list.map(item => {
       const res = item.results || {};
       const modeLabel = item.mode === 'local' ? '<span class="tag tag-active">本地问卷</span>' : '<span class="tag tag-test">腾讯问卷</span>';
@@ -983,7 +983,7 @@ function renderPollsAdmin() {
         actions += `<button onclick="viewPollData('${item.id}')" style="margin-left:4px;">📊 数据</button>`;
       }
       actions += `<button onclick="recalculatePoll('${item.id}')" style="margin-left:4px;">🔄 计票</button>`;
-      return `<tr><td>${item.caseNo||''}</td><td>${item.title||''}</td><td>${catLabel}</td><td>${modeLabel}</td><td>${statusTag}</td><td>${progressHtml}</td><td>${partHtml}</td><td>${agreeHtml}</td><td>${passHtml} ${anchorHtml} ${objBadge}</td><td class="actions">${actions}</td></tr>`;
+      return `<tr><td>${item.caseNo||''}</td><td>${item.title||''}</td><td>${catLabel}</td><td>${modeLabel}</td><td>${statusTag}</td><td>${(function(){let tags='';if(item.announcement&&item.announcement.start&&item.startDate){const as=new Date(item.announcement.start);const vs=new Date(item.startDate);if((vs-as)>=15*86400000)tags+='<span class="tag tag-active">✅公告期合规</span> ';else tags+='<span class="tag tag-test">❌公告期不足15天</span> ';}else{tags+='<span class="tag tag-test">❌公告期不足15天</span> ';}if(item.consultation&&item.consultation.start&&item.consultation.end){const cs=new Date(item.consultation.start);const ce=new Date(item.consultation.end);if((ce-cs)>=6*86400000)tags+='<span class="tag tag-active">✅征求意见合规</span>';else tags+='<span class="tag tag-test">❌征求意见不足7天</span>';}else{tags+='<span class="tag tag-test">❌征求意见不足7天</span>';}return tags;})()}</td><td>${progressHtml}</td><td>${partHtml}</td><td>${agreeHtml}</td><td>${passHtml} ${anchorHtml} ${objBadge}</td><td class="actions">${actions}</td></tr>`;
     }).join('') +
     '</tbody></table></div>';
 }
@@ -1272,6 +1272,8 @@ function openEditModal(module, id) {
     body = '<div id="pollValidationErrors" style="color:var(--danger);font-size:13px;margin-bottom:12px;padding:10px;background:#ffebee;border-radius:6px;display:none;"></div>' +
       '<div class="form-group"><label>案卷编号</label><input type="text" id="edCaseNo" value="' + (item.caseNo||nextCaseNo) + '" ' + (!isNew?'readonly style="background:#f5f5f5;"':'') + '></div>' +
       '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
+      '<div class="form-row"><div class="form-group"><label>公告方案征求意见期</label><div class="form-row" style="grid-template-columns:1fr 1fr;"><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">开始日期</label><input type="date" id="edConsultStart" value="' + (item.consultation&&item.consultation.start||'') + '"></div><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">结束日期</label><input type="date" id="edConsultEnd" value="' + (item.consultation&&item.consultation.end||'') + '"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">法定7天</div></div>' +
+      '<div class="form-group"><label>正式公告发布期</label><div class="form-row" style="grid-template-columns:1fr 1fr;"><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">开始日期</label><input type="date" id="edAnnounceStart" value="' + (item.announcement&&item.announcement.start||'') + '" onchange="autoFillPollDates(this.value)"></div><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">结束日期</label><input type="date" id="edAnnounceEnd" value="' + (item.announcement&&item.announcement.end||'') + '"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">输入后自动生成后续节点</div></div></div>' +
       '<div class="form-row"><div class="form-group"><label>事项类型 *</label><select id="edCategory" onchange="onPollCategoryChange()"><option value="">— 请选择 —</option><option value="general" '+(item.category==='general'?'selected':'')+'>一般事项</option><option value="major" '+(item.category==='major'?'selected':'')+'>重大事项</option></select></div>' +
       '<div class="form-group"><label>法律依据</label><input type="text" id="edLegalBasis" value="' + (item.legalBasis||'') + '" placeholder="如：《民法典》第278条"></div></div>' +
       '<div class="form-group"><label>表决门槛（根据事项类型自动设定，不可修改）</label><input type="text" id="edThresholdDisplay" readonly style="background:#f5f5f5;" value="' + thDesc + '"></div>' +
@@ -1332,6 +1334,18 @@ function openEditModal(module, id) {
       if (item.ruleFiles && item.ruleFiles.length) setMultiUploadedPaths('pollRuleFiles', item.ruleFiles);
       if (item.rollFiles && item.rollFiles.length) setMultiUploadedPaths('pollRollFiles', item.rollFiles);
       if (item.meetingFiles && item.meetingFiles.length) setMultiUploadedPaths('pollMeetingFiles', item.meetingFiles);
+      if (item.consultation) {
+        var cs = document.getElementById('edConsultStart');
+        var ce = document.getElementById('edConsultEnd');
+        if (cs) cs.value = item.consultation.start || '';
+        if (ce) ce.value = item.consultation.end || '';
+      }
+      if (item.announcement) {
+        var as = document.getElementById('edAnnounceStart');
+        var ae = document.getElementById('edAnnounceEnd');
+        if (as) as.value = item.announcement.start || '';
+        if (ae) ae.value = item.announcement.end || '';
+      }
     }, 200);
   } else if (module === 'residents') {
     body = '<div class="form-row"><div class="form-group"><label>房号</label><input type="text" id="edRoom" value="' + (item.roomNo||'') + '" placeholder="如：1-1-101"></div>' +
@@ -1398,6 +1412,37 @@ function generateCaseNo() {
     return match ? Math.max(max, parseInt(match[1])) : max;
   }, 0);
   return year + '-YJ-' + String(maxNum + 1).padStart(3, '0');
+}
+
+function formatDate(date) {
+  const d = new Date(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+function autoFillPollDates(announceStartStr) {
+  if (!announceStartStr) return;
+  const announceStart = new Date(announceStartStr);
+  const consultEnd = new Date(announceStart);
+  consultEnd.setDate(consultEnd.getDate() - 1);
+  const consultStart = new Date(consultEnd);
+  consultStart.setDate(consultStart.getDate() - 6);
+  const voteStart = new Date(announceStart);
+  voteStart.setDate(voteStart.getDate() + 15);
+  const rollEnd = new Date(voteStart);
+  rollEnd.setDate(rollEnd.getDate() - 7);
+  const rollStart = new Date(rollEnd);
+  rollStart.setDate(rollStart.getDate() - 6);
+  document.getElementById('edConsultStart').value = formatDate(consultStart);
+  document.getElementById('edConsultEnd').value = formatDate(consultEnd);
+  document.getElementById('edAnnounceEnd').value = formatDate(announceStart);
+  document.getElementById('edStart').value = formatDate(voteStart);
+  document.getElementById('edRollStart').value = formatDate(rollStart);
+  document.getElementById('edRollEnd').value = formatDate(rollEnd);
+  const thDisplay = document.getElementById('edThresholdDisplay');
+  if (thDisplay) thDisplay.value = '当前时间线：征求意见7天 → 正式公告≥15天 → 清册公示7天 → 投票';
 }
 
 function closeModal() {
@@ -1576,6 +1621,8 @@ async function saveItem(module, id) {
     if (userSummary) item.results.summary = userSummary;
     item.results.detailUrl = item.results.detailUrl || '';
     item.description = document.getElementById('edDesc').value;
+    item.consultation = { start: document.getElementById('edConsultStart').value, end: document.getElementById('edConsultEnd').value };
+    item.announcement = { start: document.getElementById('edAnnounceStart').value, end: document.getElementById('edAnnounceEnd').value };
     item.type = item.type || 'opinion';
     item.createdBy = item.createdBy || currentAdmin && currentAdmin.name;
     item.createdAt = item.createdAt || new Date().toISOString();
@@ -3902,6 +3949,64 @@ function validatePollCompliance() {
   const streetRecord = document.getElementById('edStreetRecord').value.trim();
   const streetConfirm = document.getElementById('edStreetConfirm').checked;
   if (!streetRecord && !streetConfirm) errors.push('必须填写街道备案号，或勾选"当地无街道备案要求"确认跳过');
+
+  // a) consultation 必填且满7天
+  const consultStart = document.getElementById('edConsultStart').value;
+  const consultEnd = document.getElementById('edConsultEnd').value;
+  if (!consultStart || !consultEnd) {
+    errors.push('必须填写公告方案征求意见期的起止日期');
+  } else {
+    const cs = new Date(consultStart);
+    const ce = new Date(consultEnd);
+    if ((ce - cs) < 6 * 86400000) {
+      errors.push('公告方案征求意见期必须不少于7天（含首尾）');
+    }
+  }
+
+  // b) announcement 提前期 >= 15天
+  const announceStart = document.getElementById('edAnnounceStart').value;
+  const announceEnd = document.getElementById('edAnnounceEnd').value;
+  const voteStart = document.getElementById('edStart').value;
+  if (!announceStart || !announceEnd) {
+    errors.push('必须填写正式公告发布期的起止日期');
+  } else if (voteStart) {
+    const as = new Date(announceStart);
+    const vs = new Date(voteStart);
+    if ((vs - as) < 15 * 86400000) {
+      errors.push('正式公告发布期到投票开始日必须不少于15天');
+    }
+  }
+
+  // c) 时间顺序约束
+  if (consultStart && consultEnd && announceStart) {
+    const cs = new Date(consultStart);
+    const ce = new Date(consultEnd);
+    const as = new Date(announceStart);
+    const ae = new Date(announceEnd || announceStart);
+    if (cs > ce) errors.push('征求意见开始日期不能晚于结束日期');
+    if (ce >= as) errors.push('征求意见结束日期必须早于正式公告开始日期');
+    if (as > ae) errors.push('正式公告开始日期不能晚于结束日期');
+  }
+  const rollStartVal = document.getElementById('edRollStart').value;
+  const rollEndVal = document.getElementById('edRollEnd').value;
+  const voteEnd = document.getElementById('edEnd').value;
+  if (rollStartVal && rollEndVal && voteStart) {
+    const rs = new Date(rollStartVal);
+    const re = new Date(rollEndVal);
+    const vs = new Date(voteStart);
+    if (rs > re) errors.push('清册公示开始日期不能晚于结束日期');
+    if (re >= vs) errors.push('清册公示结束日期必须早于投票开始日期');
+  }
+  if (voteStart && voteEnd) {
+    const vs = new Date(voteStart);
+    const ve = new Date(voteEnd);
+    if (vs > ve) errors.push('投票开始日期不能晚于结束日期');
+  }
+  if (announceStart && voteStart) {
+    const as = new Date(announceStart);
+    const vs = new Date(voteStart);
+    if (as >= vs) errors.push('正式公告开始日期必须早于投票开始日期');
+  }
 
   return { valid: errors.length === 0, errors };
 }
