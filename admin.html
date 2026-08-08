@@ -1425,19 +1425,23 @@ function formatDate(date) {
 function autoFillPollDates(consultStartStr) {
   if (!consultStartStr) return;
   const consultStart = new Date(consultStartStr);
+  // 公告方案征求意见期：7天（含首尾）
   const consultEnd = new Date(consultStart);
   consultEnd.setDate(consultEnd.getDate() + 6);
+  // 正式公告发布期：开始 = 征求意见结束 + 3天，间隔15天（含首尾）
   const announceStart = new Date(consultEnd);
-  announceStart.setDate(announceStart.getDate() + 1);
+  announceStart.setDate(announceStart.getDate() + 3);
   const announceEnd = new Date(announceStart);
+  announceEnd.setDate(announceEnd.getDate() + 14);
+  // 业主清册公示期：开始同正式公告发布期，7天（含首尾）
+  const rollStart = new Date(announceStart);
+  const rollEnd = new Date(announceStart);
+  rollEnd.setDate(rollEnd.getDate() + 6);
+  // 投票日期：开始 = 正式公告开始 + 16天，间隔10天（含首尾）
   const voteStart = new Date(announceStart);
-  voteStart.setDate(voteStart.getDate() + 15);
+  voteStart.setDate(voteStart.getDate() + 16);
   const voteEnd = new Date(voteStart);
-  voteEnd.setDate(voteEnd.getDate() + 7);
-  const rollEnd = new Date(voteStart);
-  rollEnd.setDate(rollEnd.getDate() - 1);
-  const rollStart = new Date(rollEnd);
-  rollStart.setDate(rollStart.getDate() - 6);
+  voteEnd.setDate(voteEnd.getDate() + 9);
   document.getElementById('edConsultEnd').value = formatDate(consultEnd);
   document.getElementById('edAnnounceStart').value = formatDate(announceStart);
   document.getElementById('edAnnounceEnd').value = formatDate(announceEnd);
@@ -1446,7 +1450,7 @@ function autoFillPollDates(consultStartStr) {
   document.getElementById('edStart').value = formatDate(voteStart);
   document.getElementById('edEnd').value = formatDate(voteEnd);
   const thDisplay = document.getElementById('edThresholdDisplay');
-  if (thDisplay) thDisplay.value = '当前时间线：征求意见7天 → 正式公告≥15天 → 清册公示7天 → 投票7天';
+  if (thDisplay) thDisplay.value = '当前时间线：征求意见7天 → 间隔3天 → 正式公告15天 → 清册公示7天（同公告期开始）→ 投票10天（公告后16天）';
 }
 
 function closeModal() {
@@ -3933,18 +3937,9 @@ function validatePollCompliance() {
   const startDate = document.getElementById('edStart').value;
   if (!rollStart || !rollEnd) {
     errors.push('必须填写业主清册公示起止日期');
-  } else if (!startDate) {
-    errors.push('必须填写投票开始日期，才能校验公示期');
-  } else {
-    const endDate = new Date(rollEnd);
-    const voteStart = new Date(startDate);
-    // 公示结束日期必须在投票开始日期前至少7天
-    const minStartDate = new Date(endDate);
-    minStartDate.setDate(minStartDate.getDate() + 7);
-    minStartDate.setHours(0, 0, 0, 0);
-    if (minStartDate > voteStart) {
-      errors.push('业主清册公示结束日期必须在投票开始日期前至少7日（公示结束日 + 7天 ≤ 投票开始日）');
-    }
+  }
+  if (!startDate) {
+    errors.push('必须填写投票开始日期');
   }
 
   const meetingFiles = getMultiUploadedPaths('pollMeetingFiles');
