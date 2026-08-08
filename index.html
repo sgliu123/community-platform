@@ -1773,38 +1773,62 @@ function closeExternalModal(modalId) {
 
 function collectPollAttachments(p) {
   var attachments = [];
-  var fields = [
-    { key: 'rulePdfs', label: '议事规则PDF' },
-    { key: 'rulePdf', label: '议事规则PDF' },
-    { key: 'meetingRulePdfs', label: '议事规则PDF' },
-    { key: 'meetingRulePdf', label: '议事规则PDF' },
-    { key: 'registerPdfs', label: '业主清册PDF' },
-    { key: 'registerPdf', label: '业主清册PDF' },
-    { key: 'residentRegisterPdfs', label: '业主清册PDF' },
-    { key: 'residentRegisterPdf', label: '业主清册PDF' },
-    { key: 'noticePdfs', label: '会议通知PDF' },
-    { key: 'noticePdf', label: '会议通知PDF' },
-    { key: 'meetingNoticePdfs', label: '会议通知PDF' },
-    { key: 'meetingNoticePdf', label: '会议通知PDF' },
-    { key: 'attachments', label: null }
+  var seenUrls = new Set();
+  function addAtt(url, name, category) {
+    if (!url || typeof url !== 'string') return;
+    if (seenUrls.has(url)) return;
+    seenUrls.add(url);
+    attachments.push({ url: url, name: name || '附件', category: category || '附件' });
+  }
+  // 1. 检查已知字段名
+  var knownFields = [
+    { keys: ['rulePdfs','rulePdf','meetingRulePdfs','meetingRulePdf','rulePdfUrl','rulePdfUrls','meetingRules'], label: '议事规则PDF' },
+    { keys: ['registerPdfs','registerPdf','residentRegisterPdfs','residentRegisterPdf','registerPdfUrl','registerPdfUrls','residentListPdf','ownerRegisterPdf'], label: '业主清册PDF' },
+    { keys: ['noticePdfs','noticePdf','meetingNoticePdfs','meetingNoticePdf','noticePdfUrl','noticePdfUrls','meetingNotice'], label: '会议通知PDF' },
+    { keys: ['attachments','files','docs','documents'], label: null }
   ];
-  fields.forEach(function(f) {
-    var val = p[f.key];
+  knownFields.forEach(function(g) {
+    g.keys.forEach(function(k) {
+      var val = p[k];
+      if (!val) return;
+      if (Array.isArray(val)) {
+        val.forEach(function(item) {
+          if (typeof item === 'string') {
+            addAtt(item, g.label || '附件', g.label);
+          } else if (item && typeof item === 'object') {
+            addAtt(item.url || item.fileUrl || item.src || item.link || '', item.name || item.fileName || item.title || g.label || '附件', g.label || item.category || item.type);
+          }
+        });
+      } else if (typeof val === 'string') {
+        addAtt(val, g.label || '附件', g.label);
+      } else if (val && typeof val === 'object') {
+        addAtt(val.url || val.fileUrl || val.src || val.link || '', val.name || val.fileName || val.title || g.label || '附件', g.label || val.category || val.type);
+      }
+    });
+  });
+  // 2. 遍历 poll 对象所有属性，自动检测 PDF / 图片 URL
+  Object.keys(p).forEach(function(k) {
+    var val = p[k];
     if (!val) return;
-    if (Array.isArray(val)) {
+    if (typeof val === 'string' && /\.(pdf|jpg|jpeg|png|gif|webp)$/i.test(val)) {
+      var isPdf = /\.pdf$/i.test(val);
+      var label = isPdf ? (k.includes('rule') ? '议事规则PDF' : k.includes('register') || k.includes('resident') ? '业主清册PDF' : k.includes('notice') || k.includes('meeting') ? '会议通知PDF' : 'PDF附件') : '图片附件';
+      addAtt(val, label, label);
+    } else if (Array.isArray(val)) {
       val.forEach(function(item) {
-        if (typeof item === 'string') {
-          attachments.push({ url: item, name: f.label || '附件', category: f.label });
+        if (typeof item === 'string' && /\.(pdf|jpg|jpeg|png|gif|webp)$/i.test(item)) {
+          var isPdf2 = /\.pdf$/i.test(item);
+          var label2 = isPdf2 ? (k.includes('rule') ? '议事规则PDF' : k.includes('register') || k.includes('resident') ? '业主清册PDF' : k.includes('notice') || k.includes('meeting') ? '会议通知PDF' : 'PDF附件') : '图片附件';
+          addAtt(item, label2, label2);
         } else if (item && typeof item === 'object') {
-          attachments.push({
-            url: item.url || item.fileUrl || item.src || '',
-            name: item.name || item.fileName || item.title || f.label || '附件',
-            category: f.label || item.category || item.type || '附件'
-          });
+          var u = item.url || item.fileUrl || item.src || item.link || '';
+          if (u && /\.(pdf|jpg|jpeg|png|gif|webp)$/i.test(u)) {
+            var isPdf3 = /\.pdf$/i.test(u);
+            var label3 = isPdf3 ? (item.name || item.fileName || item.title || k.includes('rule') ? '议事规则PDF' : k.includes('register') || k.includes('resident') ? '业主清册PDF' : k.includes('notice') || k.includes('meeting') ? '会议通知PDF' : 'PDF附件') : '图片附件';
+            addAtt(u, label3, label3);
+          }
         }
       });
-    } else if (typeof val === 'string') {
-      attachments.push({ url: val, name: f.label || '附件', category: f.label });
     }
   });
   return attachments;
@@ -2007,6 +2031,15 @@ function renderLocalPollDetail(p) {
   return h;
 }
 
+async function loadPollResponses(pollId) {
+  const d = new Date();
+  const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+  try {
+    const all = await workerRead(path);
+    return all.filter(x => x.pollId === pollId);
+  } catch(e) { return []; }
+}
+
 async function initLocalPoll(p) {
   const container = document.getElementById('localPollContainer');
   if (!container) return;
@@ -2014,12 +2047,22 @@ async function initLocalPoll(p) {
     container.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:32px;margin-bottom:12px;">🔒</div><div style="font-size:15px;margin-bottom:16px;">请登录后参与问卷</div><button class="poll-btn" onclick="showLogin()">业主登录</button></div>';
     return;
   }
-  const responses = await loadPollResponses(p.id);
-  const hasVoted = responses.some(r => r.residentRoom === residentAuth.roomNo);
-  if (p.status !== '进行中' || hasVoted) {
-    container.innerHTML = renderLocalPollResults(p, responses, hasVoted);
-  } else {
-    container.innerHTML = renderLocalPollForm(p);
+  try {
+    const responses = await loadPollResponses(p.id);
+    const hasVoted = responses.some(r => r.residentRoom === residentAuth.roomNo);
+    if (p.status !== '进行中' || hasVoted) {
+      container.innerHTML = renderLocalPollResults(p, responses, hasVoted);
+    } else {
+      container.innerHTML = renderLocalPollForm(p);
+    }
+  } catch(e) {
+    console.error('initLocalPoll error', e);
+    // 加载失败时直接显示问卷表单，不让用户卡住
+    if (p.status === '进行中') {
+      container.innerHTML = renderLocalPollForm(p);
+    } else {
+      container.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">问卷加载失败，请刷新重试</div>';
+    }
   }
 }
 
