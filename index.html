@@ -1817,7 +1817,7 @@ function renderPollCommonInfo(p) {
   h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">';
   h += '<span class="status-tag ' + sc + '">' + p.status + '</span>';
   h += '<span style="font-size:13px;color:var(--text-secondary);">案卷号：' + (p.caseNo || '-') + '</span>';
-  if (p.type) h += '<span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#e3f2fd;color:#1565c0;font-weight:600;">' + p.type + '</span>';
+  if (p.type || p.matterType) h += '<span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#e3f2fd;color:#1565c0;font-weight:600;">' + (p.type || p.matterType) + '</span>';
   if (p.mode === 'local') h += '<span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#e8f5e9;color:#2e7d32;font-weight:600;">本地问卷</span>';
   h += '</div>';
 
@@ -1829,10 +1829,30 @@ function renderPollCommonInfo(p) {
   h += '<span>发起：' + escapeHtml(p.createdBy || '') + '</span>';
   h += '</div>';
 
-  if (p.legalBasis || p.threshold) {
+  // 法律依据 & 表决门槛
+  var legalBasis = p.legalBasis || p.legal || p.lawBasis || '';
+  var threshold = p.threshold || p.voteThreshold || p.quota || '';
+  var thresholdText = '';
+  if (threshold) {
+    if (typeof threshold === 'string') {
+      thresholdText = threshold;
+    } else if (typeof threshold === 'object') {
+      var parts = [];
+      if (threshold.participation) parts.push(threshold.participation);
+      if (threshold.agreement) parts.push(threshold.agreement);
+      if (threshold.desc) parts.push(threshold.desc);
+      if (threshold.text) parts.push(threshold.text);
+      if (!parts.length) {
+        try { thresholdText = JSON.stringify(threshold); } catch(e) { thresholdText = ''; }
+      } else {
+        thresholdText = parts.join(' + ');
+      }
+    }
+  }
+  if (legalBasis || thresholdText) {
     h += '<div style="margin:16px 0;padding:14px;background:#f0f7ff;border-radius:8px;border-left:4px solid #1976d2;">';
-    if (p.legalBasis) h += '<div style="font-size:13px;margin-bottom:6px;"><strong>法律依据：</strong>' + escapeHtml(p.legalBasis) + '</div>';
-    if (p.threshold) h += '<div style="font-size:13px;"><strong>表决门槛：</strong>' + escapeHtml(p.threshold) + '</div>';
+    if (legalBasis) h += '<div style="font-size:13px;margin-bottom:6px;"><strong>法律依据：</strong>' + escapeHtml(legalBasis) + '</div>';
+    if (thresholdText) h += '<div style="font-size:13px;"><strong>表决门槛：</strong>' + escapeHtml(thresholdText) + '</div>';
     h += '</div>';
   }
 
@@ -1840,7 +1860,20 @@ function renderPollCommonInfo(p) {
     h += '<div class="detail-content" style="margin-bottom:16px;">' + renderInlineMedia(p.description) + '</div>';
   }
 
+  // 附件：兼容多种字段名
   var attachments = collectPollAttachments(p);
+  // 额外兼容单数字段
+  var extraAttachFields = [
+    {k:'rulePdf',l:'议事规则PDF'},{k:'registerPdf',l:'业主清册PDF'},{k:'noticePdf',l:'会议通知PDF'},
+    {k:'meetingRulePdf',l:'议事规则PDF'},{k:'residentRegisterPdf',l:'业主清册PDF'},{k:'meetingNoticePdf',l:'会议通知PDF'}
+  ];
+  extraAttachFields.forEach(function(f){
+    var v=p[f.k];
+    if(v&&typeof v==='string'){
+      var exists=attachments.some(function(a){return a.url===v;});
+      if(!exists) attachments.push({url:v,name:f.l,category:f.l});
+    }
+  });
   if (attachments.length) {
     h += '<div style="margin:20px 0;padding-top:16px;border-top:1px solid var(--border);">';
     h += '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;">📎 相关附件</div>';
@@ -1867,21 +1900,28 @@ function renderPollCommonInfo(p) {
     h += '</div>';
   }
 
-  if (p.publicityStartDate || p.publicityEndDate) {
+  // 公示期：兼容多种字段名
+  var pubStart = p.publicityStartDate || p.publicityStart || p.publicStartDate || p.publicStart || '';
+  var pubEnd = p.publicityEndDate || p.publicityEnd || p.publicEndDate || p.publicEnd || '';
+  if (pubStart || pubEnd) {
     h += '<div style="margin:16px 0;padding:14px;background:#fff8e1;border-radius:8px;border-left:4px solid #f9a825;">';
     h += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">📋 业主清册公示期</div>';
-    h += '<div style="font-size:13px;color:var(--text-secondary);">公示开始：<strong>' + (p.publicityStartDate || '--') + '</strong> &nbsp; 公示结束：<strong>' + (p.publicityEndDate || '--') + '</strong></div>';
+    h += '<div style="font-size:13px;color:var(--text-secondary);">公示开始：<strong>' + (pubStart || '--') + '</strong> &nbsp; 公示结束：<strong>' + (pubEnd || '--') + '</strong></div>';
     if (p.publicityNote) h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + escapeHtml(p.publicityNote) + '</div>';
     h += '</div>';
   }
 
-  if (p.streetRecordNo || p.streetRecordSkipped) {
+  // 街道备案
+  var streetNo = p.streetRecordNo || p.streetRecordNumber || p.recordNo || '';
+  var streetSkipped = p.streetRecordSkipped || p.streetSkipped || p.noStreetRecord || false;
+  if (streetNo || streetSkipped) {
     h += '<div style="margin:12px 0;font-size:13px;color:var(--text-secondary);">';
-    if (p.streetRecordNo) h += '🏛️ 街道备案号：<strong>' + escapeHtml(p.streetRecordNo) + '</strong>';
-    if (p.streetRecordSkipped) h += '🏛️ 街道备案：<span style="color:var(--primary);">当地无街道备案要求，已确认跳过</span>';
+    if (streetNo) h += '🏛️ 街道备案号：<strong>' + escapeHtml(streetNo) + '</strong>';
+    if (streetSkipped) h += '🏛️ 街道备案：<span style="color:var(--primary);">当地无街道备案要求，已确认跳过</span>';
     h += '</div>';
   }
 
+  // 问卷题目
   if (p.questions && p.questions.length) {
     h += '<div style="margin:20px 0;padding-top:16px;border-top:1px solid var(--border);">';
     h += '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;">📝 问卷题目预览</div>';
@@ -1906,8 +1946,9 @@ function renderPollCommonInfo(p) {
     h += '</div></div>';
   }
 
-  var target = p.targetUnits || (p.progress && p.progress.target) || 0;
-  var current = p.currentParticipants || (p.progress && p.progress.current) || 0;
+  // 参与统计：兼容多种字段名
+  var target = p.targetUnits || p.target || (p.progress && p.progress.target) || 0;
+  var current = p.currentParticipants || p.current || (p.progress && p.progress.current) || 0;
   var unit = (p.progress && p.progress.unit) ? p.progress.unit : (p.unit || '户');
   var pct = target > 0 ? Math.round(current / target * 100) : 0;
 
@@ -1918,8 +1959,9 @@ function renderPollCommonInfo(p) {
   if (p.participationRate) h += '<div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">参与率：' + p.participationRate + '</div>';
   h += '</div>';
 
-  if (p.voteResult || p.results) {
-    var vr = p.voteResult || p.results;
+  // 计票结果
+  var vr = p.voteResult || p.results || p.tallyResult || null;
+  if (vr) {
     h += '<div style="margin:20px 0;padding:16px;background:#e8f5e9;border-radius:8px;">';
     h += '<div style="font-weight:600;margin-bottom:8px;">📋 计票结果</div>';
     if (vr.isPublished || vr.published) {
