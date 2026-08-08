@@ -417,18 +417,47 @@ function getCurrentMonthPath(module){
 async function workerRead(filePath){
   const base=getWorkerBase();
   if(!base){
+    // 尝试多种可能的 key 格式（兼容有/无前导零的月份）
+    const keysToTry = [];
     const key=filePath.replace(/\.json$/,'').replace(/\//g,'-');
-    const cached = appData[key];
-    if(cached && Array.isArray(cached) && cached.length > 0) return cached;
+    keysToTry.push(key);
+    // 如果包含月份路径如 polls-responses/2026-08.json，也尝试 polls-responses/2026-8.json
+    const altKey = key.replace(/-(\d{2})$/, function(m, p1) { return '-' + parseInt(p1, 10); });
+    if (altKey !== key) keysToTry.push(altKey);
+    // 反向：如果当前是无前导零，也尝试有前导零
+    const altKey2 = key.replace(/-(\d)$/, function(m, p1) { return '-' + String(parseInt(p1, 10)).padStart(2, '0'); });
+    if (altKey2 !== key) keysToTry.push(altKey2);
+    for (const k of keysToTry) {
+      const cached = appData[k];
+      if(cached && Array.isArray(cached) && cached.length > 0) return cached;
+    }
     // 尝试从 appData 的模块名直接读取（如 appData.workorders）
     const moduleName = filePath.split('/')[0];
     if(appData[moduleName] && Array.isArray(appData[moduleName]) && appData[moduleName].length > 0) return appData[moduleName];
     return [];
   }
-  const res=await fetch(base+'/api/read/'+encodeURIComponent(filePath));
-  if(!res.ok) throw new Error('读取失败');
-  const t=await res.text();
-  return t?JSON.parse(t):[];
+  // Worker 模式：先尝试原始路径，失败则尝试月份格式兼容
+  const tryPaths = [filePath];
+  const m = filePath.match(/^(polls-responses\/\d{4})-(\d{2})\.json$/);
+  if (m) {
+    const alt = m[1] + '-' + parseInt(m[2], 10) + '.json';
+    if (alt !== filePath) tryPaths.push(alt);
+  }
+  const m2 = filePath.match(/^(polls-responses\/\d{4})-(\d)\.json$/);
+  if (m2) {
+    const alt = m2[1] + '-' + String(parseInt(m2[2], 10)).padStart(2, '0') + '.json';
+    if (alt !== filePath) tryPaths.push(alt);
+  }
+  for (const p of tryPaths) {
+    try {
+      const res=await fetch(base+'/api/read/'+encodeURIComponent(p));
+      if(res.ok) {
+        const t=await res.text();
+        return t?JSON.parse(t):[];
+      }
+    } catch(e) {}
+  }
+  throw new Error('读取失败');
 }
 async function workerWrite(filePath,data,message){
   const base=getWorkerBase();
@@ -920,14 +949,12 @@ function renderActivitiesAdmin() {
 function renderPollsAdmin() {
   const list = appData.polls || [];
   return `<div class="card"><div class="card-header"><h3>🗳️ 投票管理</h3><button class="btn btn-primary" onclick="openEditModal('polls',null)">➕ 新增投票</button></div>` +
-    '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>类型</th><th>模式</th><th>起止日期</th><th>状态</th><th>进度</th><th>参与率</th><th>同意率</th><th>附件</th><th>结果</th><th>操作</th></tr></thead><tbody>' +
+    '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>类型</th><th>模式</th><th>状态</th><th>进度</th><th>参与率</th><th>同意率</th><th>结果</th><th>操作</th></tr></thead><tbody>' +
     list.map(item => {
       const res = item.results || {};
-      const mode = item.mode || (item.type === 'vote' ? 'tencent' : 'tencent') || 'tencent';
-      const modeLabel = mode === 'local' ? '<span class="tag tag-active">本地问卷</span>' : '<span class="tag tag-test">腾讯问卷</span>';
+      const modeLabel = item.mode === 'local' ? '<span class="tag tag-active">本地问卷</span>' : '<span class="tag tag-test">腾讯问卷</span>';
       const catLabel = item.category === 'major' ? '<span class="tag" style="background:#ffebee;color:#c62828;">重大</span>' : '<span class="tag" style="background:#e8f5e9;color:#2e7d32;">一般</span>';
-      const statusTag = '<span class="tag ' + (item.status==="进行中"?"tag-active":"tag-disabled") + '">' + (item.status||'—') + '</span>';
-      const dateRange = (item.startDate || '—') + '<br>至<br>' + (item.endDate || '—');
+      const statusTag = '<span class="tag ' + (item.status==="进行中"?"tag-active":"tag-disabled") + '">' + (item.status||'') + '</span>';
 
       // 参与率
       const rPart = res.residentParticipationRate || 0;
@@ -938,13 +965,6 @@ function renderPollsAdmin() {
       const rAgree = res.agreeResidentRate || 0;
       const aAgree = res.agreeAreaRate || 0;
       const agreeHtml = '<div style="font-size:12px;">人数 ' + rAgree.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, rAgree) + '%;"></div></div>面积 ' + aAgree.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, aAgree) + '%;background:#1976D2;"></div></div></div>';
-
-      // 附件状态
-      let attachHtml = '';
-      if (item.ruleFiles && item.ruleFiles.length) attachHtml += '<span class="tag tag-test" title="议事规则">📋 规则</span> ';
-      if (item.rollFiles && item.rollFiles.length) attachHtml += '<span class="tag tag-test" title="业主清册">📋 清册</span> ';
-      if (item.meetingFiles && item.meetingFiles.length) attachHtml += '<span class="tag tag-test" title="会议通知">📋 通知</span> ';
-      if (!attachHtml) attachHtml = '<span style="color:#999;font-size:12px;">—</span>';
 
       // 通过标签（只有已结束才显示最终判定）
       let passHtml = '<span style="color:#999;font-size:12px;">—</span>';
@@ -957,16 +977,13 @@ function renderPollsAdmin() {
       const pendingObj = (item.objections || []).filter(o => !o.status || o.status === '待处理').length;
       const objBadge = pendingObj > 0 ? '<span class="tag" style="background:#ffebee;color:#c62828;cursor:pointer;" onclick="event.stopPropagation();navigateTo(\'objections\')">⚠️ ' + pendingObj + ' 异议</span>' : '';
 
-      // 进度：优先使用 results.participatingResidents（计票结果），其次 progress.current
-      const currentCount = (res.participatingResidents !== undefined ? res.participatingResidents : (item.progress && item.progress.current !== undefined ? item.progress.current : 0));
-      const targetCount = (item.progress && item.progress.target !== undefined ? item.progress.target : 300);
-      const progressHtml = '<div style="font-size:12px;">' + currentCount + ' / ' + targetCount + ' 户</div>';
+      const progressHtml = '<div style="font-size:12px;">' + (item.progress && item.progress.current !== undefined ? item.progress.current : 0) + ' / ' + (item.progress && item.progress.target !== undefined ? item.progress.target : 300) + ' 户</div>';
       let actions = `<button onclick="openEditModal('polls','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('polls','${item.id}')">删除</button>`;
-      if(mode === 'local') {
+      if(item.mode === 'local') {
         actions += `<button onclick="viewPollData('${item.id}')" style="margin-left:4px;">📊 数据</button>`;
       }
       actions += `<button onclick="recalculatePoll('${item.id}')" style="margin-left:4px;">🔄 计票</button>`;
-      return `<tr><td>${item.caseNo||''}</td><td>${item.title||''}</td><td>${catLabel}</td><td>${modeLabel}</td><td style="font-size:12px;">${dateRange}</td><td>${statusTag}</td><td>${progressHtml}</td><td>${partHtml}</td><td>${agreeHtml}</td><td>${attachHtml}</td><td>${passHtml} ${anchorHtml} ${objBadge}</td><td class="actions">${actions}</td></tr>`;
+      return `<tr><td>${item.caseNo||''}</td><td>${item.title||''}</td><td>${catLabel}</td><td>${modeLabel}</td><td>${statusTag}</td><td>${progressHtml}</td><td>${partHtml}</td><td>${agreeHtml}</td><td>${passHtml} ${anchorHtml} ${objBadge}</td><td class="actions">${actions}</td></tr>`;
     }).join('') +
     '</tbody></table></div>';
 }
@@ -1546,14 +1563,9 @@ async function saveItem(module, id) {
     const edTargetVal = document.getElementById('edTarget').value.trim();
     const edCurrentVal = document.getElementById('edCurrent').value.trim();
     const oldProgress = item.progress || {};
-    // 如果 edCurrent 为空且已有计票结果，优先使用计票结果的参与人数
-    let useCurrent = edCurrentVal !== '' ? parseInt(edCurrentVal) : (oldProgress.current !== undefined ? oldProgress.current : 0);
-    if (edCurrentVal === '' && item.results && typeof item.results.participatingResidents === 'number') {
-      useCurrent = item.results.participatingResidents;
-    }
     item.progress = {
       target: edTargetVal !== '' ? parseInt(edTargetVal) : (oldProgress.target !== undefined ? oldProgress.target : 300),
-      current: useCurrent,
+      current: edCurrentVal !== '' ? parseInt(edCurrentVal) : (oldProgress.current !== undefined ? oldProgress.current : 0),
       unit: '户'
     };
     // 只更新用户可编辑的结果字段，保留 calculatePollResults 生成的计票数据
@@ -1576,15 +1588,10 @@ async function saveItem(module, id) {
     item.agreeCount = item.agreeCount || 0;
     item.agreeArea = item.agreeArea || 0;
     
-    if(mode === 'local') {
+    if(item.mode === 'local') {
       item.questions = collectPollQuestions();
     } else {
       item.questions = [];
-    }
-    // 计票完成后强制同步进度，确保 progress.current 与 results 一致
-    if (item.results && typeof item.results.participatingResidents === 'number') {
-      item.progress = item.progress || {};
-      item.progress.current = item.results.participatingResidents;
     }
   } else if (module === 'residents') {
     item.roomNo = document.getElementById('edRoom').value;
@@ -1637,37 +1644,14 @@ function generatePollArchive(pollId) {
   const poll = (appData.polls || []).find(p => p.id === pollId);
   if (!poll) { showToast('投票不存在', 'error'); return; }
 
-  // 读取投票记录（多个月份）
-  let allResponses = [];
-  const monthsToCheck = new Set();
-  const _now = new Date();
-  monthsToCheck.add(_now.getFullYear() + '-' + String(_now.getMonth()+1).padStart(2,'0'));
-  if (poll.startDate) {
-    const sd = new Date(poll.startDate);
-    monthsToCheck.add(sd.getFullYear() + '-' + String(sd.getMonth()+1).padStart(2,'0'));
-  }
-  if (poll.endDate) {
-    const ed = new Date(poll.endDate);
-    monthsToCheck.add(ed.getFullYear() + '-' + String(ed.getMonth()+1).padStart(2,'0'));
-  }
-  const extraMonths = Array.from(monthsToCheck);
-  extraMonths.forEach(m => {
-    const [y, mo] = m.split('-').map(Number);
-    const prev = new Date(y, mo - 2, 1);
-    monthsToCheck.add(prev.getFullYear() + '-' + String(prev.getMonth()+1).padStart(2,'0'));
-    const next = new Date(y, mo, 1);
-    monthsToCheck.add(next.getFullYear() + '-' + String(next.getMonth()+1).padStart(2,'0'));
-  });
-  for (const month of monthsToCheck) {
-    try {
-      const saved = localStorage.getItem('adminData_polls-responses-' + month);
-      if (saved) {
-        const monthData = JSON.parse(saved);
-        if (Array.isArray(monthData)) allResponses = allResponses.concat(monthData);
-      }
-    } catch(e) {}
-  }
-  let responses = allResponses;
+  // 读取投票记录
+  const d = new Date();
+  const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+  let responses = [];
+  try {
+    const saved = localStorage.getItem('adminData_polls-responses-' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+    if (saved) responses = JSON.parse(saved);
+  } catch(e) {}
   const pollVotes = responses.filter(r => r.pollId === pollId);
 
   const allResidents = (appData.residents || []).filter(r => r.status === 'active');
@@ -1952,12 +1936,6 @@ async function recalculatePoll(pollId) {
   try {
     const result = await calculatePollResults(pollId);
     if (result) {
-      // 强制同步 progress.current
-      const poll = (appData.polls || []).find(p => p.id === pollId);
-      if (poll) {
-        poll.progress = poll.progress || {};
-        poll.progress.current = result.participatingResidents || 0;
-      }
       // 保存 poll 数据
       await saveDataFile('polls', appData.polls, '重新计票 ' + pollId, 'update');
       // 追加审计日志
@@ -2960,41 +2938,16 @@ async function calculatePollResults(pollId) {
   const poll = (appData.polls || []).find(p => p.id === pollId);
   if (!poll) return null;
 
-  // 读取投票记录：遍历投票期间涉及的所有月份
-  let allResponses = [];
-  const monthsToCheck = new Set();
-  const _now = new Date();
-  monthsToCheck.add(_now.getFullYear() + '-' + String(_now.getMonth()+1).padStart(2,'0'));
-  if (poll.startDate) {
-    const sd = new Date(poll.startDate);
-    monthsToCheck.add(sd.getFullYear() + '-' + String(sd.getMonth()+1).padStart(2,'0'));
-  }
-  if (poll.endDate) {
-    const ed = new Date(poll.endDate);
-    monthsToCheck.add(ed.getFullYear() + '-' + String(ed.getMonth()+1).padStart(2,'0'));
-  }
-  const extraMonths = Array.from(monthsToCheck);
-  extraMonths.forEach(m => {
-    const [y, mo] = m.split('-').map(Number);
-    const prev = new Date(y, mo - 2, 1);
-    monthsToCheck.add(prev.getFullYear() + '-' + String(prev.getMonth()+1).padStart(2,'0'));
-    const next = new Date(y, mo, 1);
-    monthsToCheck.add(next.getFullYear() + '-' + String(next.getMonth()+1).padStart(2,'0'));
-  });
-
-  for (const month of monthsToCheck) {
-    const path = 'polls-responses/' + month + '.json';
-    try {
-      const monthData = await workerRead(path);
-      if (Array.isArray(monthData)) allResponses = allResponses.concat(monthData);
-    } catch(e) {}
-  }
-  let responses = allResponses;
+  // 读取投票记录
+  const d = new Date();
+  const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+  let responses = [];
+  try { responses = await workerRead(path); } catch(e) { responses = []; }
   if (!Array.isArray(responses)) responses = [];
 
   const pollVotes = responses.filter(r => r.pollId === pollId);
 
-  // 去重统计（同一 residentId 只算一次）
+  // 去重统计（同一业主只算一次，兼容 residentId / roomNo / name+phoneSuffix）
   const seen = new Set();
   let participatingResidents = 0;
   let participatingArea = 0;
@@ -3002,8 +2955,14 @@ async function calculatePollResults(pollId) {
   let agreeArea = 0;
 
   pollVotes.forEach(v => {
-    if (!v.residentId || seen.has(v.residentId)) return;
-    seen.add(v.residentId);
+    // 生成去重键：优先 residentId，其次 roomNo，最后 name+phoneSuffix
+    let dedupKey = v.residentId;
+    if (!dedupKey && v.roomNo) dedupKey = 'room:' + v.roomNo;
+    if (!dedupKey && v.residentRoom) dedupKey = 'room:' + v.residentRoom;
+    if (!dedupKey && v.name) dedupKey = 'name:' + v.name;
+    if (!dedupKey) dedupKey = 'idx:' + (v._idx || Math.random());
+    if (seen.has(dedupKey)) return;
+    seen.add(dedupKey);
     participatingResidents++;
     participatingArea += parseFloat(v.area) || 0;
 
@@ -3141,35 +3100,11 @@ async function anchorVoteData(pollId) {
   const records = [];
 
   try {
-    // 1. 读取投票记录（多个月份）
-    let allResponses = [];
-    const monthsToCheck = new Set();
-    const _now = new Date();
-    monthsToCheck.add(_now.getFullYear() + '-' + String(_now.getMonth()+1).padStart(2,'0'));
-    if (poll.startDate) {
-      const sd = new Date(poll.startDate);
-      monthsToCheck.add(sd.getFullYear() + '-' + String(sd.getMonth()+1).padStart(2,'0'));
-    }
-    if (poll.endDate) {
-      const ed = new Date(poll.endDate);
-      monthsToCheck.add(ed.getFullYear() + '-' + String(ed.getMonth()+1).padStart(2,'0'));
-    }
-    const extraMonths = Array.from(monthsToCheck);
-    extraMonths.forEach(m => {
-      const [y, mo] = m.split('-').map(Number);
-      const prev = new Date(y, mo - 2, 1);
-      monthsToCheck.add(prev.getFullYear() + '-' + String(prev.getMonth()+1).padStart(2,'0'));
-      const next = new Date(y, mo, 1);
-      monthsToCheck.add(next.getFullYear() + '-' + String(next.getMonth()+1).padStart(2,'0'));
-    });
-    for (const month of monthsToCheck) {
-      const path = 'polls-responses/' + month + '.json';
-      try {
-        const monthData = await workerRead(path);
-        if (Array.isArray(monthData)) allResponses = allResponses.concat(monthData);
-      } catch(e) {}
-    }
-    let responses = allResponses;
+    // 1. 读取投票记录
+    const d = new Date();
+    const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+    let responses = [];
+    try { responses = await workerRead(path); } catch(e) { responses = []; }
     if (!Array.isArray(responses)) responses = [];
     const pollVotes = responses.filter(r => r.pollId === pollId);
 
@@ -3950,12 +3885,13 @@ function validatePollCompliance() {
   } else if (!startDate) {
     errors.push('必须填写投票开始日期，才能校验公示期');
   } else {
-    const endDate = new Date(rollEnd + 'T00:00:00');
-    const voteStart = new Date(startDate + 'T00:00:00');
+    const endDate = new Date(rollEnd);
+    const voteStart = new Date(startDate);
     // 公示结束日期必须在投票开始日期前至少7天
     const minStartDate = new Date(endDate);
     minStartDate.setDate(minStartDate.getDate() + 7);
-    if (minStartDate.getTime() > voteStart.getTime()) {
+    minStartDate.setHours(0, 0, 0, 0);
+    if (minStartDate > voteStart) {
       errors.push('业主清册公示结束日期必须在投票开始日期前至少7日（公示结束日 + 7天 ≤ 投票开始日）');
     }
   }
@@ -4038,44 +3974,15 @@ async function viewPollData(pollId) {
   showLoading(true);
   let responses = [];
   try {
-    // 读取多个月份数据
-    const monthsToCheck = new Set();
-    const _now = new Date();
-    monthsToCheck.add(_now.getFullYear() + '-' + String(_now.getMonth()+1).padStart(2,'0'));
-    if (p.startDate) {
-      const sd = new Date(p.startDate);
-      monthsToCheck.add(sd.getFullYear() + '-' + String(sd.getMonth()+1).padStart(2,'0'));
-    }
-    if (p.endDate) {
-      const ed = new Date(p.endDate);
-      monthsToCheck.add(ed.getFullYear() + '-' + String(ed.getMonth()+1).padStart(2,'0'));
-    }
-    const extraMonths = Array.from(monthsToCheck);
-    extraMonths.forEach(m => {
-      const [y, mo] = m.split('-').map(Number);
-      const prev = new Date(y, mo - 2, 1);
-      monthsToCheck.add(prev.getFullYear() + '-' + String(prev.getMonth()+1).padStart(2,'0'));
-      const next = new Date(y, mo, 1);
-      monthsToCheck.add(next.getFullYear() + '-' + String(next.getMonth()+1).padStart(2,'0'));
-    });
-    for (const month of monthsToCheck) {
-      const path = 'polls-responses/' + month + '.json';
-      try {
-        const monthData = await workerRead(path);
-        if (Array.isArray(monthData)) {
-          responses = responses.concat(monthData.filter(x => x.pollId === pollId));
-        }
-      } catch(e) {}
-    }
+    const d = new Date();
+    const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+    responses = await workerRead(path);
+    responses = responses.filter(x => x.pollId === pollId);
   } catch(e) { responses = []; }
   showLoading(false);
 
   document.getElementById('modalTitle').textContent = '📊 问卷数据：' + p.title;
-  // 去重统计
-  const seenIds = new Set();
-  let uniqueCount = 0;
-  responses.forEach(r => { if (r.residentId && !seenIds.has(r.residentId)) { seenIds.add(r.residentId); uniqueCount++; } });
-  let body = '<div style="margin-bottom:12px;"><span style="font-size:13px;color:var(--text-secondary);">共 ' + responses.length + ' 条记录（去重后 ' + uniqueCount + ' 人）</span>';
+  let body = '<div style="margin-bottom:12px;"><span style="font-size:13px;color:var(--text-secondary);">共 ' + responses.length + ' 人参与</span>';
   body += '<button class="btn btn-sm" onclick="downloadPollData(\'' + pollId + '\')" style="margin-left:12px;">📥 下载CSV</button></div>';
 
   if(!responses.length) {
@@ -4140,35 +4047,10 @@ async function downloadPollData(pollId) {
   showLoading(true);
   let responses = [];
   try {
-    // 读取多个月份数据
-    const monthsToCheck = new Set();
-    const _now = new Date();
-    monthsToCheck.add(_now.getFullYear() + '-' + String(_now.getMonth()+1).padStart(2,'0'));
-    if (p.startDate) {
-      const sd = new Date(p.startDate);
-      monthsToCheck.add(sd.getFullYear() + '-' + String(sd.getMonth()+1).padStart(2,'0'));
-    }
-    if (p.endDate) {
-      const ed = new Date(p.endDate);
-      monthsToCheck.add(ed.getFullYear() + '-' + String(ed.getMonth()+1).padStart(2,'0'));
-    }
-    const extraMonths = Array.from(monthsToCheck);
-    extraMonths.forEach(m => {
-      const [y, mo] = m.split('-').map(Number);
-      const prev = new Date(y, mo - 2, 1);
-      monthsToCheck.add(prev.getFullYear() + '-' + String(prev.getMonth()+1).padStart(2,'0'));
-      const next = new Date(y, mo, 1);
-      monthsToCheck.add(next.getFullYear() + '-' + String(next.getMonth()+1).padStart(2,'0'));
-    });
-    for (const month of monthsToCheck) {
-      const path = 'polls-responses/' + month + '.json';
-      try {
-        const monthData = await workerRead(path);
-        if (Array.isArray(monthData)) {
-          responses = responses.concat(monthData.filter(x => x.pollId === pollId));
-        }
-      } catch(e) {}
-    }
+    const d = new Date();
+    const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+    responses = await workerRead(path);
+    responses = responses.filter(x => x.pollId === pollId);
   } catch(e) { responses = []; }
   showLoading(false);
 
