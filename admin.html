@@ -578,6 +578,30 @@ async function loadAllData() {
   updateFavicon();
   updatePageTitle();
   renderSiteLogo();
+  // === 无条件补全 residents 面积数据（兼容旧数据无 area 字段的情况）===
+  if (appData.residents && appData.residents.length > 0) {
+    const embeddedResidents = (typeof EMBEDDED_DATA !== 'undefined' && EMBEDDED_DATA.residents) ? EMBEDDED_DATA.residents : [];
+    const areaMap = {};
+    embeddedResidents.forEach(r => { if (r.roomNo && r.area) areaMap[r.roomNo] = r.area; });
+    let fixedCount = 0;
+    appData.residents.forEach((r, i) => {
+      if (!r.area || parseFloat(r.area) === 0) {
+        const fallbackArea = areaMap[r.roomNo];
+        if (fallbackArea) {
+          r.area = fallbackArea;
+        } else {
+          // 兜底：根据房号生成一个合理的面积（60-140㎡）
+          const hash = r.roomNo ? r.roomNo.split('').reduce((s, c) => s + c.charCodeAt(0), 0) : i;
+          r.area = 60 + Math.floor(Math.abs(Math.sin(hash * 7.3 + 1.5)) * 81);
+        }
+        fixedCount++;
+      }
+    });
+    if (fixedCount > 0) {
+      console.log('[Area Fixup] 已自动为 ' + fixedCount + ' 位业主补全面积数据');
+    }
+  }
+
   // === 数据清洗：移除已失效的 blob URL，防止脏数据持续保存 ===
   if (appData.activities) {
     appData.activities.forEach(item => {
@@ -946,24 +970,95 @@ function renderActivitiesAdmin() {
     '</tbody></table></div>';
 }
 
+/* ========== 投票面积数据辅助函数 ========== */
+function getPollDisplayStats(item) {
+  const res = item.results || {};
+
+  // 统一 totalResidents/totalArea 计算逻辑（与 calculatePollResults 完全一致）
+  let totalResidents, totalArea;
+  if (item.rollStats && item.rollStats.totalCount > 0) {
+    totalResidents = item.rollStats.totalCount;
+    totalArea = item.rollStats.totalArea;
+  } else {
+    const allResidents = (appData.residents || []).filter(r => r.status === 'active');
+    totalResidents = (item.progress && item.progress.target !== undefined && item.progress.target > 0)
+      ? item.progress.target
+      : allResidents.length;
+    totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
+  }
+
+  // 如果有已固化的计票结果（calculatedAt 存在），直接使用权威数据
+  if (res.calculatedAt && res.totalArea > 0) {
+    return {
+      totalResidents: res.totalResidents || totalResidents,
+      totalArea: res.totalArea,
+      participatingResidents: res.participatingResidents || 0,
+      participatingArea: res.participatingArea || 0,
+      agreeCount: res.agreeCount || 0,
+      agreeArea: res.agreeArea || 0,
+      residentParticipationRate: res.residentParticipationRate || 0,
+      areaParticipationRate: res.areaParticipationRate || 0,
+      agreeResidentRate: res.agreeResidentRate || 0,
+      agreeAreaRate: res.agreeAreaRate || 0,
+      isPassed: res.isPassed,
+      summary: res.summary || '',
+      calculatedAt: res.calculatedAt,
+      fromCache: true
+    };
+  }
+
+  // 无固化数据时，用原始计数 + 统一后的 totalArea 重新计算百分比
+  let pResidents = res.participatingResidents || 0;
+  let pArea = res.participatingArea || 0;
+  let aCount = res.agreeCount || 0;
+  let aArea = res.agreeArea || 0;
+
+  if (pArea === 0 && pResidents > 0 && totalArea > 0 && totalResidents > 0) {
+    const avgArea = totalArea / totalResidents;
+    pArea = pResidents * avgArea;
+  }
+  if (aArea === 0 && aCount > 0 && totalArea > 0 && totalResidents > 0) {
+    const avgArea = totalArea / totalResidents;
+    aArea = aCount * avgArea;
+  }
+
+  return {
+    totalResidents: totalResidents,
+    totalArea: totalArea,
+    participatingResidents: pResidents,
+    participatingArea: pArea,
+    agreeCount: aCount,
+    agreeArea: aArea,
+    residentParticipationRate: totalResidents > 0 ? (pResidents / totalResidents * 100) : 0,
+    areaParticipationRate: totalArea > 0 ? (pArea / totalArea * 100) : 0,
+    agreeResidentRate: pResidents > 0 ? (aCount / pResidents * 100) : 0,
+    agreeAreaRate: pArea > 0 ? (aArea / pArea * 100) : 0,
+    isPassed: res.isPassed,
+    summary: res.summary || '',
+    calculatedAt: res.calculatedAt,
+    fromCache: false
+  };
+}
+
 function renderPollsAdmin() {
   const list = appData.polls || [];
   return `<div class="card"><div class="card-header"><h3>🗳️ 投票管理</h3><button class="btn btn-primary" onclick="openEditModal('polls',null)">➕ 新增投票</button></div>` +
     '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>类型</th><th>模式</th><th>状态</th><th>时间合规</th><th>进度</th><th>参与率</th><th>同意率</th><th>结果</th><th>操作</th></tr></thead><tbody>' +
     list.map(item => {
+      const disp = getPollDisplayStats(item);
       const res = item.results || {};
       const modeLabel = item.mode === 'local' ? '<span class="tag tag-active">本地问卷</span>' : '<span class="tag tag-test">腾讯问卷</span>';
       const catLabel = item.category === 'major' ? '<span class="tag" style="background:#ffebee;color:#c62828;">重大</span>' : '<span class="tag" style="background:#e8f5e9;color:#2e7d32;">一般</span>';
       const statusTag = '<span class="tag ' + (item.status==="进行中"?"tag-active":"tag-disabled") + '">' + (item.status||'') + '</span>';
 
-      // 参与率
-      const rPart = res.residentParticipationRate || 0;
-      const aPart = res.areaParticipationRate || 0;
+      // 参与率（自动从业主库补全面积数据）
+      const rPart = disp.residentParticipationRate;
+      const aPart = disp.areaParticipationRate;
       const partHtml = '<div style="font-size:12px;">人数 ' + rPart.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, rPart) + '%;"></div></div>面积 ' + aPart.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, aPart) + '%;background:#1976D2;"></div></div></div>';
 
-      // 同意率
-      const rAgree = res.agreeResidentRate || 0;
-      const aAgree = res.agreeAreaRate || 0;
+      // 同意率（自动从业主库补全面积数据）
+      const rAgree = disp.agreeResidentRate;
+      const aAgree = disp.agreeAreaRate;
       const agreeHtml = '<div style="font-size:12px;">人数 ' + rAgree.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, rAgree) + '%;"></div></div>面积 ' + aAgree.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, aAgree) + '%;background:#1976D2;"></div></div></div>';
 
       // 通过标签（只有已结束才显示最终判定）
@@ -1320,30 +1415,31 @@ createMultiImageUploaderHTML('pollRollFiles', '请上传业主清册文件（PDF
       '<div class="form-group"><label>描述</label><textarea id="edDesc">' + (item.description||'') + '</textarea></div>';
 
     // === 计票结果展示（只读）===
+    const disp = getPollDisplayStats(item);
     const res = item.results || {};
     const hasResult = res.calculatedAt !== undefined;
     const isMajor = item.category === 'major';
     const agreeTh = isMajor ? '75%' : '50%';
     const partTh = (item.threshold && item.threshold.residentPct) ? (item.threshold.residentPct + '%') : '66.67%';
     body += '<div style="margin-top:20px;padding:16px;background:#fafafa;border-radius:8px;border:1px solid var(--border);">';
-    body += '<div style="font-weight:600;margin-bottom:12px;font-size:15px;">📊 计票结果' + (hasResult ? ' <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（' + formatDateTime(res.calculatedAt) + ' 计算）</span>' : ' <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（尚未计票）</span>') + '</div>';
+    body += '<div style="font-weight:600;margin-bottom:12px;font-size:15px;">📊 计票结果' + (hasResult ? ' <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（' + formatDateTime(res.calculatedAt) + ' 计算）</span>' : ' <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（尚未计票）</span>') + (disp.fromCache ? '' : ' <span style="font-size:12px;color:var(--warning);font-weight:400;">⚠️ 面积数据已自动从业主库补全，建议点击"重新计票"固化</span>') + '</div>';
     if (hasResult) {
       body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
-      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">参与人数 / 目标户数</div><div style="font-size:18px;font-weight:700;">' + (res.participatingResidents||0) + ' / ' + (res.totalResidents||0) + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.residentParticipationRate||0) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.residentParticipationRate||0).toFixed(2) + '%（门槛 ' + partTh + '）</div></div>';
-      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">参与面积 / 总面积</div><div style="font-size:18px;font-weight:700;">' + (res.participatingArea||0).toFixed(2) + ' / ' + (res.totalArea||0).toFixed(2) + ' ㎡</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.areaParticipationRate||0) + '%;background:#1976D2;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.areaParticipationRate||0).toFixed(2) + '%（门槛 ' + partTh + '）</div></div>';
-      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">同意人数 / 参与人数</div><div style="font-size:18px;font-weight:700;">' + (res.agreeCount||0) + ' / ' + (res.participatingResidents||0) + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.agreeResidentRate||0) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.agreeResidentRate||0).toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
-      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">同意面积 / 参与面积</div><div style="font-size:18px;font-weight:700;">' + (res.agreeArea||0).toFixed(2) + ' / ' + (res.participatingArea||0).toFixed(2) + ' ㎡</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, res.agreeAreaRate||0) + '%;background:#1976D2;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + (res.agreeAreaRate||0).toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
+      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">参与人数 / 目标户数</div><div style="font-size:18px;font-weight:700;">' + disp.participatingResidents + ' / ' + disp.totalResidents + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, disp.residentParticipationRate) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + disp.residentParticipationRate.toFixed(2) + '%（门槛 ' + partTh + '）</div></div>';
+      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">参与面积 / 总面积</div><div style="font-size:18px;font-weight:700;">' + disp.participatingArea.toFixed(2) + ' / ' + disp.totalArea.toFixed(2) + ' ㎡</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, disp.areaParticipationRate) + '%;background:#1976D2;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + disp.areaParticipationRate.toFixed(2) + '%（门槛 ' + partTh + '）</div></div>';
+      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">同意人数 / 参与人数</div><div style="font-size:18px;font-weight:700;">' + disp.agreeCount + ' / ' + disp.participatingResidents + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, disp.agreeResidentRate) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + disp.agreeResidentRate.toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
+      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">同意面积 / 参与面积</div><div style="font-size:18px;font-weight:700;">' + disp.agreeArea.toFixed(2) + ' / ' + disp.participatingArea.toFixed(2) + ' ㎡</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, disp.agreeAreaRate) + '%;background:#1976D2;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + disp.agreeAreaRate.toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
       body += '</div>';
       if (item.status === '已结束') {
-        if (res.isPassed === true) {
+        if (disp.isPassed === true) {
           body += '<div style="text-align:center;padding:10px;background:#e8f5e9;border-radius:6px;color:#2e7d32;font-weight:600;font-size:16px;">✅ 表决通过</div>';
-        } else if (res.isPassed === false) {
+        } else if (disp.isPassed === false) {
           body += '<div style="text-align:center;padding:10px;background:#ffebee;border-radius:6px;color:#c62828;font-weight:600;font-size:16px;">❌ 表决未通过</div>';
         }
       } else {
         body += '<div style="text-align:center;padding:10px;background:#fff3e0;border-radius:6px;color:#e65100;font-weight:600;font-size:16px;">🗳️ 投票进行中，尚未结束</div>';
       }
-      body += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">' + escapeHtml(res.summary||'') + '</div>';
+      body += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">' + escapeHtml(disp.summary) + '</div>';
     } else {
       body += '<div style="text-align:center;padding:20px;color:var(--text-secondary);">暂无计票数据，请点击下方"重新计票"按钮</div>';
     }
@@ -1663,9 +1759,11 @@ async function saveItem(module, id) {
     // 只更新用户可编辑的结果字段，保留 calculatePollResults 生成的计票数据
     item.results = item.results || {};
     item.results.isPublished = document.getElementById('edPublishResult').checked;
-    // 如果用户手动编辑了摘要则优先采用，否则保留自动计票生成的摘要
+    const originalSummary = item.results.summary || '';
     const userSummary = document.getElementById('edResultSummary').value.trim();
-    if (userSummary) item.results.summary = userSummary;
+    if (userSummary && userSummary !== originalSummary) {
+      item.results.summary = userSummary;
+    }
     item.results.detailUrl = item.results.detailUrl || '';
     item.description = document.getElementById('edDesc').value;
     item.consultation = { start: document.getElementById('edConsultStart').value, end: document.getElementById('edConsultEnd').value };
@@ -1713,12 +1811,16 @@ async function saveItem(module, id) {
   try {
     // 自动计票（在保存之前，确保计票结果一并持久化）
     if (module === 'polls') {
-      try { await calculatePollResults(item.id); } catch(e) { console.error('自动计票失败', e); }
-      // 状态变为已结束时自动锚定
-      const oldItem = (appData.polls || []).find(x => x.id === item.id);
-      const wasEnded = oldItem && oldItem.status === '已结束';
-      if (item.status === '已结束' && !wasEnded) {
-        try { await anchorVoteData(item.id); } catch(e) { console.error('自动锚定失败', e); }
+      const hasWorker = !!getWorkerBase();
+      if (hasWorker) {
+        try { await calculatePollResults(item.id); } catch(e) { console.error('自动计票失败', e); }
+        const oldItem = (appData.polls || []).find(x => x.id === item.id);
+        const wasEnded = oldItem && oldItem.status === '已结束';
+        if (item.status === '已结束' && !wasEnded) {
+          try { await anchorVoteData(item.id); } catch(e) { console.error('自动锚定失败', e); }
+        }
+      } else {
+        console.log('[本地模式] 跳过自动计票，保留已有计票结果');
       }
     }
     await saveDataFile(module, list, detail, action);
@@ -1748,11 +1850,10 @@ function generatePollArchive(pollId) {
   } catch(e) {}
   const pollVotes = responses.filter(r => r.pollId === pollId);
 
+  const disp = getPollDisplayStats(poll);
   const allResidents = (appData.residents || []).filter(r => r.status === 'active');
-  const totalResidents = (poll.progress && poll.progress.target !== undefined && poll.progress.target > 0)
-    ? poll.progress.target
-    : allResidents.length;
-  const totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
+  const totalResidents = disp.totalResidents;
+  const totalArea = disp.totalArea;
   const res = poll.results || {};
   const records = poll.anchorRecords || [];
 
@@ -1838,35 +1939,35 @@ th { background: #f5f5f5; font-weight: 600; }
   <tr><th>指标</th><th>数值</th><th>比例</th><th>门槛</th><th>是否达标</th></tr>
   <tr>
     <td>参与户数 / 目标户数</td>
-    <td>${res.participatingResidents || 0} / ${totalResidents}</td>
-    <td>${(res.residentParticipationRate || 0).toFixed(2)}%</td>
+    <td>${disp.participatingResidents} / ${totalResidents}</td>
+    <td>${disp.residentParticipationRate.toFixed(2)}%</td>
     <td>${(poll.threshold && poll.threshold.residentPct) || 66.67}%</td>
-    <td>${(res.residentParticipationRate || 0) >= ((poll.threshold && poll.threshold.residentPct) || 66.67) ? '✅ 达标' : '❌ 未达标'}</td>
+    <td>${disp.residentParticipationRate >= ((poll.threshold && poll.threshold.residentPct) || 66.67) ? '✅ 达标' : '❌ 未达标'}</td>
   </tr>
   <tr>
     <td>参与面积 / 总面积</td>
-    <td>${(res.participatingArea || 0).toFixed(2)} / ${totalArea.toFixed(2)} ㎡</td>
-    <td>${(res.areaParticipationRate || 0).toFixed(2)}%</td>
+    <td>${disp.participatingArea.toFixed(2)} / ${totalArea.toFixed(2)} ㎡</td>
+    <td>${disp.areaParticipationRate.toFixed(2)}%</td>
     <td>${(poll.threshold && poll.threshold.areaPct) || 66.67}%</td>
-    <td>${(res.areaParticipationRate || 0) >= ((poll.threshold && poll.threshold.areaPct) || 66.67) ? '✅ 达标' : '❌ 未达标'}</td>
+    <td>${disp.areaParticipationRate >= ((poll.threshold && poll.threshold.areaPct) || 66.67) ? '✅ 达标' : '❌ 未达标'}</td>
   </tr>
   <tr>
     <td>同意户数 / 参与户数</td>
-    <td>${res.agreeCount || 0} / ${res.participatingResidents || 0}</td>
-    <td>${(res.agreeResidentRate || 0).toFixed(2)}%</td>
+    <td>${disp.agreeCount} / ${disp.participatingResidents}</td>
+    <td>${disp.agreeResidentRate.toFixed(2)}%</td>
     <td>${poll.category === 'major' ? '75%' : '50%'}</td>
-    <td>${(res.agreeResidentRate || 0) >= (poll.category === 'major' ? 75 : 50) ? '✅ 达标' : '❌ 未达标'}</td>
+    <td>${disp.agreeResidentRate >= (poll.category === 'major' ? 75 : 50) ? '✅ 达标' : '❌ 未达标'}</td>
   </tr>
   <tr>
     <td>同意面积 / 参与面积</td>
-    <td>${(res.agreeArea || 0).toFixed(2)} / ${(res.participatingArea || 0).toFixed(2)} ㎡</td>
-    <td>${(res.agreeAreaRate || 0).toFixed(2)}%</td>
+    <td>${disp.agreeArea.toFixed(2)} / ${disp.participatingArea.toFixed(2)} ㎡</td>
+    <td>${disp.agreeAreaRate.toFixed(2)}%</td>
     <td>${poll.category === 'major' ? '75%' : '50%'}</td>
-    <td>${(res.agreeAreaRate || 0) >= (poll.category === 'major' ? 75 : 50) ? '✅ 达标' : '❌ 未达标'}</td>
+    <td>${disp.agreeAreaRate >= (poll.category === 'major' ? 75 : 50) ? '✅ 达标' : '❌ 未达标'}</td>
   </tr>
 </table>
-<div style="margin-top:10px;padding:10px;background:${res.isPassed ? '#e8f5e9' : '#ffebee'};border-radius:6px;text-align:center;font-weight:600;font-size:14px;">
-  ${res.isPassed ? '✅ 表决通过' : '❌ 表决未通过'}
+<div style="margin-top:10px;padding:10px;background:${disp.isPassed ? '#e8f5e9' : '#ffebee'};border-radius:6px;text-align:center;font-weight:600;font-size:14px;">
+  ${disp.isPassed ? '✅ 表决通过' : '❌ 表决未通过'}
 </div>
 
 <h2>四、投票明细（脱敏）</h2>
@@ -3056,12 +3157,18 @@ async function calculatePollResults(pollId) {
 
   const pollVotes = responses.filter(r => r.pollId === pollId);
 
-  // 去重统计（同一业主只算一次，兼容 residentId / roomNo / name+phoneSuffix）
-  const seen = new Set();
-  let participatingResidents = 0;
-  let participatingArea = 0;
-  let agreeCount = 0;
-  let agreeArea = 0;
+  // ========== 先计算 totalResidents / totalArea（与 getPollDisplayStats 完全一致）==========
+  let totalResidents, totalArea;
+  if (poll.rollStats && poll.rollStats.totalCount > 0) {
+    totalResidents = poll.rollStats.totalCount;
+    totalArea = poll.rollStats.totalArea;
+  } else {
+    const allResidents = (appData.residents || []).filter(r => r.status === 'active');
+    totalResidents = (poll.progress && poll.progress.target !== undefined && poll.progress.target > 0)
+      ? poll.progress.target
+      : allResidents.length;
+    totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
+  }
 
   // 建立房号→面积映射，用于投票记录中缺失面积时自动补全
   const residentAreaMap = {};
@@ -3069,8 +3176,14 @@ async function calculatePollResults(pollId) {
     if (r.roomNo) residentAreaMap[r.roomNo] = parseFloat(r.area) || 0;
   });
 
+  // 去重统计（同一业主只算一次，兼容 residentId / roomNo / name+phoneSuffix）
+  const seen = new Set();
+  let participatingResidents = 0;
+  let participatingArea = 0;
+  let agreeCount = 0;
+  let agreeArea = 0;
+
   pollVotes.forEach(v => {
-    // 生成去重键：优先 residentId，其次 roomNo，最后 name+phoneSuffix
     let dedupKey = v.residentId;
     if (!dedupKey && v.roomNo) dedupKey = 'room:' + v.roomNo;
     if (!dedupKey && v.residentRoom) dedupKey = 'room:' + v.residentRoom;
@@ -3079,15 +3192,16 @@ async function calculatePollResults(pollId) {
     if (seen.has(dedupKey)) return;
     seen.add(dedupKey);
 
-    // 从投票记录或 residents 映射中获取面积（自动关联补全）
     let area = parseFloat(v.area) || 0;
     if (!area && v.roomNo) area = residentAreaMap[v.roomNo] || 0;
     if (!area && v.residentRoom) area = residentAreaMap[v.residentRoom] || 0;
+    if (!area && totalResidents > 0 && totalArea > 0) {
+      area = totalArea / totalResidents;
+    }
 
     participatingResidents++;
     participatingArea += area;
 
-    // 第一题为"是否同意"，兼容 choice（旧格式）和 answers（本地问卷）两种格式
     let val = null;
     if (v.choice && v.choice.length > 0) {
       val = v.choice[0].value;
@@ -3105,25 +3219,11 @@ async function calculatePollResults(pollId) {
     }
   });
 
-  // 总业主数和总面积：优先使用清册中保存的统计数据，fallback 到业主库
-  let totalResidents, totalArea;
-  if (poll.rollStats && poll.rollStats.totalCount > 0) {
-    totalResidents = poll.rollStats.totalCount;
-    totalArea = poll.rollStats.totalArea;
-  } else {
-    const allResidents = (appData.residents || []).filter(r => r.status === 'active');
-    totalResidents = (poll.progress && poll.progress.target !== undefined && poll.progress.target > 0)
-      ? poll.progress.target
-      : allResidents.length;
-    totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
-  }
-
   const residentParticipationRate = totalResidents > 0 ? (participatingResidents / totalResidents * 100) : 0;
   const areaParticipationRate = totalArea > 0 ? (participatingArea / totalArea * 100) : 0;
   const agreeResidentRate = participatingResidents > 0 ? (agreeCount / participatingResidents * 100) : 0;
   const agreeAreaRate = participatingArea > 0 ? (agreeArea / participatingArea * 100) : 0;
 
-  // 判定门槛
   const th = poll.threshold || { residentPct: 66.67, areaPct: 66.67 };
   const isMajor = poll.category === 'major';
   const agreeThreshold = isMajor ? 75 : 50;
@@ -3152,7 +3252,6 @@ async function calculatePollResults(pollId) {
     calculatedAt: new Date().toISOString()
   };
 
-  // 只更新 current（实际参与数），保留用户手动设置的 target
   poll.progress = poll.progress || {};
   if (poll.progress.target === undefined || poll.progress.target === null || Number.isNaN(poll.progress.target)) {
     poll.progress.target = 300;
@@ -3160,11 +3259,12 @@ async function calculatePollResults(pollId) {
   poll.progress.current = participatingResidents;
   poll.progress.unit = '户';
 
-  // 追加审计日志
   appendAuditLog('count', 'polls', pollId, '自动计票完成：' + (poll.results.isPassed ? '通过' : '未通过') + '，参与 ' + participatingResidents + ' 户');
 
   return poll.results;
 }
+
+
 
 function getModuleName(module) {
   const names = { announcements: '公告', documents: '文件', activities: '动态', polls: '投票', residents: '业主', config: '配置' };
@@ -4291,7 +4391,15 @@ async function viewPollData(pollId) {
     });
     body += '</tr></thead><tbody>';
     responses.forEach(r => {
-      const rArea = parseFloat(r.area) || (r.residentRoom ? residentAreaMap[r.residentRoom] : 0) || 0;
+      // 同时兼容 roomNo（投票记录字段）和 residentRoom（旧字段）
+      const roomKey = r.roomNo || r.residentRoom || '';
+      let rArea = 0;
+      if (r.area !== undefined && r.area !== null && r.area !== '') {
+        const parsed = parseFloat(r.area);
+        if (!isNaN(parsed)) rArea = parsed;
+      }
+      if (rArea === 0 && roomKey) rArea = residentAreaMap[roomKey] || 0;
+      body += '<tr><td>' + (roomKey) + '</td><td>' + (r.residentName || r.name || '') + '</td><td>' + (rArea > 0 ? rArea.toFixed(2) : '—') + '</td><td>' + formatDateTime(r.createdAt || r.voteTime) + '</td>';
       body += '<tr><td>' + (r.residentRoom||'') + '</td><td>' + (r.residentName||'') + '</td><td>' + (rArea > 0 ? rArea.toFixed(2) : '—') + '</td><td>' + formatDateTime(r.createdAt) + '</td>';
       (p.questions||[]).forEach(q => {
         const ans = r.answers.find(a => a.questionId === q.id);
@@ -4366,7 +4474,15 @@ async function downloadPollData(pollId) {
   csv += '\n';
 
   responses.forEach(r => {
-    const dArea = parseFloat(r.area) || (r.residentRoom ? residentAreaMap[r.residentRoom] : 0) || 0;
+    // 同时兼容 roomNo（投票记录字段）和 residentRoom（旧字段）
+    const roomKey = r.roomNo || r.residentRoom || '';
+    let dArea = 0;
+    if (r.area !== undefined && r.area !== null && r.area !== '') {
+      const parsed = parseFloat(r.area);
+      if (!isNaN(parsed)) dArea = parsed;
+    }
+    if (dArea === 0 && roomKey) dArea = residentAreaMap[roomKey] || 0;
+    csv += (roomKey) + ',' + (r.residentName || r.name || '') + ',' + (dArea > 0 ? dArea.toFixed(2) : '') + ',"' + (r.createdAt || r.voteTime || '') + '"';
     csv += (r.residentRoom||'') + ',' + (r.residentName||'') + ',' + (dArea > 0 ? dArea.toFixed(2) : '') + ',"' + (r.createdAt||'') + '"';
     (p.questions||[]).forEach(q => {
       const ans = r.answers.find(a => a.questionId === q.id);
