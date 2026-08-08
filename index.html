@@ -1924,47 +1924,44 @@ function renderPollCommonInfo(p) {
     h += '</div>';
   }
 
-  // 关键时间节点汇总
+  // 关键时间节点汇总（始终展示投票时间，其他有则展示）
   var dateBlocks = [];
-  var cs = p.proposalCommentStartDate || p.commentStartDate || p.consultationStartDate || p.consultStartDate || '';
-  var ce = p.proposalCommentEndDate || p.commentEndDate || p.consultationEndDate || p.consultEndDate || '';
+  // 1. 公告方案征求意见期
+  var cs = p.proposalCommentStartDate || p.commentStartDate || p.consultationStartDate || p.consultStartDate || p.proposalStartDate || p.schemeCommentStartDate || '';
+  var ce = p.proposalCommentEndDate || p.commentEndDate || p.consultationEndDate || p.consultEndDate || p.proposalEndDate || p.schemeCommentEndDate || '';
   if (cs || ce) {
     dateBlocks.push({title: '📋 公告方案征求意见期', start: cs, end: ce, color: '#e65100', bg: '#fff3e0'});
   }
-  var ns = p.officialNoticeStartDate || p.formalNoticeStartDate || p.noticeStartDate || p.announcementStartDate || '';
-  var ne = p.officialNoticeEndDate || p.formalNoticeEndDate || p.noticeEndDate || p.announcementEndDate || '';
+  // 2. 正式公告发布期
+  var ns = p.officialNoticeStartDate || p.formalNoticeStartDate || p.noticeStartDate || p.announcementStartDate || p.officialStartDate || p.formalStartDate || '';
+  var ne = p.officialNoticeEndDate || p.formalNoticeEndDate || p.noticeEndDate || p.announcementEndDate || p.officialEndDate || p.formalEndDate || '';
   if (ns || ne) {
     dateBlocks.push({title: '📢 正式公告发布期', start: ns, end: ne, color: '#1565c0', bg: '#e3f2fd'});
   }
-  var rs = p.residentRegisterStartDate || p.registerStartDate || p.publicityStartDate || p.publicityStart || p.publicStartDate || p.publicStart || '';
-  var re = p.residentRegisterEndDate || p.registerEndDate || p.publicityEndDate || p.publicityEnd || p.publicEndDate || p.publicEnd || '';
+  // 3. 业主清册公示期
+  var rs = p.residentRegisterStartDate || p.registerStartDate || p.publicityStartDate || p.publicityStart || p.publicStartDate || p.publicStart || p.residentListStartDate || p.ownerRegisterStartDate || '';
+  var re = p.residentRegisterEndDate || p.registerEndDate || p.publicityEndDate || p.publicityEnd || p.publicEndDate || p.publicEnd || p.residentListEndDate || p.ownerRegisterEndDate || '';
   if (rs || re) {
     dateBlocks.push({title: '🏠 业主清册公示期', start: rs, end: re, color: '#2e7d32', bg: '#e8f5e9'});
   }
-  if (dateBlocks.length > 0) {
-    h += '<div style="margin:16px 0;">';
-    h += '<div style="font-size:14px;font-weight:600;margin-bottom:10px;color:var(--text);">📅 关键时间节点</div>';
-    h += '<div style="display:flex;flex-direction:column;gap:10px;">';
-    dateBlocks.forEach(function(block) {
-      h += '<div style="padding:12px 14px;border-radius:8px;background:' + block.bg + ';border-left:4px solid ' + block.color + ';">';
-      h += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;color:' + block.color + ';">' + block.title + '</div>';
-      h += '<div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text);">';
-      if (block.start) h += '<span>开始日期：<strong>' + block.start + '</strong></span>';
-      if (block.end) h += '<span>结束日期：<strong>' + block.end + '</strong></span>';
-      h += '</div></div>';
-    });
-    var vs = p.startDate || '';
-    var ve = p.endDate || '';
-    if (vs || ve) {
-      h += '<div style="padding:12px 14px;border-radius:8px;background:#f5f7fa;border-left:4px solid var(--primary);">';
-      h += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;color:var(--primary);">🗳️ 投票起止时间</div>';
-      h += '<div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text);">';
-      if (vs) h += '<span>开始日期：<strong>' + vs + '</strong></span>';
-      if (ve) h += '<span>结束日期：<strong>' + ve + '</strong></span>';
-      h += '</div></div>';
-    }
+  // 4. 投票起止时间（始终展示）
+  var vs = p.startDate || p.voteStartDate || p.votingStartDate || '';
+  var ve = p.endDate || p.voteEndDate || p.votingEndDate || '';
+  dateBlocks.push({title: '🗳️ 投票起止时间', start: vs, end: ve, color: 'var(--primary)', bg: '#f5f7fa'});
+
+  // 渲染时间节点
+  h += '<div style="margin:16px 0;">';
+  h += '<div style="font-size:15px;font-weight:600;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">📅</span>关键时间节点</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:10px;">';
+  dateBlocks.forEach(function(block) {
+    h += '<div style="padding:12px 14px;border-radius:8px;background:' + block.bg + ';border-left:4px solid ' + block.color + ';">';
+    h += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;color:' + block.color + ';">' + block.title + '</div>';
+    h += '<div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text);">';
+    if (block.start) h += '<span>开始日期：<strong>' + block.start + '</strong></span>';
+    if (block.end) h += '<span>结束日期：<strong>' + block.end + '</strong></span>';
     h += '</div></div>';
-  }
+  });
+  h += '</div></div>';
 
 
   // 街道备案

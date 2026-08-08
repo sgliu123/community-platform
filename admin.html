@@ -1278,7 +1278,27 @@ function openEditModal(module, id) {
       '<div class="form-group"><label>法律依据</label><input type="text" id="edLegalBasis" value="' + (item.legalBasis||'') + '" placeholder="如：《民法典》第278条"></div></div>' +
       '<div class="form-group"><label>表决门槛（根据事项类型自动设定，不可修改）</label><input type="text" id="edThresholdDisplay" readonly style="background:#f5f5f5;" value="' + thDesc + '"></div>' +
       '<div class="form-group"><label>议事规则PDF *</label>' + createMultiImageUploaderHTML('pollRuleFiles', '请上传议事规则PDF文件', 'application/pdf') + '</div>' +
-      '<div class="form-group"><label>业主清册PDF *</label>' + createMultiImageUploaderHTML('pollRollFiles', '请上传业主清册PDF文件', 'application/pdf') + '</div>' +
+      '<div style="background:#f8f9fa;border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">' +
+'<div style="font-weight:600;margin-bottom:12px;font-size:15px;display:flex;align-items:center;gap:8px;">📋 业主清册 <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（支持模板下载、系统同步、上传覆盖）</span></div>' +
+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">' +
+'<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);text-align:center;">' +
+'<div style="font-size:12px;color:var(--text-secondary);">清册总户数</div>' +
+'<div style="font-size:20px;font-weight:700;color:var(--primary);" id="rollStatCount">—</div>' +
+'</div>' +
+'<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);text-align:center;">' +
+'<div style="font-size:12px;color:var(--text-secondary);">清册总面积</div>' +
+'<div style="font-size:20px;font-weight:700;color:var(--primary);" id="rollStatArea">—</div>' +
+'</div>' +
+'</div>' +
+'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">' +
+'<button type="button" class="btn btn-sm" onclick="downloadRollTemplate()" title="基于当前业主库生成脱敏CSV模板，姓名已脱敏，不含完整手机号和身份证号">📥 下载脱敏清册模板(CSV)</button>' +
+'<button type="button" class="btn btn-sm btn-primary" onclick="syncRollFromResidents()" title="自动从业主库统计总户数和总面积并填入表单">🔄 从业主库自动同步</button>' +
+'</div>' +
+'<div class="form-group" style="margin-bottom:0;">' +
+'<label>上传清册文件（PDF/CSV/Excel）<span style="color:var(--danger);">*</span> <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">上传CSV可自动解析户数和面积；PDF仅作存档。点击已有文件的×删除后可重新上传实现覆盖。</span></label>' +
+createMultiImageUploaderHTML('pollRollFiles', '请上传业主清册文件（PDF/CSV/Excel），支持删除后重新上传覆盖', 'application/pdf,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel') + 
+'</div>' +
+'</div>' +
       '<div class="form-group"><label>业主清册公示期 *（必须在投票开始日期前7日结束公示）</label><div class="form-row" style="grid-template-columns:1fr 1fr;"><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">公示开始日期</label><input type="date" id="edRollStart" value="' + (item.rollPublish&&item.rollPublish.start||'') + '"></div><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">公示结束日期</label><input type="date" id="edRollEnd" value="' + (item.rollPublish&&item.rollPublish.end||'') + '"></div></div></div>' +
       '<div class="form-group"><label>会议通知PDF *</label>' + createMultiImageUploaderHTML('pollMeetingFiles', '请上传会议通知PDF文件', 'application/pdf') + '</div>' +
       '<div class="form-row"><div class="form-group"><label>街道备案号</label><input type="text" id="edStreetRecord" value="' + (item.streetRecord||'') + '" placeholder="如：XX街备[2026]001号，无则留空"></div>' +
@@ -1334,6 +1354,15 @@ function openEditModal(module, id) {
       if (item.ruleFiles && item.ruleFiles.length) setMultiUploadedPaths('pollRuleFiles', item.ruleFiles);
       if (item.rollFiles && item.rollFiles.length) setMultiUploadedPaths('pollRollFiles', item.rollFiles);
       if (item.meetingFiles && item.meetingFiles.length) setMultiUploadedPaths('pollMeetingFiles', item.meetingFiles);
+      // 初始化清册统计显示
+      if (item.rollStats) {
+        updateRollStats(item.rollStats.totalCount, item.rollStats.totalArea);
+      } else {
+        const activeResidents = (appData.residents || []).filter(function(r) { return r.status === 'active'; });
+        const defaultCount = activeResidents.length;
+        const defaultArea = activeResidents.reduce(function(sum, r) { return sum + (parseFloat(r.area) || 0); }, 0);
+        updateRollStats(defaultCount, defaultArea);
+      }
       if (item.consultation) {
         var cs = document.getElementById('edConsultStart');
         var ce = document.getElementById('edConsultEnd');
@@ -1616,6 +1645,16 @@ async function saveItem(module, id) {
     const edTargetVal = document.getElementById('edTarget').value.trim();
     const edCurrentVal = document.getElementById('edCurrent').value.trim();
     const oldProgress = item.progress || {};
+    // 保存清册同步数据
+    if (window._rollSyncData) {
+      item.rollStats = {
+        totalCount: window._rollSyncData.count,
+        totalArea: window._rollSyncData.area,
+        source: window._rollSyncData.source,
+        syncedAt: new Date().toISOString()
+      };
+      window._rollSyncData = null;
+    }
     item.progress = {
       target: edTargetVal !== '' ? parseInt(edTargetVal) : (oldProgress.target !== undefined ? oldProgress.target : 300),
       current: edCurrentVal !== '' ? parseInt(edCurrentVal) : (oldProgress.current !== undefined ? oldProgress.current : 0),
@@ -2588,6 +2627,7 @@ async function processMultiFileUpload(files, id) {
     let folder = 'files';
     let isImage = file.type.startsWith('image/');
     let isPdf = file.type === 'application/pdf';
+    let isRollCSV = (id === 'pollRollFiles') && (/\.(csv|xlsx|xls)$/i.test(file.name));
 
     if (isImage) {
       folder = 'images';
@@ -2597,7 +2637,7 @@ async function processMultiFileUpload(files, id) {
         showToast('"' + file.name + '" 压缩失败：' + e.message, 'error');
         continue;
       }
-    } else if (isPdf) {
+    } else if (isPdf || isRollCSV) {
       folder = 'files';
       if (file.size > 100 * 1024 * 1024) {
         showToast('"' + file.name + '" 超过100MB限制', 'error');
@@ -2613,6 +2653,20 @@ async function processMultiFileUpload(files, id) {
       currentPaths.push(path);
       renderMultiFilePreview(id, currentPaths);
       document.getElementById('count-' + id).textContent = currentPaths.length;
+      // 自动解析清册CSV
+      if (isRollCSV && /\.csv$/i.test(file.name)) {
+        try {
+          const text = await file.text();
+          const result = parseRollCSV(text);
+          if (result && result.count > 0) {
+            updateRollStats(result.count, result.area);
+            const targetInput = document.getElementById('edTarget');
+            if (targetInput) targetInput.value = result.count;
+            window._rollSyncData = { count: result.count, area: result.area, source: 'upload' };
+            showToast('清册解析成功：' + result.count + '户，' + result.area.toFixed(2) + '㎡', 'success');
+          }
+        } catch(e) { console.error('CSV解析失败', e); }
+      }
     } catch(e) {
       showToast('"' + file.name + '" 上传失败：' + e.message, 'error');
     }
@@ -3919,6 +3973,105 @@ function onPollCategoryChange() {
   } else {
     thInput.value = '— 请先选择事项类型 —';
   }
+}
+
+/* ========== 业主清册模板与自动抓取 ========== */
+
+function generateRollTemplateCSV() {
+  const residents = (appData.residents || []).filter(r => r.status === 'active');
+  let csv = '\uFEFF序号,房号,姓名（脱敏）,专有部分面积(m²),人数权重,面积权重,状态,备注\n';
+  let totalArea = 0;
+  residents.forEach((r, i) => {
+    const name = r.name || '';
+    const maskedName = name.length > 1 ? name[0] + '**' : (name || '**');
+    const area = parseFloat(r.area) || 0;
+    totalArea += area;
+    const weightCount = r.voteWeightCount || 1;
+    const weightArea = r.voteWeightArea || area;
+    csv += (i + 1) + ',' + (r.roomNo || '') + ',"' + maskedName + '",' + area.toFixed(2) + ',' + weightCount + ',' + weightArea.toFixed(2) + ',正常,""\n';
+  });
+  csv += '合计,—,—,' + totalArea.toFixed(2) + ',—,—,—,"总户数:' + residents.length + '"\n';
+  return { csv: csv, count: residents.length, area: totalArea };
+}
+
+function downloadRollTemplate() {
+  const result = generateRollTemplateCSV();
+  const blob = new Blob([result.csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const communityName = (appData.config && appData.config.community && appData.config.community.name) || '小区';
+  a.href = url;
+  a.download = '业主清册模板_' + communityName + '_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('脱敏清册模板已下载（共' + result.count + '户）', 'success');
+}
+
+function syncRollFromResidents() {
+  const residents = (appData.residents || []).filter(r => r.status === 'active');
+  const totalCount = residents.length;
+  const totalArea = residents.reduce(function(sum, r) { return sum + (parseFloat(r.area) || 0); }, 0);
+  const targetInput = document.getElementById('edTarget');
+  if (targetInput) targetInput.value = totalCount;
+  updateRollStats(totalCount, totalArea);
+  window._rollSyncData = { count: totalCount, area: totalArea, source: 'residents' };
+  showToast('已从业主库同步：' + totalCount + '户，' + totalArea.toFixed(2) + '㎡', 'success');
+}
+
+function updateRollStats(count, area) {
+  const countEl = document.getElementById('rollStatCount');
+  const areaEl = document.getElementById('rollStatArea');
+  if (countEl) countEl.textContent = (count !== undefined && count !== null) ? count + ' 户' : '—';
+  if (areaEl) areaEl.textContent = (area !== undefined && area !== null) ? area.toFixed(2) + ' ㎡' : '—';
+}
+
+function parseRollCSV(text) {
+  const lines = text.split(/\r?\n/).filter(function(l) { return l.trim(); });
+  if (lines.length < 2) return null;
+  const parseLine = function(line) {
+    const result = [];
+    let inQuotes = false;
+    let current = '';
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+  const headers = parseLine(lines[0]);
+  const areaIndex = headers.findIndex(function(h) { return /面积|area|㎡/i.test(h); });
+  const isTotalRow = function(parts) { return parts.some(function(p) { return /合计|总户数|总计|total/i.test(p); }); };
+  let count = 0;
+  let area = 0;
+  let totalAreaFromSummary = 0;
+  for (let i = 1; i < lines.length; i++) {
+    const parts = parseLine(lines[i]);
+    if (parts.length < 3) continue;
+    if (isTotalRow(parts)) {
+      if (areaIndex >= 0) {
+        const val = parseFloat(parts[areaIndex]);
+        if (!isNaN(val)) totalAreaFromSummary = val;
+      }
+      continue;
+    }
+    count++;
+    if (areaIndex >= 0) {
+      const val = parseFloat(parts[areaIndex]);
+      if (!isNaN(val)) area += val;
+    }
+  }
+  if (totalAreaFromSummary > 0 && Math.abs(totalAreaFromSummary - area) < 1) {
+    area = totalAreaFromSummary;
+  }
+  return { count: count, area: area };
 }
 
 function validatePollCompliance() {
