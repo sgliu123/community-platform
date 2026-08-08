@@ -1848,8 +1848,8 @@ function renderPollCommonInfo(p) {
   h += '<h1>' + escapeHtml(p.title || '') + '</h1>';
 
   h += '<div class="detail-meta" style="margin-bottom:16px;">';
-  h += '<span>开始：' + (p.startDate || '--') + '</span>';
-  h += '<span>截止：' + (p.endDate || '--') + '</span>';
+  h += '<span>🗳️ 投票开始：' + (p.startDate || '--') + '</span>';
+  h += '<span>🗳️ 投票截止：' + (p.endDate || '--') + '</span>';
   h += '<span>发起：' + escapeHtml(p.createdBy || '') + '</span>';
   h += '</div>';
 
@@ -1928,10 +1928,13 @@ function renderPollCommonInfo(p) {
   var pubStart = p.publicityStartDate || p.publicityStart || p.publicStartDate || p.publicStart || '';
   var pubEnd = p.publicityEndDate || p.publicityEnd || p.publicEndDate || p.publicEnd || '';
   if (pubStart || pubEnd) {
-    h += '<div style="margin:16px 0;padding:14px;background:#fff8e1;border-radius:8px;border-left:4px solid #f9a825;">';
-    h += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">📋 业主清册公示期</div>';
-    h += '<div style="font-size:13px;color:var(--text-secondary);">公示开始：<strong>' + (pubStart || '--') + '</strong> &nbsp; 公示结束：<strong>' + (pubEnd || '--') + '</strong></div>';
-    if (p.publicityNote) h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + escapeHtml(p.publicityNote) + '</div>';
+    h += '<div style="margin:12px 0;padding:14px;background:#fff8e1;border-radius:8px;border-left:4px solid #f9a825;">';
+    h += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">📋 方案公告（业主清册公示期）</div>';
+    h += '<div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;">';
+    h += '<span>📢 公告开始：<strong style="color:#e65100;">' + (pubStart || '--') + '</strong></span>';
+    h += '<span>📢 公告结束：<strong style="color:#e65100;">' + (pubEnd || '--') + '</strong></span>';
+    h += '</div>';
+    if (p.publicityNote) h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">' + escapeHtml(p.publicityNote) + '</div>';
     h += '</div>';
   }
 
