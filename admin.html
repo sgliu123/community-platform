@@ -3063,6 +3063,12 @@ async function calculatePollResults(pollId) {
   let agreeCount = 0;
   let agreeArea = 0;
 
+  // 建立房号→面积映射，用于投票记录中缺失面积时自动补全
+  const residentAreaMap = {};
+  (appData.residents || []).forEach(r => {
+    if (r.roomNo) residentAreaMap[r.roomNo] = parseFloat(r.area) || 0;
+  });
+
   pollVotes.forEach(v => {
     // 生成去重键：优先 residentId，其次 roomNo，最后 name+phoneSuffix
     let dedupKey = v.residentId;
@@ -3072,19 +3078,29 @@ async function calculatePollResults(pollId) {
     if (!dedupKey) dedupKey = 'idx:' + (v._idx || Math.random());
     if (seen.has(dedupKey)) return;
     seen.add(dedupKey);
-    participatingResidents++;
-    participatingArea += parseFloat(v.area) || 0;
 
-    // 第一题为"是否同意"，检查 choice 中第一题的值是否含"同意"
+    // 从投票记录或 residents 映射中获取面积（自动关联补全）
+    let area = parseFloat(v.area) || 0;
+    if (!area && v.roomNo) area = residentAreaMap[v.roomNo] || 0;
+    if (!area && v.residentRoom) area = residentAreaMap[v.residentRoom] || 0;
+
+    participatingResidents++;
+    participatingArea += area;
+
+    // 第一题为"是否同意"，兼容 choice（旧格式）和 answers（本地问卷）两种格式
+    let val = null;
     if (v.choice && v.choice.length > 0) {
-      const firstAns = v.choice[0];
-      let val = firstAns ? firstAns.value : null;
-      if (val) {
-        const valStr = Array.isArray(val) ? val.join(',') : String(val);
-        if (valStr.includes('同意')) {
-          agreeCount++;
-          agreeArea += parseFloat(v.area) || 0;
-        }
+      val = v.choice[0].value;
+    } else if (v.answers && v.answers.length > 0 && poll.questions && poll.questions.length > 0) {
+      const firstQ = poll.questions[0];
+      const firstAns = v.answers.find(a => a.questionId === firstQ.id);
+      if (firstAns) val = firstAns.value;
+    }
+    if (val) {
+      const valStr = Array.isArray(val) ? val.join(',') : String(val);
+      if (valStr.includes('同意')) {
+        agreeCount++;
+        agreeArea += area;
       }
     }
   });
@@ -4256,6 +4272,12 @@ async function viewPollData(pollId) {
   } catch(e) { responses = []; }
   showLoading(false);
 
+  // 建立房号→面积映射，用于数据展示时自动补全面积
+  const residentAreaMap = {};
+  (appData.residents || []).forEach(r => {
+    if (r.roomNo) residentAreaMap[r.roomNo] = parseFloat(r.area) || 0;
+  });
+
   document.getElementById('modalTitle').textContent = '📊 问卷数据：' + p.title;
   let body = '<div style="margin-bottom:12px;"><span style="font-size:13px;color:var(--text-secondary);">共 ' + responses.length + ' 人参与</span>';
   body += '<button class="btn btn-sm" onclick="downloadPollData(\'' + pollId + '\')" style="margin-left:12px;">📥 下载CSV</button></div>';
@@ -4263,13 +4285,14 @@ async function viewPollData(pollId) {
   if(!responses.length) {
     body += '<div class="empty-state"><div class="icon">📊</div><div>暂无数据</div></div>';
   } else {
-    body += '<div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>房号</th><th>姓名</th><th>提交时间</th>';
+    body += '<div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>房号</th><th>姓名</th><th>面积(㎡)</th><th>提交时间</th>';
     (p.questions||[]).forEach(q => {
       body += '<th>' + escapeHtml(q.title) + '</th>';
     });
     body += '</tr></thead><tbody>';
     responses.forEach(r => {
-      body += '<tr><td>' + (r.residentRoom||'') + '</td><td>' + (r.residentName||'') + '</td><td>' + formatDateTime(r.createdAt) + '</td>';
+      const rArea = parseFloat(r.area) || (r.residentRoom ? residentAreaMap[r.residentRoom] : 0) || 0;
+      body += '<tr><td>' + (r.residentRoom||'') + '</td><td>' + (r.residentName||'') + '</td><td>' + (rArea > 0 ? rArea.toFixed(2) : '—') + '</td><td>' + formatDateTime(r.createdAt) + '</td>';
       (p.questions||[]).forEach(q => {
         const ans = r.answers.find(a => a.questionId === q.id);
         let val = '';
@@ -4329,15 +4352,22 @@ async function downloadPollData(pollId) {
   } catch(e) { responses = []; }
   showLoading(false);
 
+  // 建立房号→面积映射，用于CSV导出时自动补全面积
+  const residentAreaMap = {};
+  (appData.residents || []).forEach(r => {
+    if (r.roomNo) residentAreaMap[r.roomNo] = parseFloat(r.area) || 0;
+  });
+
   let csv = '\uFEFF';
-  csv += '房号,姓名,提交时间';
+  csv += '房号,姓名,面积(㎡),提交时间';
   (p.questions||[]).forEach(q => {
     csv += ',"' + (q.title||'').replace(/"/g, '""') + '"';
   });
   csv += '\n';
 
   responses.forEach(r => {
-    csv += (r.residentRoom||'') + ',' + (r.residentName||'') + ',"' + (r.createdAt||'') + '"';
+    const dArea = parseFloat(r.area) || (r.residentRoom ? residentAreaMap[r.residentRoom] : 0) || 0;
+    csv += (r.residentRoom||'') + ',' + (r.residentName||'') + ',' + (dArea > 0 ? dArea.toFixed(2) : '') + ',"' + (r.createdAt||'') + '"';
     (p.questions||[]).forEach(q => {
       const ans = r.answers.find(a => a.questionId === q.id);
       let val = '';
