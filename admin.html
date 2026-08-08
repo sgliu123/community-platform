@@ -1272,8 +1272,8 @@ function openEditModal(module, id) {
     body = '<div id="pollValidationErrors" style="color:var(--danger);font-size:13px;margin-bottom:12px;padding:10px;background:#ffebee;border-radius:6px;display:none;"></div>' +
       '<div class="form-group"><label>案卷编号</label><input type="text" id="edCaseNo" value="' + (item.caseNo||nextCaseNo) + '" ' + (!isNew?'readonly style="background:#f5f5f5;"':'') + '></div>' +
       '<div class="form-group"><label>标题</label><input type="text" id="edTitle" value="' + (item.title||'') + '"></div>' +
-      '<div class="form-row"><div class="form-group"><label>公告方案征求意见期</label><div class="form-row" style="grid-template-columns:1fr 1fr;"><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">开始日期</label><input type="date" id="edConsultStart" value="' + (item.consultation&&item.consultation.start||'') + '"></div><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">结束日期</label><input type="date" id="edConsultEnd" value="' + (item.consultation&&item.consultation.end||'') + '"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">法定7天</div></div>' +
-      '<div class="form-group"><label>正式公告发布期</label><div class="form-row" style="grid-template-columns:1fr 1fr;"><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">开始日期</label><input type="date" id="edAnnounceStart" value="' + (item.announcement&&item.announcement.start||'') + '" onchange="autoFillPollDates(this.value)"></div><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">结束日期</label><input type="date" id="edAnnounceEnd" value="' + (item.announcement&&item.announcement.end||'') + '"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">输入后自动生成后续节点</div></div></div>' +
+      '<div class="form-row"><div class="form-group"><label>公告方案征求意见期</label><div class="form-row" style="grid-template-columns:1fr 1fr;"><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">开始日期</label><input type="date" id="edConsultStart" value="' + (item.consultation&&item.consultation.start||'') + '" onchange="autoFillPollDates(this.value)"></div><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">结束日期</label><input type="date" id="edConsultEnd" value="' + (item.consultation&&item.consultation.end||'') + '"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">法定7天</div></div>' +
+      '<div class="form-group"><label>正式公告发布期</label><div class="form-row" style="grid-template-columns:1fr 1fr;"><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">开始日期</label><input type="date" id="edAnnounceStart" value="' + (item.announcement&&item.announcement.start||'') + '"></div><div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">结束日期</label><input type="date" id="edAnnounceEnd" value="' + (item.announcement&&item.announcement.end||'') + '"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">输入后自动生成后续节点</div></div></div>' +
       '<div class="form-row"><div class="form-group"><label>事项类型 *</label><select id="edCategory" onchange="onPollCategoryChange()"><option value="">— 请选择 —</option><option value="general" '+(item.category==='general'?'selected':'')+'>一般事项</option><option value="major" '+(item.category==='major'?'selected':'')+'>重大事项</option></select></div>' +
       '<div class="form-group"><label>法律依据</label><input type="text" id="edLegalBasis" value="' + (item.legalBasis||'') + '" placeholder="如：《民法典》第278条"></div></div>' +
       '<div class="form-group"><label>表决门槛（根据事项类型自动设定，不可修改）</label><input type="text" id="edThresholdDisplay" readonly style="background:#f5f5f5;" value="' + thDesc + '"></div>' +
@@ -1422,27 +1422,31 @@ function formatDate(date) {
   return y + '-' + m + '-' + day;
 }
 
-function autoFillPollDates(announceStartStr) {
-  if (!announceStartStr) return;
-  const announceStart = new Date(announceStartStr);
-  const consultEnd = new Date(announceStart);
-  consultEnd.setDate(consultEnd.getDate() - 1);
-  const consultStart = new Date(consultEnd);
-  consultStart.setDate(consultStart.getDate() - 6);
+function autoFillPollDates(consultStartStr) {
+  if (!consultStartStr) return;
+  const consultStart = new Date(consultStartStr);
+  const consultEnd = new Date(consultStart);
+  consultEnd.setDate(consultEnd.getDate() + 6);
+  const announceStart = new Date(consultEnd);
+  announceStart.setDate(announceStart.getDate() + 1);
+  const announceEnd = new Date(announceStart);
   const voteStart = new Date(announceStart);
   voteStart.setDate(voteStart.getDate() + 15);
+  const voteEnd = new Date(voteStart);
+  voteEnd.setDate(voteEnd.getDate() + 7);
   const rollEnd = new Date(voteStart);
-  rollEnd.setDate(rollEnd.getDate() - 7);
+  rollEnd.setDate(rollEnd.getDate() - 1);
   const rollStart = new Date(rollEnd);
   rollStart.setDate(rollStart.getDate() - 6);
-  document.getElementById('edConsultStart').value = formatDate(consultStart);
   document.getElementById('edConsultEnd').value = formatDate(consultEnd);
-  document.getElementById('edAnnounceEnd').value = formatDate(announceStart);
-  document.getElementById('edStart').value = formatDate(voteStart);
+  document.getElementById('edAnnounceStart').value = formatDate(announceStart);
+  document.getElementById('edAnnounceEnd').value = formatDate(announceEnd);
   document.getElementById('edRollStart').value = formatDate(rollStart);
   document.getElementById('edRollEnd').value = formatDate(rollEnd);
+  document.getElementById('edStart').value = formatDate(voteStart);
+  document.getElementById('edEnd').value = formatDate(voteEnd);
   const thDisplay = document.getElementById('edThresholdDisplay');
-  if (thDisplay) thDisplay.value = '当前时间线：征求意见7天 → 正式公告≥15天 → 清册公示7天 → 投票';
+  if (thDisplay) thDisplay.value = '当前时间线：征求意见7天 → 正式公告≥15天 → 清册公示7天 → 投票7天';
 }
 
 function closeModal() {
