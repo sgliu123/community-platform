@@ -3089,12 +3089,18 @@ async function calculatePollResults(pollId) {
     }
   });
 
-  // 总业主数和总面积
-  const allResidents = (appData.residents || []).filter(r => r.status === 'active');
-  const totalResidents = (poll.progress && poll.progress.target !== undefined && poll.progress.target > 0)
-    ? poll.progress.target
-    : allResidents.length;
-  const totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
+  // 总业主数和总面积：优先使用清册中保存的统计数据，fallback 到业主库
+  let totalResidents, totalArea;
+  if (poll.rollStats && poll.rollStats.totalCount > 0) {
+    totalResidents = poll.rollStats.totalCount;
+    totalArea = poll.rollStats.totalArea;
+  } else {
+    const allResidents = (appData.residents || []).filter(r => r.status === 'active');
+    totalResidents = (poll.progress && poll.progress.target !== undefined && poll.progress.target > 0)
+      ? poll.progress.target
+      : allResidents.length;
+    totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
+  }
 
   const residentParticipationRate = totalResidents > 0 ? (participatingResidents / totalResidents * 100) : 0;
   const areaParticipationRate = totalArea > 0 ? (participatingArea / totalArea * 100) : 0;
@@ -4015,7 +4021,11 @@ function syncRollFromResidents() {
   if (targetInput) targetInput.value = totalCount;
   updateRollStats(totalCount, totalArea);
   window._rollSyncData = { count: totalCount, area: totalArea, source: 'residents' };
-  showToast('已从业主库同步：' + totalCount + '户，' + totalArea.toFixed(2) + '㎡', 'success');
+  if (totalArea <= 0 && totalCount > 0) {
+    showToast('⚠️ 业主库中面积数据为空，请先在「业主管理」中补录各户面积，或上传带面积的CSV清册', 'warning');
+  } else {
+    showToast('已从业主库同步：' + totalCount + '户，' + totalArea.toFixed(2) + '㎡', 'success');
+  }
 }
 
 function updateRollStats(count, area) {
@@ -4026,6 +4036,8 @@ function updateRollStats(count, area) {
 }
 
 function parseRollCSV(text) {
+  // 去除 BOM
+  if (text.charCodeAt(0) === 0xFEFF) text = text.substring(1);
   const lines = text.split(/\r?\n/).filter(function(l) { return l.trim(); });
   if (lines.length < 2) return null;
   const parseLine = function(line) {
@@ -4047,8 +4059,13 @@ function parseRollCSV(text) {
     return result;
   };
   const headers = parseLine(lines[0]);
-  const areaIndex = headers.findIndex(function(h) { return /面积|area|㎡/i.test(h); });
-  const isTotalRow = function(parts) { return parts.some(function(p) { return /合计|总户数|总计|total/i.test(p); }); };
+  // 增强面积列匹配：支持 m²、m^2、平米、㎡ 等多种写法
+  const areaIndex = headers.findIndex(function(h) {
+    return /面积|area|㎡|m\^?2|平米|square|建筑.*面积|专有.*面积/i.test(h);
+  });
+  const isTotalRow = function(parts) {
+    return parts.some(function(p) { return /合计|总户数|总计|total|summary/i.test(p); });
+  };
   let count = 0;
   let area = 0;
   let totalAreaFromSummary = 0;
@@ -4058,7 +4075,7 @@ function parseRollCSV(text) {
     if (isTotalRow(parts)) {
       if (areaIndex >= 0) {
         const val = parseFloat(parts[areaIndex]);
-        if (!isNaN(val)) totalAreaFromSummary = val;
+        if (!isNaN(val) && val > 0) totalAreaFromSummary = val;
       }
       continue;
     }
@@ -4068,7 +4085,8 @@ function parseRollCSV(text) {
       if (!isNaN(val)) area += val;
     }
   }
-  if (totalAreaFromSummary > 0 && Math.abs(totalAreaFromSummary - area) < 1) {
+  // 如果合计行提供了总面积且与累加值接近，以合计行为准（处理四舍五入差异）
+  if (totalAreaFromSummary > 0 && Math.abs(totalAreaFromSummary - area) < count * 0.5) {
     area = totalAreaFromSummary;
   }
   return { count: count, area: area };
