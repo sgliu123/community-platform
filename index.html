@@ -1771,71 +1771,194 @@ function closeExternalModal(modalId) {
   }
 }
 
+function collectPollAttachments(p) {
+  var attachments = [];
+  var fields = [
+    { key: 'rulePdfs', label: '议事规则PDF' },
+    { key: 'rulePdf', label: '议事规则PDF' },
+    { key: 'meetingRulePdfs', label: '议事规则PDF' },
+    { key: 'meetingRulePdf', label: '议事规则PDF' },
+    { key: 'registerPdfs', label: '业主清册PDF' },
+    { key: 'registerPdf', label: '业主清册PDF' },
+    { key: 'residentRegisterPdfs', label: '业主清册PDF' },
+    { key: 'residentRegisterPdf', label: '业主清册PDF' },
+    { key: 'noticePdfs', label: '会议通知PDF' },
+    { key: 'noticePdf', label: '会议通知PDF' },
+    { key: 'meetingNoticePdfs', label: '会议通知PDF' },
+    { key: 'meetingNoticePdf', label: '会议通知PDF' },
+    { key: 'attachments', label: null }
+  ];
+  fields.forEach(function(f) {
+    var val = p[f.key];
+    if (!val) return;
+    if (Array.isArray(val)) {
+      val.forEach(function(item) {
+        if (typeof item === 'string') {
+          attachments.push({ url: item, name: f.label || '附件', category: f.label });
+        } else if (item && typeof item === 'object') {
+          attachments.push({
+            url: item.url || item.fileUrl || item.src || '',
+            name: item.name || item.fileName || item.title || f.label || '附件',
+            category: f.label || item.category || item.type || '附件'
+          });
+        }
+      });
+    } else if (typeof val === 'string') {
+      attachments.push({ url: val, name: f.label || '附件', category: f.label });
+    }
+  });
+  return attachments;
+}
+
+function renderPollCommonInfo(p) {
+  var h = '';
+  var sc = p.status === "进行中" ? "status-ongoing" : (p.status === "预告" ? "status-upcoming" : "status-ended");
+
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">';
+  h += '<span class="status-tag ' + sc + '">' + p.status + '</span>';
+  h += '<span style="font-size:13px;color:var(--text-secondary);">案卷号：' + (p.caseNo || '-') + '</span>';
+  if (p.type) h += '<span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#e3f2fd;color:#1565c0;font-weight:600;">' + p.type + '</span>';
+  if (p.mode === 'local') h += '<span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#e8f5e9;color:#2e7d32;font-weight:600;">本地问卷</span>';
+  h += '</div>';
+
+  h += '<h1>' + escapeHtml(p.title || '') + '</h1>';
+
+  h += '<div class="detail-meta" style="margin-bottom:16px;">';
+  h += '<span>开始：' + (p.startDate || '--') + '</span>';
+  h += '<span>截止：' + (p.endDate || '--') + '</span>';
+  h += '<span>发起：' + escapeHtml(p.createdBy || '') + '</span>';
+  h += '</div>';
+
+  if (p.legalBasis || p.threshold) {
+    h += '<div style="margin:16px 0;padding:14px;background:#f0f7ff;border-radius:8px;border-left:4px solid #1976d2;">';
+    if (p.legalBasis) h += '<div style="font-size:13px;margin-bottom:6px;"><strong>法律依据：</strong>' + escapeHtml(p.legalBasis) + '</div>';
+    if (p.threshold) h += '<div style="font-size:13px;"><strong>表决门槛：</strong>' + escapeHtml(p.threshold) + '</div>';
+    h += '</div>';
+  }
+
+  if (p.description) {
+    h += '<div class="detail-content" style="margin-bottom:16px;">' + renderInlineMedia(p.description) + '</div>';
+  }
+
+  var attachments = collectPollAttachments(p);
+  if (attachments.length) {
+    h += '<div style="margin:20px 0;padding-top:16px;border-top:1px solid var(--border);">';
+    h += '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;">📎 相关附件</div>';
+    attachments.forEach(function(att) {
+      var url = att.url || '';
+      var name = att.name || '附件';
+      var isPdf = /\.pdf$/i.test(url);
+      var isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(url);
+      h += '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:10px;padding:12px;background:#f8f9fa;border-radius:8px;margin-bottom:8px;text-decoration:none;color:var(--text);border:1px solid var(--border);transition:all .2s;" onmouseover="this.style.borderColor=\'var(--primary)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+      h += '<span style="font-size:20px;">' + (isPdf ? '📄' : isImg ? '🖼️' : '📎') + '</span>';
+      h += '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(name) + '</div>';
+      if (att.category) h += '<div style="font-size:11px;color:var(--text-secondary);">' + att.category + '</div>';
+      h += '</div>';
+      h += '<span style="font-size:12px;color:var(--text-secondary);flex-shrink:0;">' + (isPdf ? '预览 ↓' : '查看 ↓') + '</span>';
+      h += '</a>';
+      if (isPdf) {
+        h += '<div style="margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;">';
+        h += '<iframe src="' + url + '" style="width:100%;height:400px;border:none;display:block;" title="' + escapeHtml(name) + '" loading="lazy"></iframe>';
+        h += '</div>';
+      } else if (isImg) {
+        h += '<div style="margin-bottom:12px;"><img src="' + url + '" style="max-width:100%;border-radius:8px;border:1px solid var(--border);display:block;" loading="lazy" onerror="this.style.display=\'none\'"></div>';
+      }
+    });
+    h += '</div>';
+  }
+
+  if (p.publicityStartDate || p.publicityEndDate) {
+    h += '<div style="margin:16px 0;padding:14px;background:#fff8e1;border-radius:8px;border-left:4px solid #f9a825;">';
+    h += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">📋 业主清册公示期</div>';
+    h += '<div style="font-size:13px;color:var(--text-secondary);">公示开始：<strong>' + (p.publicityStartDate || '--') + '</strong> &nbsp; 公示结束：<strong>' + (p.publicityEndDate || '--') + '</strong></div>';
+    if (p.publicityNote) h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + escapeHtml(p.publicityNote) + '</div>';
+    h += '</div>';
+  }
+
+  if (p.streetRecordNo || p.streetRecordSkipped) {
+    h += '<div style="margin:12px 0;font-size:13px;color:var(--text-secondary);">';
+    if (p.streetRecordNo) h += '🏛️ 街道备案号：<strong>' + escapeHtml(p.streetRecordNo) + '</strong>';
+    if (p.streetRecordSkipped) h += '🏛️ 街道备案：<span style="color:var(--primary);">当地无街道备案要求，已确认跳过</span>';
+    h += '</div>';
+  }
+
+  if (p.questions && p.questions.length) {
+    h += '<div style="margin:20px 0;padding-top:16px;border-top:1px solid var(--border);">';
+    h += '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;">📝 问卷题目预览</div>';
+    h += '<div style="background:#fafbfc;border-radius:8px;padding:16px;border:1px solid #eef0f2;">';
+    p.questions.forEach(function(q, idx) {
+      h += '<div style="margin-bottom:14px;' + (idx < p.questions.length - 1 ? 'padding-bottom:14px;border-bottom:1px dashed #e0e0e0;' : '') + '">';
+      h += '<div style="font-weight:600;margin-bottom:8px;">' + (idx+1) + '. ' + escapeHtml(q.title) + (q.required ? '<span style="color:#c62828;margin-left:4px;">*</span>' : '') + '</div>';
+      if (q.type === 'single' || q.type === 'multiple') {
+        h += '<div style="display:flex;flex-direction:column;gap:6px;">';
+        (q.options || []).forEach(function(opt) {
+          h += '<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);padding:4px 8px;background:#fff;border-radius:4px;">';
+          h += '<span style="width:14px;height:14px;border:1px solid #ccc;border-radius:' + (q.type==='single'?'50%':'3px') + ';display:inline-block;flex-shrink:0;"></span>';
+          h += escapeHtml(opt);
+          h += '</div>';
+        });
+        h += '</div>';
+      } else if (q.type === 'text') {
+        h += '<div style="font-size:13px;color:var(--text-secondary);padding:8px;background:#fff;border-radius:4px;border:1px solid #e0e0e0;">简答题</div>';
+      }
+      h += '</div>';
+    });
+    h += '</div></div>';
+  }
+
+  var target = p.targetUnits || (p.progress && p.progress.target) || 0;
+  var current = p.currentParticipants || (p.progress && p.progress.current) || 0;
+  var unit = (p.progress && p.progress.unit) ? p.progress.unit : (p.unit || '户');
+  var pct = target > 0 ? Math.round(current / target * 100) : 0;
+
+  h += '<div style="margin:20px 0;padding:16px;background:#f8f9fa;border-radius:8px;">';
+  h += '<div style="font-weight:600;margin-bottom:8px;">📊 参与统计</div>';
+  h += '<div class="poll-progress"><div class="poll-progress-bar" style="width:' + pct + '%">' + pct + '%</div></div>';
+  h += '<div class="poll-stats"><span>当前参与：' + current + ' ' + unit + '</span><span>目标：' + target + ' ' + unit + '</span></div>';
+  if (p.participationRate) h += '<div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">参与率：' + p.participationRate + '</div>';
+  h += '</div>';
+
+  if (p.voteResult || p.results) {
+    var vr = p.voteResult || p.results;
+    h += '<div style="margin:20px 0;padding:16px;background:#e8f5e9;border-radius:8px;">';
+    h += '<div style="font-weight:600;margin-bottom:8px;">📋 计票结果</div>';
+    if (vr.isPublished || vr.published) {
+      if (vr.summary) h += '<div style="font-size:14px;line-height:1.6;">' + escapeHtml(vr.summary) + '</div>';
+      if (vr.detailUrl) h += '<a href="' + vr.detailUrl + '" target="_blank" style="font-size:13px;color:var(--primary);text-decoration:underline;">查看详细结果 →</a>';
+      if (vr.calculatedAt) h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">计算时间：' + vr.calculatedAt + '</div>';
+    } else {
+      h += '<div style="font-size:13px;color:var(--text-secondary);">计票结果尚未公示</div>';
+    }
+    h += '</div>';
+  }
+
+  return h;
+}
+
 function renderPollDetail(id) {
   const p = (appData.polls||[]).find(x => x.id === id);
   if (!p) return '<div class="empty">投票不存在</div>';
   if (p.mode === 'local') {
     return renderLocalPollDetail(p);
   }
-  const pct = Math.round((p.progress?.current||0)/(p.progress?.target||1)*100);
-  const sc = p.status === "进行中" ? "status-ongoing" : (p.status === "预告" ? "status-upcoming" : "status-ended");
-  const canJoin = p.status === "进行中";
   let h = '<div class="card"><div class="detail-header">';
-  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span class="status-tag ' + sc + '">' + p.status + '</span><span style="font-size:13px;color:var(--text-secondary);">案卷号：' + p.caseNo + '</span></div>';
-  h += '<h1>' + p.title + '</h1><div class="detail-meta">';
-  h += '<span>开始：' + p.startDate + '</span><span>截止：' + p.endDate + '</span><span>发起：' + p.createdBy + '</span></div></div>';
-  h += '<div class="detail-content">' + p.description + '</div>';
-  h += '<div style="margin:20px 0;padding:16px;background:#f8f9fa;border-radius:8px;"><div style="font-weight:600;margin-bottom:8px;">参与进度</div>';
-  h += '<div class="poll-progress"><div class="poll-progress-bar" style="width:' + pct + '%">' + pct + '%</div></div>';
-  h += '<div class="poll-stats"><span>当前参与：' + (p.progress?.current||0) + ' ' + (p.progress?.unit||"户") + '</span><span>目标：' + (p.progress?.target||0) + ' ' + (p.progress?.unit||"户") + '</span></div></div>';
+  h += renderPollCommonInfo(p);
+  h += '</div>';
+
+  const canJoin = p.status === "进行中";
   if (canJoin) {
     if (residentAuth) h += `<button onclick="joinPoll('${p.id}')" class="poll-btn">我要参与</button>`;
     else h += '<button onclick="showLogin()" class="poll-btn" style="background:#888;">🔒 请登录后参与</button>';
   }
-  if (p.results && p.results.isPublished) {
-    h += '<div style="margin-top:20px;padding:16px;background:#e8f5e9;border-radius:8px;"><div style="font-weight:600;margin-bottom:8px;">📊 结果公示</div><div style="font-size:14px;">' + p.results.summary + '</div></div>';
-  }
+
   h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
   return h;
 }
-function joinPoll(pollId, event) {
-  if (event) event.stopPropagation();
-  if (!residentAuth) { window._pendingPollId = pollId; showLogin(); return; }
-  const p = (appData.polls||[]).find(x => x.id === pollId);
-  if (!p) { alert('投票不存在'); return; }
-  if (p.mode === 'local') {
-    navigate('poll-detail', pollId);
-  } else {
-    if (p && p.tencentUrl) {
-      window.open(p.tencentUrl, '_blank');
-    } else { alert('暂无可参与的问卷链接'); }
-  }
-}
-
-
-/* ===== 本地问卷系统 ===== */
-async function loadPollResponses(pollId) {
-  const d = new Date();
-  const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
-  try {
-    const all = await workerRead(path);
-    return all.filter(x => x.pollId === pollId);
-  } catch(e) { return []; }
-}
 
 function renderLocalPollDetail(p) {
-  const pct = Math.round((p.progress?.current||0)/(p.progress?.target||1)*100);
-  const sc = p.status === "进行中" ? "status-ongoing" : (p.status === "预告" ? "status-upcoming" : "status-ended");
   let h = '<div class="card"><div class="detail-header">';
-  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;"><span class="status-tag ' + sc + '">' + p.status + '</span>';
-  h += '<span style="font-size:13px;color:var(--text-secondary);">案卷号：' + p.caseNo + '</span>';
-  h += '<span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#e3f2fd;color:#1565c0;font-weight:600;">本地问卷</span></div>';
-  h += '<h1>' + p.title + '</h1><div class="detail-meta">';
-  h += '<span>开始：' + p.startDate + '</span><span>截止：' + p.endDate + '</span><span>发起：' + p.createdBy + '</span></div></div>';
-  h += '<div class="detail-content">' + (p.description||'') + '</div>';
-  h += '<div style="margin:20px 0;padding:16px;background:#f8f9fa;border-radius:8px;"><div style="font-weight:600;margin-bottom:8px;">参与进度</div>';
-  h += '<div class="poll-progress"><div class="poll-progress-bar" style="width:' + pct + '%">' + pct + '%</div></div>';
-  h += '<div class="poll-stats"><span>当前参与：' + (p.progress?.current||0) + ' ' + (p.progress?.unit||"户") + '</span><span>目标：' + (p.progress?.target||0) + ' ' + (p.progress?.unit||"户") + '</span></div></div>';
+  h += renderPollCommonInfo(p);
+  h += '</div>';
   h += '<div id="localPollContainer"><div class="loading">加载问卷中...</div></div>';
   h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
   setTimeout(function() { initLocalPoll(p); }, 50);
