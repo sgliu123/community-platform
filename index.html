@@ -2050,22 +2050,25 @@ async function initLocalPoll(p) {
     container.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:32px;margin-bottom:12px;">🔒</div><div style="font-size:15px;margin-bottom:16px;">请登录后参与问卷</div><button class="poll-btn" onclick="showLogin()">业主登录</button></div>';
     return;
   }
+
+  // 检查投票时间段
+  var timeCheck = isPollActive(p);
+  if (!timeCheck.ok) {
+    container.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:32px;margin-bottom:12px;">⏰</div><div style="font-size:15px;margin-bottom:8px;">' + timeCheck.reason + '</div><div style="font-size:13px;color:var(--text-secondary);">投票时间：' + (p.startDate||'--') + ' 至 ' + (p.endDate||'--') + '</div></div>';
+    return;
+  }
+
   try {
     const responses = await loadPollResponses(p.id);
-    const hasVoted = responses.some(r => r.residentRoom === residentAuth.roomNo);
-    if (p.status !== '进行中' || hasVoted) {
-      container.innerHTML = renderLocalPollResults(p, responses, hasVoted);
+    const hasVoted = responses.some(function(r) { return r.residentRoom === residentAuth.roomNo; });
+    if (hasVoted) {
+      container.innerHTML = renderLocalPollResults(p, responses, true);
     } else {
       container.innerHTML = renderLocalPollForm(p);
     }
   } catch(e) {
     console.error('initLocalPoll error', e);
-    // 加载失败时直接显示问卷表单，不让用户卡住
-    if (p.status === '进行中') {
-      container.innerHTML = renderLocalPollForm(p);
-    } else {
-      container.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">问卷加载失败，请刷新重试</div>';
-    }
+    container.innerHTML = renderLocalPollForm(p);
   }
 }
 
@@ -2144,10 +2147,41 @@ function renderLocalPollResults(p, responses, hasVoted) {
   return h;
 }
 
+function isPollActive(p) {
+  // 检查投票是否在有效时间段内
+  var now = new Date();
+  var start = p.startDate ? new Date(p.startDate.replace(/-/g, '/')) : null;
+  var end = p.endDate ? new Date(p.endDate.replace(/-/g, '/')) : null;
+  // 将结束时间设为当天23:59:59
+  if (end) { end.setHours(23, 59, 59, 999); }
+  if (start && now < start) return { ok: false, reason: '投票尚未开始，开始时间为 ' + p.startDate };
+  if (end && now > end) return { ok: false, reason: '投票已结束，截止时间为 ' + p.endDate };
+  return { ok: true };
+}
+
 async function submitLocalPoll(pollId) {
   if (!residentAuth) { showLogin(); return; }
   const p = (appData.polls||[]).find(function(x) { return x.id === pollId; });
-  if (!p || p.status !== '进行中') { alert('该投票未在进行中'); return; }
+  if (!p) { alert('投票不存在'); return; }
+
+  // 1. 检查投票时间段
+  var timeCheck = isPollActive(p);
+  if (!timeCheck.ok) { alert('⏰ ' + timeCheck.reason); return; }
+
+  // 2. 检查是否已投票（防重复）
+  showPageLoading(true);
+  try {
+    const responses = await loadPollResponses(pollId);
+    const hasVoted = responses.some(function(r) { return r.residentRoom === residentAuth.roomNo; });
+    if (hasVoted) {
+      alert('✅ 您已参与过该投票，无需重复提交。');
+      navigate('poll-detail', pollId);
+      return;
+    }
+  } catch(e) {
+    // 读取失败继续，后面写入时 Worker 端也可能有去重
+  }
+
   const answers = [];
   let valid = true;
   (p.questions || []).forEach(function(q) {
@@ -2165,13 +2199,20 @@ async function submitLocalPoll(pollId) {
       answers.push({ questionId: q.id, value: el ? el.value.trim() : '' });
     }
   });
-  if (!valid) { alert('请填写所有必填项'); return; }
-  showPageLoading(true);
+  if (!valid) { alert('请填写所有必填项'); showPageLoading(false); return; }
+
   try {
     const d = new Date();
     const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
     let list = [];
     try { list = await workerRead(path); } catch(e) { list = []; }
+    // 再次检查重复（防止并发）
+    var alreadyVoted = list.some(function(r) { return r.pollId === pollId && r.residentRoom === residentAuth.roomNo; });
+    if (alreadyVoted) {
+      alert('✅ 您已参与过该投票，无需重复提交。');
+      navigate('poll-detail', pollId);
+      return;
+    }
     list.push({
       id: 'pr-' + Date.now() + '-' + Math.random().toString(36).substr(2,4),
       pollId: pollId,
