@@ -1049,15 +1049,6 @@ function renderPolls() {
       h += '<div style="font-size:13px;color:var(--text-secondary);">' + p.startDate + ' 至 ' + p.endDate + '</div>';
       h += '<div class="poll-progress"><div class="poll-progress-bar" style="width:' + pct + '%">' + pct + '%</div></div>';
       h += '<div class="poll-stats"><span>当前参与：' + (p.progress?.current||0) + ' ' + (p.progress?.unit||"户") + '</span><span>目标：' + (p.progress?.target||0) + ' ' + (p.progress?.unit||"户") + '</span></div>';
-      // 关键时间节点提示（列表页简要展示）
-      var hasTimeInfo = p.consultationStartDate || p.consultationEndDate || p.consultationStart || p.consultationEnd || p.feedbackStartDate || p.feedbackEndDate || p.officialNoticeStartDate || p.officialNoticeEndDate || p.officialNoticeStart || p.officialNoticeEnd || p.publicityStartDate || p.publicityEndDate || p.publicityStart || p.publicityEnd || p.publicStartDate || p.publicEndDate;
-      if (hasTimeInfo) {
-        h += '<div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;font-size:11px;">';
-        if (p.consultationStartDate || p.consultationEndDate || p.consultationStart || p.consultationEnd || p.feedbackStartDate || p.feedbackEndDate) h += '<span style="padding:2px 8px;background:#e3f2fd;color:#1565c0;border-radius:10px;">💬 征求意见</span>';
-        if (p.officialNoticeStartDate || p.officialNoticeEndDate || p.officialNoticeStart || p.officialNoticeEnd) h += '<span style="padding:2px 8px;background:#e8f5e9;color:#2e7d32;border-radius:10px;">📢 正式公告</span>';
-        if (p.publicityStartDate || p.publicityEndDate || p.publicityStart || p.publicityEnd || p.publicStartDate || p.publicEndDate) h += '<span style="padding:2px 8px;background:#fff3e0;color:#e65100;border-radius:10px;">🏠 清册公示</span>';
-        h += '</div>';
-      }
       if (p.status === "进行中") {
         if (residentAuth) {
           const btnText = p.mode === 'local' ? '📝 立即参与' : '我要参与';
@@ -1933,64 +1924,70 @@ function renderPollCommonInfo(p) {
     h += '</div>';
   }
 
-  // ===== 关键时间节点（三项公示期）=====
-  var timeBlocks = [];
-
+  // ===== 三项关键日期展示 =====
   // 1. 公告方案征求意见期
-  var consultStart = p.consultationStartDate || p.consultationStart || p.feedbackStartDate || p.feedbackStart || p.proposalStartDate || p.proposalStart || p.commentPeriodStart || p.consultStartDate || p.consultStart || p.schemeConsultStartDate || p.schemeConsultStart || '';
-  var consultEnd = p.consultationEndDate || p.consultationEnd || p.feedbackEndDate || p.feedbackEnd || p.proposalEndDate || p.proposalEnd || p.commentPeriodEnd || p.consultEndDate || p.consultEnd || p.schemeConsultEndDate || p.schemeConsultEnd || '';
-  if (consultStart || consultEnd) {
-    timeBlocks.push({
-      title: '💬 公告方案征求意见期',
-      start: consultStart,
-      end: consultEnd,
-      bg: '#e3f2fd',
-      border: '#1976d2',
-      icon: '💬'
-    });
-  }
-
+  var csStart = p.consultationStartDate || p.consultationStart || p.opinionStartDate || p.opinionStart || p.consultPeriodStart || p.consultStart || '';
+  var csEnd   = p.consultationEndDate   || p.consultationEnd   || p.opinionEndDate   || p.opinionEnd   || p.consultPeriodEnd   || p.consultEnd   || '';
   // 2. 正式公告发布期
-  var officialStart = p.officialNoticeStartDate || p.officialNoticeStart || p.formalAnnouncementStart || p.formalAnnouncementStartDate || p.announcementStartDate || p.announcementStart || p.noticeStartDate || p.noticeStart || p.officialStartDate || p.officialStart || p.formalNoticeStart || p.formalNoticeStartDate || p.publishStartDate || p.publishStart || '';
-  var officialEnd = p.officialNoticeEndDate || p.officialNoticeEnd || p.formalAnnouncementEnd || p.formalAnnouncementEndDate || p.announcementEndDate || p.announcementEnd || p.noticeEndDate || p.noticeEnd || p.officialEndDate || p.officialEnd || p.formalNoticeEnd || p.formalNoticeEndDate || p.publishEndDate || p.publishEnd || '';
-  if (officialStart || officialEnd) {
-    timeBlocks.push({
-      title: '📢 正式公告发布期',
-      start: officialStart,
-      end: officialEnd,
-      bg: '#e8f5e9',
-      border: '#2e7d32',
-      icon: '📢'
-    });
-  }
-
+  var onStart = p.officialNoticeStartDate || p.officialNoticeStart || p.noticePublishStartDate || p.noticePublishStart || p.formalNoticeStart || p.noticeStart || '';
+  var onEnd   = p.officialNoticeEndDate   || p.officialNoticeEnd   || p.noticePublishEndDate   || p.noticePublishEnd   || p.formalNoticeEnd   || p.noticeEnd   || '';
   // 3. 业主清册公示期
-  var registerStart = p.publicityStartDate || p.publicityStart || p.publicStartDate || p.publicStart || p.registerPublicityStartDate || p.registerPublicityStart || p.ownerListStartDate || p.ownerListStart || p.registerStartDate || p.registerStart || p.ownerRegisterStartDate || p.ownerRegisterStart || '';
-  var registerEnd = p.publicityEndDate || p.publicityEnd || p.publicEndDate || p.publicEnd || p.registerPublicityEndDate || p.registerPublicityEnd || p.ownerListEndDate || p.ownerListEnd || p.registerEndDate || p.registerEnd || p.ownerRegisterEndDate || p.ownerRegisterEnd || '';
-  if (registerStart || registerEnd) {
-    timeBlocks.push({
-      title: '🏠 业主清册公示期',
-      start: registerStart,
-      end: registerEnd,
-      bg: '#fff3e0',
-      border: '#e65100',
-      icon: '🏠'
-    });
-  }
+  var pubStart = p.publicityStartDate || p.publicityStart || p.publicStartDate || p.publicStart || p.registerPublicityStart || p.ownerListStart || '';
+  var pubEnd   = p.publicityEndDate   || p.publicityEnd   || p.publicEndDate   || p.publicEnd   || p.registerPublicityEnd   || p.ownerListEnd   || '';
 
-  if (timeBlocks.length) {
-    h += '<div style="margin:16px 0;">';
-    h += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--text);">⏰ 关键时间节点</div>';
-    h += '<div style="display:flex;flex-direction:column;gap:10px;">';
-    timeBlocks.forEach(function(block) {
-      h += '<div style="padding:14px;background:' + block.bg + ';border-radius:8px;border-left:4px solid ' + block.border + ';">';
-      h += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">' + block.icon + ' ' + block.title + '</div>';
-      h += '<div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;">';
-      if (block.start) h += '<span>开始：<strong style="color:' + block.border + ';">' + block.start + '</strong></span>';
-      if (block.end) h += '<span>结束：<strong style="color:' + block.border + ';">' + block.end + '</strong></span>';
+  if (csStart || csEnd || onStart || onEnd || pubStart || pubEnd) {
+    h += '<div style="margin:16px 0;padding:0;overflow:hidden;border-radius:10px;border:1px solid #e0e0e0;background:#fff;">';
+    h += '<div style="padding:12px 16px;background:linear-gradient(135deg,var(--primary-light),var(--primary));color:#fff;font-size:14px;font-weight:600;">📅 关键时间节点</div>';
+    h += '<div style="padding:16px;">';
+
+    // 公告方案征求意见期
+    if (csStart || csEnd) {
+      h += '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px dashed #e0e0e0;">';
+      h += '<div style="width:32px;height:32px;background:#e3f2fd;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;">💬</div>';
+      h += '<div style="flex:1;min-width:0;">';
+      h += '<div style="font-size:14px;font-weight:600;color:#1565c0;margin-bottom:4px;">公告方案征求意见期</div>';
+      h += '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text);">';
+      h += '<span>开始：<strong style="color:#1565c0;">' + (csStart || '--') + '</strong></span>';
+      h += '<span>截止：<strong style="color:#1565c0;">' + (csEnd || '--') + '</strong></span>';
       h += '</div>';
+      if (p.consultationNote || p.opinionNote) {
+        h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + escapeHtml(p.consultationNote || p.opinionNote) + '</div>';
+      }
+      h += '</div></div>';
+    }
+
+    // 正式公告发布期
+    if (onStart || onEnd) {
+      h += '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px dashed #e0e0e0;">';
+      h += '<div style="width:32px;height:32px;background:#e8f5e9;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;">📢</div>';
+      h += '<div style="flex:1;min-width:0;">';
+      h += '<div style="font-size:14px;font-weight:600;color:#2e7d32;margin-bottom:4px;">正式公告发布期</div>';
+      h += '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text);">';
+      h += '<span>开始：<strong style="color:#2e7d32;">' + (onStart || '--') + '</strong></span>';
+      h += '<span>截止：<strong style="color:#2e7d32;">' + (onEnd || '--') + '</strong></span>';
       h += '</div>';
-    });
+      if (p.officialNoticeNote || p.noticeNote) {
+        h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + escapeHtml(p.officialNoticeNote || p.noticeNote) + '</div>';
+      }
+      h += '</div></div>';
+    }
+
+    // 业主清册公示期
+    if (pubStart || pubEnd) {
+      h += '<div style="display:flex;align-items:flex-start;gap:12px;">';
+      h += '<div style="width:32px;height:32px;background:#fff3e0;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;">📋</div>';
+      h += '<div style="flex:1;min-width:0;">';
+      h += '<div style="font-size:14px;font-weight:600;color:#e65100;margin-bottom:4px;">业主清册公示期</div>';
+      h += '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text);">';
+      h += '<span>开始：<strong style="color:#e65100;">' + (pubStart || '--') + '</strong></span>';
+      h += '<span>截止：<strong style="color:#e65100;">' + (pubEnd || '--') + '</strong></span>';
+      h += '</div>';
+      if (p.publicityNote || p.registerNote) {
+        h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + escapeHtml(p.publicityNote || p.registerNote) + '</div>';
+      }
+      h += '</div></div>';
+    }
+
     h += '</div></div>';
   }
 
