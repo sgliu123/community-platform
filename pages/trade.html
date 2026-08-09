@@ -194,8 +194,12 @@ function render() {
 }
 
 function goBack() {
-  if (location.hash) { location.hash = ""; }
-  else { history.back(); }
+  var hash = location.hash.replace("#", "") || "/";
+  if (hash !== "/") {
+    location.hash = "";
+  } else {
+    location.href = "../index.html";
+  }
 }
 
 function goPost() {
