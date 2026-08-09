@@ -7,7 +7,8 @@ function getResidentArea(r) {
     'area', 'houseArea', 'propertyArea', 'square', 'size', 'houseSize',
     'property_area', 'house_area', 'house_size', 'buildingArea', 'builtUpArea',
     'floorage', 'acreage', 'mianji', 'jianzhuMianji', 'taoNeiMianji',
-    '建筑面积', '套内面积', '房屋面积', '面积', 'property_size', 'unit_area'
+    '建筑面积', '套内面积', '房屋面积', '面积', 'property_size', 'unit_area',
+    'house_area_sqm', 'sqm', 'meter', 'squareMeter'
   ];
   for (var i = 0; i < fields.length; i++) {
     var raw = r[fields[i]];
@@ -589,7 +590,9 @@ function renderPollCommonInfo(p) {
   var areaUnit = p.areaUnit || (p.progress && p.progress.areaUnit) || '㎡';
   var areaPct = areaTarget > 0 ? Math.round(areaCurrent / areaTarget * 100) : 0;
   var residents = getPollResidents(p);
-  var showArea = areaTarget > 0 || (residents.length > 0);
+  // 只要有面积目标值，或者居民对象中有面积数据，就显示面积统计
+  var hasAreaData = residents.some(function(r) { return getResidentArea(r) > 0; });
+  var showArea = areaTarget > 0 || hasAreaData;
 
   h += '<div style="margin:20px 0;padding:20px;background:#f8f9fa;border-radius:12px;border:1px solid #eef0f3;">';
   h += '<div style="font-weight:600;margin-bottom:16px;font-size:15px;">\uD83D\uDCCA 参与统计</div>';
@@ -786,22 +789,33 @@ function renderLocalPollResults(p, responses, hasVoted) {
   var residents = getPollResidents(p);
   var roomAreaMap = {};
   var totalCommunityArea = 0;
+  var hasAreaData = false;
   residents.forEach(function(r) {
     var area = getResidentArea(r);
     var rn = getRoomNo(r);
+    if (area > 0) hasAreaData = true;
     if (rn) roomAreaMap[rn] = area;
     totalCommunityArea += area;
   });
-  // 兜底：如果实时清册面积为0，但投票对象记录了总面积目标，用目标值作为分母
-  if (totalCommunityArea === 0) {
-    var fallbackArea = getPollAreaTarget(p);
-    if (fallbackArea > 0) totalCommunityArea = fallbackArea;
+
+  // 兜底：如果居民对象没有面积字段，用投票配置中的面积目标值
+  var areaTargetFromConfig = getPollAreaTarget(p);
+  var areaCurrentFromConfig = getPollAreaCurrent(p);
+  if (totalCommunityArea === 0 && areaTargetFromConfig > 0) {
+    totalCommunityArea = areaTargetFromConfig;
   }
+
   var votedArea = 0;
   responses.forEach(function(r) {
     var lookupKey = r.residentRoom || r.roomNo || r.room || '';
     votedArea += (roomAreaMap[lookupKey] || 0);
   });
+  // 如果居民对象没有面积数据，但配置中有当前面积，用配置值兜底
+  if (votedArea === 0 && areaCurrentFromConfig > 0) {
+    votedArea = areaCurrentFromConfig;
+  }
+
+  var areaParticipationRate = totalCommunityArea > 0 ? Math.round(votedArea / totalCommunityArea * 100) : 0;
 
   let h = '<div style="margin-top:8px;">';
   if (hasVoted && p.status === '进行中') {
@@ -870,7 +884,7 @@ function renderLocalPollResults(p, responses, hasVoted) {
 
       var optionAreaCounts = {};
       var totalQuestionArea = 0;
-      if (totalCommunityArea > 0) {
+      if (totalCommunityArea > 0 && hasAreaData) {
         responses.forEach(function(r) {
           var a = r.answers.find(function(x) { return x.questionId === q.id; });
           if (!a || !a.value) return;
@@ -1004,6 +1018,19 @@ async function submitLocalPoll(pollId) {
           var voter = allResidents.find(function(r) { return getRoomNo(r) === residentAuth.roomNo; });
           if (voter) {
             voterArea = getResidentArea(voter);
+          }
+        }
+        // 兜底：如果居民对象没有面积字段，用平均面积估算
+        if (voterArea === 0) {
+          var avgArea = 0;
+          var tArea = getPollAreaTarget(pollsList[pIdx]);
+          var tPeople = getPollPeopleTarget(pollsList[pIdx]);
+          if (tArea > 0 && tPeople > 0) {
+            avgArea = Math.round(tArea / tPeople * 100) / 100;
+          }
+          if (avgArea > 0) {
+            voterArea = avgArea;
+            console.log('[Poll] 居民对象无面积字段，使用平均面积估算:', voterArea, '㎡');
           }
         }
         pollsList[pIdx].progress.areaCurrent = (pollsList[pIdx].progress.areaCurrent || 0) + voterArea;
