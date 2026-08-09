@@ -3,24 +3,52 @@
 // ===== 面积工具函数 =====
 function getResidentArea(r) {
   if (!r || typeof r !== 'object') return 0;
-  var fields = ['area', 'houseArea', 'propertyArea', 'square', 'size', 'houseSize', 'property_area', 'house_area', 'house_size'];
+  var fields = [
+    'area', 'houseArea', 'propertyArea', 'square', 'size', 'houseSize',
+    'property_area', 'house_area', 'house_size', 'buildingArea', 'builtUpArea',
+    'floorage', 'acreage', 'mianji', 'jianzhuMianji', 'taoNeiMianji',
+    '建筑面积', '套内面积', '房屋面积', '面积', 'property_size', 'unit_area'
+  ];
   for (var i = 0; i < fields.length; i++) {
-    var v = parseFloat(r[fields[i]]);
+    var raw = r[fields[i]];
+    if (raw == null) continue;
+    var v = parseFloat(raw);
     if (!isNaN(v) && v > 0) return v;
   }
   return 0;
 }
+// ===== 房间号工具函数 =====
+function getRoomNo(r) {
+  if (!r || typeof r !== 'object') return '';
+  var fields = ['roomNo','room','houseNo','unitNo','房号','房间号','room_number','room_no','house_no','unit_no','number','门牌号','houseNumber'];
+  for (var i = 0; i < fields.length; i++) {
+    var v = r[fields[i]];
+    if (v != null && v !== '') return String(v).trim();
+  }
+  return '';
+}
+
+
 
 function getPollResidents(p) {
   // 优先从投票对象自身的清册数据读取
-  var sources = ['residents', 'ownerList', 'voterList', 'register', 'owner_list', 'voter_list', 'residentList', 'resident_list'];
+  var sources = ['residents', 'ownerList', 'voterList', 'register', 'owner_list', 'voter_list', 'residentList', 'resident_list', 'roll', 'rollList', 'ownerRoll', 'voterRoll'];
   for (var i = 0; i < sources.length; i++) {
     var list = p[sources[i]];
-    if (list && Array.isArray(list) && list.length > 0) return list;
+    if (list && Array.isArray(list) && list.length > 0) {
+      return list;
+    }
   }
   // 其次从全局 appData.residents 读取
-  if (appData.residents && Array.isArray(appData.residents) && appData.residents.length > 0) {
+  if (typeof appData !== 'undefined' && appData.residents && Array.isArray(appData.residents) && appData.residents.length > 0) {
     return appData.residents;
+  }
+  // 兜底：尝试全局 residents / window.residents
+  if (typeof residents !== 'undefined' && Array.isArray(residents) && residents.length > 0) {
+    return residents;
+  }
+  if (typeof window !== 'undefined' && window.residents && Array.isArray(window.residents) && window.residents.length > 0) {
+    return window.residents;
   }
   return [];
 }
@@ -760,12 +788,19 @@ function renderLocalPollResults(p, responses, hasVoted) {
   var totalCommunityArea = 0;
   residents.forEach(function(r) {
     var area = getResidentArea(r);
-    roomAreaMap[r.roomNo] = area;
+    var rn = getRoomNo(r);
+    if (rn) roomAreaMap[rn] = area;
     totalCommunityArea += area;
   });
+  // 兜底：如果实时清册面积为0，但投票对象记录了总面积目标，用目标值作为分母
+  if (totalCommunityArea === 0) {
+    var fallbackArea = getPollAreaTarget(p);
+    if (fallbackArea > 0) totalCommunityArea = fallbackArea;
+  }
   var votedArea = 0;
   responses.forEach(function(r) {
-    votedArea += (roomAreaMap[r.residentRoom] || 0);
+    var lookupKey = r.residentRoom || r.roomNo || r.room || '';
+    votedArea += (roomAreaMap[lookupKey] || 0);
   });
 
   let h = '<div style="margin-top:8px;">';
@@ -839,7 +874,8 @@ function renderLocalPollResults(p, responses, hasVoted) {
         responses.forEach(function(r) {
           var a = r.answers.find(function(x) { return x.questionId === q.id; });
           if (!a || !a.value) return;
-          var area = roomAreaMap[r.residentRoom] || 0;
+          var lookupKey = r.residentRoom || r.roomNo || r.room || '';
+          var area = roomAreaMap[lookupKey] || 0;
           totalQuestionArea += area;
           if (Array.isArray(a.value)) {
             a.value.forEach(function(v) {
@@ -965,7 +1001,7 @@ async function submitLocalPoll(pollId) {
         var voterArea = 0;
         var allResidents = getPollResidents(pollsList[pIdx]);
         if (allResidents.length) {
-          var voter = allResidents.find(function(r) { return r.roomNo === residentAuth.roomNo; });
+          var voter = allResidents.find(function(r) { return getRoomNo(r) === residentAuth.roomNo; });
           if (voter) {
             voterArea = getResidentArea(voter);
           }
