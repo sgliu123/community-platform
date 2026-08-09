@@ -34,6 +34,10 @@ function getCommunityTotalArea(p) {
 }
 
 function getPollAreaTarget(p) {
+  // 优先使用 admin 同步的清册统计数据
+  if (p.rollStats && typeof p.rollStats.totalArea === 'number' && p.rollStats.totalArea > 0) {
+    return p.rollStats.totalArea;
+  }
   var v;
   if (p.progress) {
     v = parseFloat(p.progress.areaTarget);
@@ -69,6 +73,10 @@ function getPollAreaCurrent(p) {
 }
 
 function getPollPeopleTarget(p) {
+  // 优先使用 admin 同步的清册统计数据
+  if (p.rollStats && typeof p.rollStats.totalCount === 'number' && p.rollStats.totalCount > 0) {
+    return p.rollStats.totalCount;
+  }
   var v;
   if (p.progress) {
     v = parseFloat(p.progress.target);
@@ -127,6 +135,7 @@ function getPollTimeStages(p) {
            (p.proposalPeriod && p.proposalPeriod.start) ||
            (p.feedbackPeriod && p.feedbackPeriod.start) ||
            (p.consultPeriod && p.consultPeriod.start) ||
+           (p.consultation && p.consultation.start) ||
            getTimeField(p, ['consultstart', 'consultationstart', 'feedbackstart', 'proposalstart', '征求意见', '意见征集', '方案公示']);
   var ce = p.consultationEndDate || p.consultationEnd || p.consultEndDate || p.consultEnd || 
            p.feedbackEndDate || p.feedbackEnd || p.proposalEndDate || p.proposalEnd ||
@@ -136,6 +145,7 @@ function getPollTimeStages(p) {
            (p.proposalPeriod && p.proposalPeriod.end) ||
            (p.feedbackPeriod && p.feedbackPeriod.end) ||
            (p.consultPeriod && p.consultPeriod.end) ||
+           (p.consultation && p.consultation.end) ||
            getTimeField(p, ['consultend', 'consultationend', 'feedbackend', 'proposalend', '征求意见', '意见征集', '方案公示']);
   if (cs || ce) {
     stages.push({ name: '公告方案征求意见期', start: cs, end: ce, color: '#2e7d32', icon: '\uD83D\uDCE2', 
@@ -151,6 +161,7 @@ function getPollTimeStages(p) {
            (p.officialPeriod && p.officialPeriod.start) ||
            (p.noticePeriod && p.noticePeriod.start) ||
            (p.publicNoticePeriod && p.publicNoticePeriod.start) ||
+           (p.announcement && p.announcement.start) ||
            getTimeField(p, ['announcementstart', 'officialstart', 'noticestart', 'publicnoticestart', '公告发布', '正式公告']);
   var ae = p.announcementEndDate || p.announcementEnd || p.officialEndDate || p.officialEnd || 
            p.noticeEndDate || p.noticeEnd || p.publicNoticeEndDate || p.publicNoticeEnd ||
@@ -160,6 +171,7 @@ function getPollTimeStages(p) {
            (p.officialPeriod && p.officialPeriod.end) ||
            (p.noticePeriod && p.noticePeriod.end) ||
            (p.publicNoticePeriod && p.publicNoticePeriod.end) ||
+           (p.announcement && p.announcement.end) ||
            getTimeField(p, ['announcementend', 'officialend', 'noticeend', 'publicnoticeend', '公告发布', '正式公告']);
   if (as || ae) {
     stages.push({ name: '正式公告发布期', start: as, end: ae, color: '#6a1b9a', icon: '\uD83D\uDCCB', 
@@ -175,6 +187,7 @@ function getPollTimeStages(p) {
            (p.publicPeriod && p.publicPeriod.start) ||
            (p.registerPeriod && p.registerPeriod.start) ||
            (p.ownerListPeriod && p.ownerListPeriod.start) ||
+           (p.rollPublish && p.rollPublish.start) ||
            getTimeField(p, ['publicitystart', 'publicstart', 'registerstart', 'ownerliststart', '清册公示', '业主清册', '公示']);
   var pe = p.publicityEndDate || p.publicityEnd || p.publicEndDate || p.publicEnd || 
            p.registerEndDate || p.registerEnd || p.ownerListEndDate || p.ownerListEnd ||
@@ -184,6 +197,7 @@ function getPollTimeStages(p) {
            (p.publicPeriod && p.publicPeriod.end) ||
            (p.registerPeriod && p.registerPeriod.end) ||
            (p.ownerListPeriod && p.ownerListPeriod.end) ||
+           (p.rollPublish && p.rollPublish.end) ||
            getTimeField(p, ['publicityend', 'publicend', 'registerend', 'ownerlistend', '清册公示', '业主清册', '公示']);
   if (ps || pe) {
     stages.push({ name: '业主清册公示期', start: ps, end: pe, color: '#e65100', icon: '\uD83D\uDCCB', 
