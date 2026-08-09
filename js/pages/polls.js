@@ -1,24 +1,34 @@
 /* js/pages/polls.js - 投票与意见征集 */
 
+// ===== 面积工具函数 =====
 function getResidentArea(r) {
-  var area = parseFloat(r.area);
-  if (!isNaN(area) && area > 0) return area;
-  area = parseFloat(r.houseArea);
-  if (!isNaN(area) && area > 0) return area;
-  area = parseFloat(r.propertyArea);
-  if (!isNaN(area) && area > 0) return area;
-  area = parseFloat(r.square);
-  if (!isNaN(area) && area > 0) return area;
-  area = parseFloat(r.size);
-  if (!isNaN(area) && area > 0) return area;
-  area = parseFloat(r.houseSize);
-  if (!isNaN(area) && area > 0) return area;
+  if (!r || typeof r !== 'object') return 0;
+  var fields = ['area', 'houseArea', 'propertyArea', 'square', 'size', 'houseSize', 'property_area', 'house_area', 'house_size'];
+  for (var i = 0; i < fields.length; i++) {
+    var v = parseFloat(r[fields[i]]);
+    if (!isNaN(v) && v > 0) return v;
+  }
   return 0;
 }
 
-function getCommunityTotalArea() {
-  if (!appData.residents || !appData.residents.length) return 0;
-  return appData.residents.reduce(function(sum, r) {
+function getPollResidents(p) {
+  // 优先从投票对象自身的清册数据读取
+  var sources = ['residents', 'ownerList', 'voterList', 'register', 'owner_list', 'voter_list', 'residentList', 'resident_list'];
+  for (var i = 0; i < sources.length; i++) {
+    var list = p[sources[i]];
+    if (list && Array.isArray(list) && list.length > 0) return list;
+  }
+  // 其次从全局 appData.residents 读取
+  if (appData.residents && Array.isArray(appData.residents) && appData.residents.length > 0) {
+    return appData.residents;
+  }
+  return [];
+}
+
+function getCommunityTotalArea(p) {
+  var residents = getPollResidents(p);
+  if (!residents.length) return 0;
+  return residents.reduce(function(sum, r) {
     return sum + getResidentArea(r);
   }, 0);
 }
@@ -35,7 +45,10 @@ function getPollAreaTarget(p) {
   if (!isNaN(v) && v > 0) return v;
   v = parseFloat(p.areaTarget);
   if (!isNaN(v) && v > 0) return v;
-  var total = getCommunityTotalArea();
+  v = parseFloat(p.totalArea);
+  if (!isNaN(v) && v > 0) return v;
+  // 从清册自动计算
+  var total = getCommunityTotalArea(p);
   if (total > 0) return total;
   return 0;
 }
@@ -65,7 +78,8 @@ function getPollPeopleTarget(p) {
   if (!isNaN(v) && v > 0) return v;
   v = parseFloat(p.target);
   if (!isNaN(v) && v > 0) return v;
-  if (appData.residents && appData.residents.length) return appData.residents.length;
+  var residents = getPollResidents(p);
+  if (residents.length > 0) return residents.length;
   return 0;
 }
 
@@ -82,10 +96,119 @@ function getPollPeopleCurrent(p) {
   return 0;
 }
 
+// ===== 时间字段提取（超宽兼容） =====
+function getTimeField(p, keywords) {
+  var keys = Object.keys(p);
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i].toLowerCase();
+    for (var j = 0; j < keywords.length; j++) {
+      if (k.indexOf(keywords[j]) !== -1) {
+        var val = p[keys[i]];
+        if (val && typeof val === 'string' && /^\d{4}[-/]/.test(val)) return val;
+        if (val && typeof val === 'object') {
+          if (val.start && typeof val.start === 'string' && /^\d{4}[-/]/.test(val.start)) return val.start;
+          if (val.end && typeof val.end === 'string' && /^\d{4}[-/]/.test(val.end)) return val.end;
+        }
+      }
+    }
+  }
+  return '';
+}
+
+function getPollTimeStages(p) {
+  var stages = [];
+
+  // 公告方案征求意见期
+  var cs = p.consultationStartDate || p.consultationStart || p.consultStartDate || p.consultStart || 
+           p.feedbackStartDate || p.feedbackStart || p.proposalStartDate || p.proposalStart ||
+           p.consultation_start || p.consult_start || p.feedback_start || p.proposal_start ||
+           p.consultationStart || p.consultStart || p.feedbackStart || p.proposalStart ||
+           (p.consultationPeriod && p.consultationPeriod.start) ||
+           (p.proposalPeriod && p.proposalPeriod.start) ||
+           (p.feedbackPeriod && p.feedbackPeriod.start) ||
+           (p.consultPeriod && p.consultPeriod.start) ||
+           getTimeField(p, ['consultstart', 'consultationstart', 'feedbackstart', 'proposalstart', '征求意见', '意见征集', '方案公示']);
+  var ce = p.consultationEndDate || p.consultationEnd || p.consultEndDate || p.consultEnd || 
+           p.feedbackEndDate || p.feedbackEnd || p.proposalEndDate || p.proposalEnd ||
+           p.consultation_end || p.consult_end || p.feedback_end || p.proposal_end ||
+           p.consultationEnd || p.consultEnd || p.feedbackEnd || p.proposalEnd ||
+           (p.consultationPeriod && p.consultationPeriod.end) ||
+           (p.proposalPeriod && p.proposalPeriod.end) ||
+           (p.feedbackPeriod && p.feedbackPeriod.end) ||
+           (p.consultPeriod && p.consultPeriod.end) ||
+           getTimeField(p, ['consultend', 'consultationend', 'feedbackend', 'proposalend', '征求意见', '意见征集', '方案公示']);
+  if (cs || ce) {
+    stages.push({ name: '公告方案征求意见期', start: cs, end: ce, color: '#2e7d32', icon: '\uD83D\uDCE2', 
+      note: p.consultationNote || p.consultNote || p.feedbackNote || p.proposalNote || '' });
+  }
+
+  // 正式公告发布期
+  var as = p.announcementStartDate || p.announcementStart || p.officialStartDate || p.officialStart || 
+           p.noticeStartDate || p.noticeStart || p.publicNoticeStartDate || p.publicNoticeStart ||
+           p.announcement_start || p.official_start || p.notice_start || p.public_notice_start ||
+           p.announcementStart || p.officialStart || p.noticeStart || p.publicNoticeStart ||
+           (p.announcementPeriod && p.announcementPeriod.start) ||
+           (p.officialPeriod && p.officialPeriod.start) ||
+           (p.noticePeriod && p.noticePeriod.start) ||
+           (p.publicNoticePeriod && p.publicNoticePeriod.start) ||
+           getTimeField(p, ['announcementstart', 'officialstart', 'noticestart', 'publicnoticestart', '公告发布', '正式公告']);
+  var ae = p.announcementEndDate || p.announcementEnd || p.officialEndDate || p.officialEnd || 
+           p.noticeEndDate || p.noticeEnd || p.publicNoticeEndDate || p.publicNoticeEnd ||
+           p.announcement_end || p.official_end || p.notice_end || p.public_notice_end ||
+           p.announcementEnd || p.officialEnd || p.noticeEnd || p.publicNoticeEnd ||
+           (p.announcementPeriod && p.announcementPeriod.end) ||
+           (p.officialPeriod && p.officialPeriod.end) ||
+           (p.noticePeriod && p.noticePeriod.end) ||
+           (p.publicNoticePeriod && p.publicNoticePeriod.end) ||
+           getTimeField(p, ['announcementend', 'officialend', 'noticeend', 'publicnoticeend', '公告发布', '正式公告']);
+  if (as || ae) {
+    stages.push({ name: '正式公告发布期', start: as, end: ae, color: '#6a1b9a', icon: '\uD83D\uDCCB', 
+      note: p.announcementNote || p.officialNote || p.noticeNote || '' });
+  }
+
+  // 业主清册公示期
+  var ps = p.publicityStartDate || p.publicityStart || p.publicStartDate || p.publicStart || 
+           p.registerStartDate || p.registerStart || p.ownerListStartDate || p.ownerListStart ||
+           p.publicity_start || p.public_start || p.register_start || p.owner_list_start ||
+           p.publicityStart || p.publicStart || p.registerStart || p.ownerListStart ||
+           (p.publicityPeriod && p.publicityPeriod.start) ||
+           (p.publicPeriod && p.publicPeriod.start) ||
+           (p.registerPeriod && p.registerPeriod.start) ||
+           (p.ownerListPeriod && p.ownerListPeriod.start) ||
+           getTimeField(p, ['publicitystart', 'publicstart', 'registerstart', 'ownerliststart', '清册公示', '业主清册', '公示']);
+  var pe = p.publicityEndDate || p.publicityEnd || p.publicEndDate || p.publicEnd || 
+           p.registerEndDate || p.registerEnd || p.ownerListEndDate || p.ownerListEnd ||
+           p.publicity_end || p.public_end || p.register_end || p.owner_list_end ||
+           p.publicityEnd || p.publicEnd || p.registerEnd || p.ownerListEnd ||
+           (p.publicityPeriod && p.publicityPeriod.end) ||
+           (p.publicPeriod && p.publicPeriod.end) ||
+           (p.registerPeriod && p.registerPeriod.end) ||
+           (p.ownerListPeriod && p.ownerListPeriod.end) ||
+           getTimeField(p, ['publicityend', 'publicend', 'registerend', 'ownerlistend', '清册公示', '业主清册', '公示']);
+  if (ps || pe) {
+    stages.push({ name: '业主清册公示期', start: ps, end: pe, color: '#e65100', icon: '\uD83D\uDCCB', 
+      note: p.publicityNote || p.publicNote || p.registerNote || '' });
+  }
+
+  // 投票期
+  var vs = p.startDate || p.voteStartDate || p.votingStartDate || p.vote_start || p.voting_start ||
+           (p.votePeriod && p.votePeriod.start) || (p.votingPeriod && p.votingPeriod.start) ||
+           getTimeField(p, ['votestart', 'votingstart', '投票开始']);
+  var ve = p.endDate || p.voteEndDate || p.votingEndDate || p.vote_end || p.voting_end ||
+           (p.votePeriod && p.votePeriod.end) || (p.votingPeriod && p.votingPeriod.end) ||
+           getTimeField(p, ['voteend', 'votingend', '投票结束']);
+  if (vs || ve) {
+    stages.push({ name: '投票期', start: vs, end: ve, color: 'var(--primary)', icon: '\uD83D\uDDF3\uFE0F', 
+      active: p.status === '进行中', note: '' });
+  }
+
+  return stages;
+}
+
+// ===== 列表页 =====
 function renderPolls() {
   const list = appData.polls || [];
-  var communityTotalArea = getCommunityTotalArea();
-  let h = '<div class="card"><div class="card-title"><span class="icon">🗳️</span>投票与意见征集</div>';
+  let h = '<div class="card"><div class="card-title"><span class="icon">\uD83D\uDDF3\uFE0F</span>投票与意见征集</div>';
   if (!list.length) { h += '<div class="empty">暂无投票或征集</div>'; }
   else {
     list.forEach(function(p) {
@@ -100,14 +223,7 @@ function renderPolls() {
       var unit = (p.progress && p.progress.unit) ? p.progress.unit : (p.unit || '户');
       var sc = p.status === "进行中" ? "status-ongoing" : (p.status === "预告" ? "status-upcoming" : "status-ended");
 
-      var consultStart = p.consultationStartDate || p.consultationStart || p.consultStartDate || p.consultStart || p.feedbackStartDate || p.feedbackStart || '';
-      var consultEnd = p.consultationEndDate || p.consultationEnd || p.consultEndDate || p.consultEnd || p.feedbackEndDate || p.feedbackEnd || '';
-      var annStart = p.announcementStartDate || p.announcementStart || p.officialStartDate || p.officialStart || p.noticeStartDate || p.noticeStart || '';
-      var annEnd = p.announcementEndDate || p.announcementEnd || p.officialEndDate || p.officialEnd || p.noticeEndDate || p.noticeEnd || '';
-      var pubStart = p.publicityStartDate || p.publicityStart || p.publicStartDate || p.publicStart || p.registerStartDate || p.registerStart || p.ownerListStartDate || p.ownerListStart || '';
-      var pubEnd = p.publicityEndDate || p.publicityEnd || p.publicEndDate || p.publicEnd || p.registerEndDate || p.registerEnd || p.ownerListEndDate || p.ownerListEnd || '';
-      var voteStart = p.startDate || p.voteStartDate || p.votingStartDate || '';
-      var voteEnd = p.endDate || p.voteEndDate || p.votingEndDate || '';
+      var stages = getPollTimeStages(p);
 
       h += '<div class="list-item" onclick="navigate(\'poll-detail\',\'' + p.id + '\')" style="flex-direction:column;align-items:stretch;gap:8px;">';
       h += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
@@ -118,37 +234,31 @@ function renderPolls() {
       h += '<div style="font-size:15px;font-weight:500;">' + escapeHtml(p.title || '') + '</div>';
 
       // 时间阶段标签
-      var timeLabels = [];
-      if (consultStart || consultEnd) timeLabels.push({t: '📢 征求意见', s: consultStart, e: consultEnd, bg: '#e8f5e9', c: '#2e7d32'});
-      if (annStart || annEnd) timeLabels.push({t: '📋 正式公告', s: annStart, e: annEnd, bg: '#f3e5f5', c: '#6a1b9a'});
-      if (pubStart || pubEnd) timeLabels.push({t: '📋 清册公示', s: pubStart, e: pubEnd, bg: '#fff3e0', c: '#e65100'});
-      if (voteStart || voteEnd) timeLabels.push({t: '🗳️ 投票', s: voteStart, e: voteEnd, bg: '#e3f2fd', c: '#1976d2'});
-      if (timeLabels.length) {
+      if (stages.length) {
         h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;">';
-        timeLabels.forEach(function(lbl) {
-          h += '<span style="font-size:11px;padding:3px 8px;border-radius:10px;background:' + lbl.bg + ';color:' + lbl.c + ';">' + lbl.t + ' ' + (lbl.s || '--') + '~' + (lbl.e || '--') + '</span>';
+        stages.forEach(function(st) {
+          var label = st.icon + ' ' + st.name.replace('期', '') + ' ' + (st.start || '--') + '~' + (st.end || '--');
+          h += '<span style="font-size:11px;padding:3px 8px;border-radius:10px;background:' + (st.active ? st.color : '#f5f5f5') + ';color:' + (st.active ? '#fff' : st.color) + ';">' + label + '</span>';
         });
         h += '</div>';
       }
 
       h += '<div class="poll-progress" style="margin-top:6px;"><div class="poll-progress-bar" style="width:' + peoplePct + '%">' + peoplePct + '%</div></div>';
-      h += '<div class="poll-stats"><span>👥 ' + peopleCurrent + ' / ' + peopleTarget + ' ' + unit + '</span><span>参与率 ' + peoplePct + '%</span></div>';
+      h += '<div class="poll-stats"><span>\uD83D\uDC65 ' + peopleCurrent + ' / ' + peopleTarget + ' ' + unit + '</span><span>参与率 ' + peoplePct + '%</span></div>';
 
       if (areaTarget > 0) {
         h += '<div class="poll-stats" style="margin-top:4px;font-size:12px;">';
-        h += '<span>📐 面积：' + areaCurrent + ' / ' + areaTarget + ' ㎡</span>';
+        h += '<span>\uD83D\uDCD0 面积：' + areaCurrent + ' / ' + areaTarget + ' ㎡</span>';
         h += '<span style="color:#1976d2;font-weight:600;">面积参与率 ' + areaPct + '%</span>';
         h += '</div>';
-      } else if (communityTotalArea === 0) {
-        h += '<div style="margin-top:4px;font-size:11px;color:#999;">📐 面积统计：未配置业主房屋面积数据</div>';
       }
 
       if (p.status === "进行中") {
         if (residentAuth) {
-          var btnText = p.mode === 'local' ? '📝 立即参与' : '我要参与';
+          var btnText = p.mode === 'local' ? '\uD83D\uDCDD 立即参与' : '我要参与';
           h += '<div style="margin-top:4px;"><button class="poll-btn" onclick="joinPoll(\'' + p.id + '\',event)" style="padding:8px 20px;font-size:13px;">' + btnText + '</button></div>';
         } else {
-          h += '<div style="margin-top:4px;"><button class="poll-btn" onclick="showLogin();event.stopPropagation();" style="padding:8px 20px;font-size:13px;background:#888;">🔒 请登录后参与</button></div>';
+          h += '<div style="margin-top:4px;"><button class="poll-btn" onclick="showLogin();event.stopPropagation();" style="padding:8px 20px;font-size:13px;background:#888;">\uD83D\uDD12 请登录后参与</button></div>';
         }
       } else {
         h += '<div style="margin-top:4px;"><button class="poll-btn" disabled style="padding:8px 20px;font-size:13px;background:#ccc;cursor:not-allowed;">' + (p.status === "预告" ? "尚未开始" : "已结束") + '</button></div>';
@@ -296,8 +406,8 @@ function renderPollCommonInfo(p) {
   h += '<h1>' + escapeHtml(p.title || '') + '</h1>';
 
   h += '<div class="detail-meta" style="margin-bottom:16px;">';
-  h += '<span>🗳️ 投票开始：' + (p.startDate || '--') + '</span>';
-  h += '<span>🗳️ 投票截止：' + (p.endDate || '--') + '</span>';
+  h += '<span>\uD83D\uDDF3\uFE0F 投票开始：' + (p.startDate || '--') + '</span>';
+  h += '<span>\uD83D\uDDF3\uFE0F 投票截止：' + (p.endDate || '--') + '</span>';
   h += '<span>发起：' + escapeHtml(p.createdBy || '') + '</span>';
   h += '</div>';
 
@@ -345,14 +455,14 @@ function renderPollCommonInfo(p) {
   });
   if (attachments.length) {
     h += '<div style="margin:20px 0;padding-top:16px;border-top:1px solid var(--border);">';
-    h += '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;">📎 相关附件</div>';
+    h += '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;">\uD83D\uDCCE 相关附件</div>';
     attachments.forEach(function(att) {
       var url = att.url || '';
       var name = att.name || '附件';
       var isPdf = /\.pdf$/i.test(url);
       var isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(url);
       h += '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:10px;padding:12px;background:#f8f9fa;border-radius:8px;margin-bottom:8px;text-decoration:none;color:var(--text);border:1px solid var(--border);transition:all .2s;" onmouseover="this.style.borderColor=\'var(--primary)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
-      h += '<span style="font-size:20px;">' + (isPdf ? '\uD83D\uDCC4' : isImg ? '\uD83D\uDDBC️' : '\uD83D\uDCCE') + '</span>';
+      h += '<span style="font-size:20px;">' + (isPdf ? '\uD83D\uDCC4' : isImg ? '\uD83D\uDDBC\uFE0F' : '\uD83D\uDCCE') + '</span>';
       h += '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(name) + '</div>';
       if (att.category) h += '<div style="font-size:11px;color:var(--text-secondary);">' + att.category + '</div>';
       h += '</div>';
@@ -370,32 +480,10 @@ function renderPollCommonInfo(p) {
   }
 
   // ===== 项目时间流程 =====
-  var consultStart = p.consultationStartDate || p.consultationStart || p.consultStartDate || p.consultStart || p.feedbackStartDate || p.feedbackStart || p.proposalStartDate || p.proposalStart || (p.consultationPeriod && p.consultationPeriod.start) || (p.proposalPeriod && p.proposalPeriod.start) || (p.feedbackPeriod && p.feedbackPeriod.start) || (p.consultPeriod && p.consultPeriod.start) || '';
-  var consultEnd = p.consultationEndDate || p.consultationEnd || p.consultEndDate || p.consultEnd || p.feedbackEndDate || p.feedbackEnd || p.proposalEndDate || p.proposalEnd || (p.consultationPeriod && p.consultationPeriod.end) || (p.proposalPeriod && p.proposalPeriod.end) || (p.feedbackPeriod && p.feedbackPeriod.end) || (p.consultPeriod && p.consultPeriod.end) || '';
-  var annStart = p.announcementStartDate || p.announcementStart || p.officialStartDate || p.officialStart || p.noticeStartDate || p.noticeStart || p.publicNoticeStartDate || p.publicNoticeStart || (p.announcementPeriod && p.announcementPeriod.start) || (p.officialPeriod && p.officialPeriod.start) || (p.noticePeriod && p.noticePeriod.start) || (p.publicNoticePeriod && p.publicNoticePeriod.start) || '';
-  var annEnd = p.announcementEndDate || p.announcementEnd || p.officialEndDate || p.officialEnd || p.noticeEndDate || p.noticeEnd || p.publicNoticeEndDate || p.publicNoticeEnd || (p.announcementPeriod && p.announcementPeriod.end) || (p.officialPeriod && p.officialPeriod.end) || (p.noticePeriod && p.noticePeriod.end) || (p.publicNoticePeriod && p.publicNoticePeriod.end) || '';
-  var pubStart = p.publicityStartDate || p.publicityStart || p.publicStartDate || p.publicStart || p.registerStartDate || p.registerStart || p.ownerListStartDate || p.ownerListStart || (p.publicityPeriod && p.publicityPeriod.start) || (p.publicPeriod && p.publicPeriod.start) || (p.registerPeriod && p.registerPeriod.start) || (p.ownerListPeriod && p.ownerListPeriod.start) || '';
-  var pubEnd = p.publicityEndDate || p.publicityEnd || p.publicEndDate || p.publicEnd || p.registerEndDate || p.registerEnd || p.ownerListEndDate || p.ownerListEnd || (p.publicityPeriod && p.publicityPeriod.end) || (p.publicPeriod && p.publicPeriod.end) || (p.registerPeriod && p.registerPeriod.end) || (p.ownerListPeriod && p.ownerListPeriod.end) || '';
-  var voteStart = p.startDate || p.voteStartDate || p.votingStartDate || (p.votePeriod && p.votePeriod.start) || (p.votingPeriod && p.votingPeriod.start) || '';
-  var voteEnd = p.endDate || p.voteEndDate || p.votingEndDate || (p.votePeriod && p.votePeriod.end) || (p.votingPeriod && p.votingPeriod.end) || '';
-
-  var timeStages = [];
-  if (consultStart || consultEnd) {
-    timeStages.push({ name: '公告方案征求意见期', start: consultStart, end: consultEnd, color: '#2e7d32', icon: '📢', note: p.consultationNote || p.consultNote || p.feedbackNote || '' });
-  }
-  if (annStart || annEnd) {
-    timeStages.push({ name: '正式公告发布期', start: annStart, end: annEnd, color: '#6a1b9a', icon: '📋', note: p.announcementNote || p.officialNote || p.noticeNote || '' });
-  }
-  if (pubStart || pubEnd) {
-    timeStages.push({ name: '业主清册公示期', start: pubStart, end: pubEnd, color: '#e65100', icon: '📋', note: p.publicityNote || '' });
-  }
-  if (voteStart || voteEnd) {
-    timeStages.push({ name: '投票期', start: voteStart, end: voteEnd, color: 'var(--primary)', icon: '🗳️', active: p.status === '进行中', note: '' });
-  }
-
+  var timeStages = getPollTimeStages(p);
   if (timeStages.length > 0) {
     h += '<div style="margin:20px 0;padding:20px;background:#fafbfc;border-radius:12px;border:1px solid #eef0f3;">';
-    h += '<div style="font-weight:600;margin-bottom:16px;font-size:15px;">📅 项目时间流程</div>';
+    h += '<div style="font-weight:600;margin-bottom:16px;font-size:15px;">\uD83D\uDCC5 项目时间流程</div>';
     h += '<div style="position:relative;padding-left:24px;">';
     h += '<div style="position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:#e0e0e0;"></div>';
     timeStages.forEach(function(stage, idx) {
@@ -419,14 +507,14 @@ function renderPollCommonInfo(p) {
   var streetSkipped = p.streetRecordSkipped || p.streetSkipped || p.noStreetRecord || false;
   if (streetNo || streetSkipped) {
     h += '<div style="margin:12px 0;font-size:13px;color:var(--text-secondary);">';
-    if (streetNo) h += '🏛️ 街道备案号：<strong>' + escapeHtml(streetNo) + '</strong>';
-    if (streetSkipped) h += '🏛️ 街道备案：<span style="color:var(--primary);">当地无街道备案要求，已确认跳过</span>';
+    if (streetNo) h += '\uD83C\uDFDB\uFE0F 街道备案号：<strong>' + escapeHtml(streetNo) + '</strong>';
+    if (streetSkipped) h += '\uD83C\uDFDB\uFE0F 街道备案：<span style="color:var(--primary);">当地无街道备案要求，已确认跳过</span>';
     h += '</div>';
   }
 
   if (p.questions && p.questions.length) {
     h += '<div style="margin:20px 0;padding-top:16px;border-top:1px solid var(--border);">';
-    h += '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;">📝 问卷题目预览</div>';
+    h += '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;">\uD83D\uDCDD 问卷题目预览</div>';
     h += '<div style="background:#fafbfc;border-radius:8px;padding:16px;border:1px solid #eef0f2;">';
     p.questions.forEach(function(q, idx) {
       h += '<div style="margin-bottom:14px;' + (idx < p.questions.length - 1 ? 'padding-bottom:14px;border-bottom:1px dashed #e0e0e0;' : '') + '">';
@@ -458,16 +546,16 @@ function renderPollCommonInfo(p) {
   var areaCurrent = getPollAreaCurrent(p);
   var areaUnit = p.areaUnit || (p.progress && p.progress.areaUnit) || '㎡';
   var areaPct = areaTarget > 0 ? Math.round(areaCurrent / areaTarget * 100) : 0;
-  var communityTotalArea = getCommunityTotalArea();
-  var showArea = areaTarget > 0 || communityTotalArea > 0;
+  var residents = getPollResidents(p);
+  var showArea = areaTarget > 0 || (residents.length > 0);
 
   h += '<div style="margin:20px 0;padding:20px;background:#f8f9fa;border-radius:12px;border:1px solid #eef0f3;">';
-  h += '<div style="font-weight:600;margin-bottom:16px;font-size:15px;">📊 参与统计</div>';
+  h += '<div style="font-weight:600;margin-bottom:16px;font-size:15px;">\uD83D\uDCCA 参与统计</div>';
   h += '<div style="display:flex;gap:12px;flex-wrap:wrap;">';
 
   h += '<div style="flex:1;min-width:240px;background:#fff;border-radius:8px;padding:14px;border:1px solid #e8eaf6;">';
   h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-  h += '<span style="font-size:14px;font-weight:600;color:#333;">👥 人数参与</span>';
+  h += '<span style="font-size:14px;font-weight:600;color:#333;">\uD83D\uDC65 人数参与</span>';
   h += '<span style="font-size:15px;font-weight:700;color:var(--primary);">' + pct + '%</span>';
   h += '</div>';
   h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">' + current + ' / ' + target + ' ' + unit + '</div>';
@@ -477,7 +565,7 @@ function renderPollCommonInfo(p) {
   if (showArea) {
     h += '<div style="flex:1;min-width:240px;background:#fff;border-radius:8px;padding:14px;border:1px solid #e3f2fd;">';
     h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-    h += '<span style="font-size:14px;font-weight:600;color:#333;">📐 面积参与</span>';
+    h += '<span style="font-size:14px;font-weight:600;color:#333;">\uD83D\uDCD0 面积参与</span>';
     h += '<span style="font-size:15px;font-weight:700;color:#1976d2;">' + areaPct + '%</span>';
     h += '</div>';
     h += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">' + areaCurrent + ' / ' + areaTarget + ' ' + areaUnit + '</div>';
@@ -490,14 +578,14 @@ function renderPollCommonInfo(p) {
   var pr = p.participationRate || '';
   if (pr || showArea) {
     h += '<div style="margin-top:12px;padding-top:12px;border-top:1px dashed #ddd;font-size:13px;color:var(--text-secondary);">';
-    if (pr) h += '<div>👥 人数参与率：<strong style="color:var(--primary);">' + pr + '</strong></div>';
+    if (pr) h += '<div>\uD83D\uDC65 人数参与率：<strong style="color:var(--primary);">' + pr + '</strong></div>';
     if (showArea) {
-      h += '<div style="margin-top:4px;">📐 面积参与率：<strong style="color:#1976d2;">' + areaPct + '%</strong>（' + areaCurrent + ' / ' + areaTarget + ' ' + areaUnit + '）</div>';
+      h += '<div style="margin-top:4px;">\uD83D\uDCD0 面积参与率：<strong style="color:#1976d2;">' + areaPct + '%</strong>（' + areaCurrent + ' / ' + areaTarget + ' ' + areaUnit + '）</div>';
     }
     h += '</div>';
-  } else if (communityTotalArea === 0) {
+  } else if (residents.length === 0) {
     h += '<div style="margin-top:12px;padding-top:12px;border-top:1px dashed #ddd;font-size:13px;color:#999;">';
-    h += '💡 提示：如需显示面积统计，请在业主数据中完善「房屋面积」字段（支持 area / houseArea / propertyArea / square / size / houseSize）';
+    h += '\uD83D\uDCA1 提示：如需显示面积统计，请在业主数据中完善「房屋面积」字段（支持 area / houseArea / propertyArea / square / size / houseSize）';
     h += '</div>';
   }
   h += '</div>';
@@ -506,7 +594,7 @@ function renderPollCommonInfo(p) {
   var vr = p.voteResult || p.results || p.tallyResult || null;
   if (vr) {
     h += '<div style="margin:20px 0;padding:20px;background:#e8f5e9;border-radius:12px;border:1px solid #c8e6c9;">';
-    h += '<div style="font-weight:600;margin-bottom:16px;font-size:15px;">📋 计票结果</div>';
+    h += '<div style="font-weight:600;margin-bottom:16px;font-size:15px;">\uD83D\uDCCB 计票结果</div>';
     if (vr.isPublished || vr.published) {
       var agreeCount = vr.agreeCount;
       if (agreeCount == null) agreeCount = vr.agree;
@@ -521,7 +609,7 @@ function renderPollCommonInfo(p) {
       h += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">';
 
       h += '<div style="flex:1;min-width:240px;background:#fff;border-radius:8px;padding:14px;border:1px solid #e8f5e9;">';
-      h += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#2e7d32;">👥 人数统计</div>';
+      h += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#2e7d32;">\uD83D\uDC65 人数统计</div>';
       h += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>同意：' + agreeCount + ' / ' + totalCount + ' ' + unit + '</span><span style="color:#2e7d32;font-weight:700;font-size:15px;">同意率 ' + agreePct + '%</span></div>';
       h += '<div style="background:#e8f5e9;border-radius:6px;height:16px;overflow:hidden;">';
       h += '<div style="height:100%;background:linear-gradient(90deg,#2e7d32,#66bb6a);border-radius:6px;width:' + agreePct + '%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-size:10px;font-weight:600;">' + (agreePct > 8 ? agreePct + '%' : '') + '</div>';
@@ -533,12 +621,12 @@ function renderPollCommonInfo(p) {
 
       var totalArea = vr.totalArea;
       if (totalArea == null || totalArea === 0) totalArea = areaTarget;
-      if (totalArea == null || totalArea === 0) totalArea = communityTotalArea;
+      if (totalArea == null || totalArea === 0) totalArea = getCommunityTotalArea(p);
       if (totalArea == null || totalArea === 0) totalArea = 1;
       var agreeAreaPct = totalArea > 0 ? Math.round(agreeArea / totalArea * 100) : 0;
 
       h += '<div style="flex:1;min-width:240px;background:#fff;border-radius:8px;padding:14px;border:1px solid #e3f2fd;">';
-      h += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#1976d2;">📐 面积统计</div>';
+      h += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#1976d2;">\uD83D\uDCD0 面积统计</div>';
       h += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>同意面积：' + agreeArea + ' / ' + totalArea + ' ' + areaUnit + '</span><span style="color:#1976d2;font-weight:700;font-size:15px;">同意率 ' + agreeAreaPct + '%</span></div>';
       h += '<div style="background:#e3f2fd;border-radius:6px;height:16px;overflow:hidden;">';
       h += '<div style="height:100%;background:linear-gradient(90deg,#1976d2,#42a5f5);border-radius:6px;width:' + agreeAreaPct + '%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-size:10px;font-weight:600;">' + (agreeAreaPct > 8 ? agreeAreaPct + '%' : '') + '</div>';
@@ -571,7 +659,7 @@ function renderPollDetail(id) {
   const canJoin = p.status === "进行中";
   if (canJoin) {
     if (residentAuth) h += '<button onclick="joinPoll(\'' + p.id + '\')" class="poll-btn">我要参与</button>';
-    else h += '<button onclick="showLogin()" class="poll-btn" style="background:#888;">🔒 请登录后参与</button>';
+    else h += '<button onclick="showLogin()" class="poll-btn" style="background:#888;">\uD83D\uDD12 请登录后参与</button>';
   }
 
   h += '<div style="margin-top:20px;"><button class="poll-btn" onclick="history.back()">← 返回</button></div></div>';
@@ -601,13 +689,13 @@ async function initLocalPoll(p) {
   const container = document.getElementById('localPollContainer');
   if (!container) return;
   if (!residentAuth) {
-    container.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:32px;margin-bottom:12px;">🔒</div><div style="font-size:15px;margin-bottom:16px;">请登录后参与问卷</div><button class="poll-btn" onclick="showLogin()">业主登录</button></div>';
+    container.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:32px;margin-bottom:12px;">\uD83D\uDD12</div><div style="font-size:15px;margin-bottom:16px;">请登录后参与问卷</div><button class="poll-btn" onclick="showLogin()">业主登录</button></div>';
     return;
   }
 
   var timeCheck = isPollActive(p);
   if (!timeCheck.ok) {
-    container.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:32px;margin-bottom:12px;">⏰</div><div style="font-size:15px;margin-bottom:8px;">' + timeCheck.reason + '</div><div style="font-size:13px;color:var(--text-secondary);">投票时间：' + (p.startDate||'--') + ' 至 ' + (p.endDate||'--') + '</div></div>';
+    container.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:32px;margin-bottom:12px;">\u23F0</div><div style="font-size:15px;margin-bottom:8px;">' + timeCheck.reason + '</div><div style="font-size:13px;color:var(--text-secondary);">投票时间：' + (p.startDate||'--') + ' 至 ' + (p.endDate||'--') + '</div></div>';
     return;
   }
 
@@ -653,15 +741,14 @@ function renderLocalPollForm(p) {
 }
 
 function renderLocalPollResults(p, responses, hasVoted) {
+  var residents = getPollResidents(p);
   var roomAreaMap = {};
   var totalCommunityArea = 0;
-  if (appData.residents && appData.residents.length) {
-    appData.residents.forEach(function(r) {
-      var area = getResidentArea(r);
-      roomAreaMap[r.roomNo] = area;
-      totalCommunityArea += area;
-    });
-  }
+  residents.forEach(function(r) {
+    var area = getResidentArea(r);
+    roomAreaMap[r.roomNo] = area;
+    totalCommunityArea += area;
+  });
   var votedArea = 0;
   responses.forEach(function(r) {
     votedArea += (roomAreaMap[r.residentRoom] || 0);
@@ -669,9 +756,9 @@ function renderLocalPollResults(p, responses, hasVoted) {
 
   let h = '<div style="margin-top:8px;">';
   if (hasVoted && p.status === '进行中') {
-    h += '<div style="margin-bottom:16px;padding:12px;background:#e8f5e9;border-radius:8px;border-left:4px solid var(--success);font-weight:500;">✅ 您已完成问卷，以下是当前统计结果</div>';
+    h += '<div style="margin-bottom:16px;padding:12px;background:#e8f5e9;border-radius:8px;border-left:4px solid var(--success);font-weight:500;">\u2705 您已完成问卷，以下是当前统计结果</div>';
   }
-  h += '<div style="font-weight:600;margin-bottom:16px;font-size:16px;">📊 投票结果</div>';
+  h += '<div style="font-weight:600;margin-bottom:16px;font-size:16px;">\uD83D\uDCCA 投票结果</div>';
 
   var peopleTarget = getPollPeopleTarget(p);
   if (peopleTarget === 0) peopleTarget = 1;
@@ -680,7 +767,7 @@ function renderLocalPollResults(p, responses, hasVoted) {
 
   h += '<div style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;">';
   h += '<div style="flex:1;min-width:240px;background:#fff;border-radius:8px;padding:14px;border:1px solid #e8eaf6;">';
-  h += '<div style="font-size:13px;font-weight:600;color:#333;margin-bottom:8px;">👥 人数参与</div>';
+  h += '<div style="font-size:13px;font-weight:600;color:#333;margin-bottom:8px;">\uD83D\uDC65 人数参与</div>';
   h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
   h += '<span style="font-size:12px;color:var(--text-secondary);">' + responses.length + ' / ' + peopleTarget + ' 户</span>';
   h += '<span style="font-size:15px;font-weight:700;color:var(--primary);">' + peoplePct + '%</span>';
@@ -690,7 +777,7 @@ function renderLocalPollResults(p, responses, hasVoted) {
 
   if (totalCommunityArea > 0) {
     h += '<div style="flex:1;min-width:240px;background:#fff;border-radius:8px;padding:14px;border:1px solid #e3f2fd;">';
-    h += '<div style="font-size:13px;font-weight:600;color:#333;margin-bottom:8px;">📐 面积参与</div>';
+    h += '<div style="font-size:13px;font-weight:600;color:#333;margin-bottom:8px;">\uD83D\uDCD0 面积参与</div>';
     h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
     h += '<span style="font-size:12px;color:var(--text-secondary);">' + votedArea + ' / ' + totalCommunityArea + ' ㎡</span>';
     h += '<span style="font-size:15px;font-weight:700;color:#1976d2;">' + areaParticipationRate + '%</span>';
@@ -699,7 +786,7 @@ function renderLocalPollResults(p, responses, hasVoted) {
     h += '</div>';
   } else {
     h += '<div style="flex:1;min-width:240px;background:#fff;border-radius:8px;padding:14px;border:1px solid #e3f2fd;">';
-    h += '<div style="font-size:13px;font-weight:600;color:#333;margin-bottom:8px;">📐 面积参与</div>';
+    h += '<div style="font-size:13px;font-weight:600;color:#333;margin-bottom:8px;">\uD83D\uDCD0 面积参与</div>';
     h += '<div style="font-size:12px;color:#999;text-align:center;padding:10px 0;">未配置业主房屋面积数据</div>';
     h += '</div>';
   }
@@ -769,7 +856,7 @@ function renderLocalPollResults(p, responses, hasVoted) {
 
         if (totalCommunityArea > 0) {
           h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
-          h += '<span style="font-size:12px;color:var(--text-secondary);">📐 面积：' + optArea + '㎡ (' + areaPct + '%)</span>';
+          h += '<span style="font-size:12px;color:var(--text-secondary);">\uD83D\uDCD0 面积：' + optArea + '㎡ (' + areaPct + '%)</span>';
           h += '</div>';
           h += '<div style="background:#e3f2fd;border-radius:6px;height:12px;overflow:hidden;">';
           h += '<div style="height:100%;background:linear-gradient(90deg,#1976d2,#42a5f5);border-radius:6px;width:' + areaPct + '%;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;color:#fff;font-size:9px;font-weight:600;">' + (areaPct > 15 ? areaPct + '%' : '') + '</div>';
@@ -800,14 +887,14 @@ async function submitLocalPoll(pollId) {
   if (!p) { alert('投票不存在'); return; }
 
   var timeCheck = isPollActive(p);
-  if (!timeCheck.ok) { alert('⏰ ' + timeCheck.reason); return; }
+  if (!timeCheck.ok) { alert('\u23F0 ' + timeCheck.reason); return; }
 
   showPageLoading(true);
   try {
     const responses = await loadPollResponses(pollId);
     const hasVoted = responses.some(function(r) { return r.residentRoom === residentAuth.roomNo; });
     if (hasVoted) {
-      alert('✅ 您已参与过该投票，无需重复提交。');
+      alert('\u2705 您已参与过该投票，无需重复提交。');
       navigate('poll-detail', pollId);
       return;
     }
@@ -841,7 +928,7 @@ async function submitLocalPoll(pollId) {
     try { list = await workerRead(path); } catch(e) { list = []; }
     var alreadyVoted = list.some(function(r) { return r.pollId === pollId && r.residentRoom === residentAuth.roomNo; });
     if (alreadyVoted) {
-      alert('✅ 您已参与过该投票，无需重复提交。');
+      alert('\u2705 您已参与过该投票，无需重复提交。');
       navigate('poll-detail', pollId);
       return;
     }
@@ -860,17 +947,18 @@ async function submitLocalPoll(pollId) {
       const pIdx = pollsList.findIndex(function(x) { return x.id === pollId; });
       if (pIdx >= 0 && pollsList[pIdx].progress) {
         pollsList[pIdx].progress.current = (pollsList[pIdx].progress.current || 0) + 1;
-        // 更新面积进度
+        // 更新面积进度：从投票自身的 residents 或全局 residents 查找
         var voterArea = 0;
-        if (appData.residents && appData.residents.length) {
-          var voter = appData.residents.find(function(r) { return r.roomNo === residentAuth.roomNo; });
+        var allResidents = getPollResidents(pollsList[pIdx]);
+        if (allResidents.length) {
+          var voter = allResidents.find(function(r) { return r.roomNo === residentAuth.roomNo; });
           if (voter) {
             voterArea = getResidentArea(voter);
           }
         }
         pollsList[pIdx].progress.areaCurrent = (pollsList[pIdx].progress.areaCurrent || 0) + voterArea;
-        // 如果没有设置面积目标，自动从 residents 计算
-        var totalArea = getCommunityTotalArea();
+        // 如果没有设置面积目标，自动计算
+        var totalArea = getCommunityTotalArea(pollsList[pIdx]);
         if (!(pollsList[pIdx].progress.areaTarget > 0) && totalArea > 0) {
           pollsList[pIdx].progress.areaTarget = totalArea;
         }
@@ -878,7 +966,7 @@ async function submitLocalPoll(pollId) {
         appData.polls = pollsList;
       }
     } catch(e2) { console.error('更新进度失败', e2); }
-    alert('✅ 提交成功！');
+    alert('\u2705 提交成功！');
     navigate('poll-detail', pollId);
   } catch(e) {
     alert('提交失败：' + e.message);
