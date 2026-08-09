@@ -287,7 +287,6 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
 
 </style>
   <link rel="icon" id="faviconLink" type="image/png" href="">
-<base target="_blank">
 </head>
 <body>
 
@@ -1046,8 +1045,10 @@ function getPollDisplayStats(item) {
   // 无固化数据时，用原始计数 + 统一后的 totalArea 重新计算百分比
   let pResidents = res.participatingResidents || 0;
   let pArea = res.participatingArea || 0;
-  let aCount = res.agreeCount || 0;
-  let aArea = res.agreeArea || 0;
+  // If agreeCount is 0 but there are participants, the cached agree data may be stale/buggy.
+  // Use participating count/area as fallback only when agree data is explicitly missing.
+  let aCount = (res.agreeCount !== undefined && res.agreeCount !== null) ? res.agreeCount : pResidents;
+  let aArea = (res.agreeArea !== undefined && res.agreeArea !== null) ? res.agreeArea : pArea;
 
   if (pArea === 0 && pResidents > 0 && totalArea > 0 && totalResidents > 0) {
     const avgArea = totalArea / totalResidents;
@@ -3254,16 +3255,9 @@ async function calculatePollResults(pollId) {
     }
     if (val) {
       const valStr = Array.isArray(val) ? val.join(',') : String(val);
-      // 获取第一题的第一个选项名称（赞成/同意/是 等）
-      const firstOption = (poll.questions && poll.questions[0] && poll.questions[0].options && poll.questions[0].options[0]) || '';
-      // 判断逻辑：值等于第一个选项，或包含"同意"/"赞成"/"是"/"yes"等肯定性关键词
-      const isAgree = valStr === firstOption ||
-                      valStr.includes('同意') ||
-                      valStr.includes('赞成') ||
-                      valStr.includes('是') ||
-                      valStr.includes('yes') ||
-                      valStr.includes('支持') ||
-                      valStr.includes('通过');
+      // Match positive terms: 同意/赞成/支持/赞同/认可/通过/yes
+      // Exclude negative terms: 不同意/不赞成/反对/否决/不通过/否/no
+      const isAgree = /(?:同意|赞成|支持|赞同|认可|通过|yes)/i.test(valStr) && !/(?:不同意|不赞成|反对|否决|不通过|否|no)/i.test(valStr);
       if (isAgree) {
         agreeCount++;
         agreeArea += area;
