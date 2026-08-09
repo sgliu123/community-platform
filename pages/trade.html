@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>社区交易集市</title>
+<style>
+:root{--primary:#2e7d32;--primary-dark:#1b5e20;--danger:#c62828;--warning:#e65100;--bg:#f5f7fa;--card:#fff;--text:#333;--text-secondary:#666;--border:#e0e0e0;}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;}
+body{background:var(--bg);color:var(--text);line-height:1.5;-webkit-tap-highlight-color:transparent;}
+.header{position:sticky;top:0;z-index:100;background:var(--primary);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+.header h1{font-size:18px;font-weight:600;flex:1;}
+.header .back{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;transition:background .2s;font-size:20px;}
+.header .back:hover{background:rgba(255,255,255,0.15);}
+.header .user{font-size:13px;opacity:0.9;white-space:nowrap;}
+.notice-bar{background:#ffebee;color:var(--danger);padding:10px 16px;font-size:13px;text-align:center;}
+.container{max-width:800px;margin:0 auto;padding:16px;padding-bottom:80px;}
+.card{background:var(--card);border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.card-title{font-size:16px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.empty{text-align:center;padding:40px;color:#999;font-size:14px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 20px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:14px;cursor:pointer;transition:all .2s;}
+.btn:hover{background:var(--primary-dark);}
+.btn:disabled{background:#ccc !important;cursor:not-allowed;color:#fff;}
+.btn-secondary{background:#f5f5f5;color:var(--text);border:1px solid var(--border);}
+.btn-secondary:hover{background:#eee;}
+.btn-sm{padding:6px 14px;font-size:13px;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:14px;font-weight:500;margin-bottom:6px;color:var(--text);}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;transition:border .2s;background:#fff;}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{outline:none;border-color:var(--primary);}
+.form-group textarea{resize:vertical;}
+.identity-select{display:flex;gap:12px;margin-bottom:4px;}
+.identity-option{flex:1;padding:14px 8px;border:2px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;transition:all .2s;background:#fff;}
+.identity-option:hover{border-color:#81c784;}
+.identity-option.active{border-color:var(--primary);background:#e8f5e9;}
+.identity-option .icon{font-size:24px;margin-bottom:4px;}
+.identity-option .title{font-size:14px;font-weight:600;}
+.identity-option .desc{font-size:11px;color:var(--text-secondary);margin-top:2px;}
+.image-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.image-preview img{width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);}
+.image-item{position:relative;width:80px;height:80px;}
+.image-item .remove{position:absolute;top:-6px;right:-6px;width:20px;height:20px;background:var(--danger);color:#fff;border:none;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.list-item{display:flex;align-items:center;gap:12px;padding:14px;background:#fff;border-radius:10px;margin-bottom:10px;cursor:pointer;transition:box-shadow .2s;border:1px solid var(--border);}
+.list-item:hover{box-shadow:0 4px 12px rgba(0,0,0,0.08);}
+.list-item img{width:80px;height:80px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#f5f5f5;}
+.list-content{flex:1;min-width:0;}
+.list-title{font-size:15px;font-weight:600;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.list-meta{font-size:12px;color:var(--text-secondary);display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.status-tag{font-size:11px;padding:2px 10px;border-radius:12px;font-weight:500;white-space:nowrap;}
+.status-pending{background:#fff3e0;color:var(--warning);}
+.status-approved{background:#e8f5e9;color:var(--primary);}
+.status-rejected{background:#ffebee;color:var(--danger);}
+.float-btn{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:28px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;z-index:50;transition:transform .2s;}
+.float-btn:active{transform:scale(0.95);}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-120px);background:#333;color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;z-index:200;transition:transform .35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 4px 12px rgba(0,0,0,0.15);text-align:center;max-width:90vw;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{background:var(--primary);}
+.toast.error{background:var(--danger);}
+.filter-bar{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;}
+.filter-btn{padding:6px 16px;border:1px solid var(--border);border-radius:20px;background:#fff;font-size:13px;cursor:pointer;white-space:nowrap;transition:all .2s;}
+.filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.loading{text-align:center;padding:40px;color:#999;font-size:14px;}
+.my-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:var(--primary);color:#fff;margin-left:6px;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:150;display:none;align-items:center;justify-content:center;flex-direction:column;}
+.overlay.show{display:flex;}
+.overlay-spinner{width:48px;height:48px;border:4px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:16px;}
+.overlay-text{color:#fff;font-size:16px;font-weight:500;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.quick-cats{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.quick-cat{padding:8px 14px;border:1px solid var(--border);border-radius:20px;background:#fff;font-size:13px;cursor:pointer;transition:all .2s;}
+.quick-cat:hover{border-color:var(--primary);}
+.quick-cat.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+</style>
+<base target="_blank">
+</head>
+<body>
+<div class="header">
+  <div class="back" onclick="goBack()">&#8592;</div>
+  <h1>社区交易集市</h1>
+  <div class="user" id="headerUser"></div>
+</div>
+<div class="notice-bar" id="noticeBar">&#9888; 本平台仅提供信息展示服务，不对交易真实性、安全性作任何担保，交易风险由双方自行承担。</div>
+<div class="container" id="app"></div>
+<div class="toast" id="toast"></div>
+<div class="overlay" id="overlay">
+  <div class="overlay-spinner"></div>
+  <div class="overlay-text" id="overlayText">正在提交，请勿重复点击...</div>
+</div>
+<button class="float-btn" onclick="goPost()" id="fab" style="display:none;">+</button>
+
+<script>
+var workerBase = localStorage.getItem("workerBase") || "https://community.firstblade.site";
+var residentAuth = null;
+try { residentAuth = JSON.parse(localStorage.getItem("residentAuth") || "null"); } catch(e) { residentAuth = null; }
+
+function showToast(msg, type) {
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast" + (type ? " " + type : "");
+  t.classList.add("show");
+  if (t._timer) clearTimeout(t._timer);
+  t._timer = setTimeout(function() { t.classList.remove("show"); }, 2800);
+}
+
+function showOverlay(text) {
+  var o = document.getElementById("overlay");
+  document.getElementById("overlayText").textContent = text || "处理中...";
+  o.classList.add("show");
+}
+function hideOverlay() {
+  document.getElementById("overlay").classList.remove("show");
+}
+
+function formatDate(d) {
+  if (!d) return "--";
+  var date = new Date(d);
+  return date.getFullYear() + "-" + (date.getMonth() + 1).toString().padStart(2, "0") + "-" + date.getDate().toString().padStart(2, "0");
+}
+
+function escapeHtml(t) {
+  if (!t) return "";
+  var map = {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"};
+  return t.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+function workerRead(path) {
+  return fetch(workerBase + "/api/read/" + encodeURIComponent(path) + "?t=" + Date.now()).then(function(r) {
+    if (!r.ok) throw new Error("读取失败");
+    return r.json();
+  });
+}
+
+function workerWrite(path, data, comment) {
+  return fetch(workerBase + "/api/write/" + encodeURIComponent(path) + "?comment=" + encodeURIComponent(comment || ""), {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data)
+  }).then(function(r) {
+    if (!r.ok) throw new Error("写入失败");
+    return r.json();
+  });
+}
+
+function workerUpload(file) {
+  var form = new FormData();
+  form.append("file", file);
+  return fetch(workerBase + "/api/upload", { method: "POST", body: form }).then(function(r) {
+    if (!r.ok) throw new Error("上传失败");
+    return r.json();
+  });
+}
+
+function getCurrentMonthPath(prefix) {
+  var d = new Date();
+  return prefix + "/" + d.getFullYear() + "-" + (d.getMonth() + 1).toString().padStart(2, "0") + ".json";
+}
+
+var tradeItems = [];
+var isSubmitting = false;
+var _tradeImages = [];
+var currentFilter = "all";
+var _postType = "supply";
+var _postCategory = "";
+
+function render() {
+  var hash = location.hash.replace("#", "") || "/";
+  var app = document.getElementById("app");
+  var fab = document.getElementById("fab");
+  if (hash === "/post" || !residentAuth) { fab.style.display = "none"; }
+  else { fab.style.display = "block"; }
+
+  if (hash === "/post") {
+    if (!residentAuth) { showToast("请先登录", "error"); location.hash = ""; return; }
+    app.innerHTML = renderPostForm();
+    bindPostEvents();
+    return;
+  }
+  if (hash.indexOf("/detail/") === 0) {
+    var id = hash.replace("/detail/", "");
+    app.innerHTML = "<div class=loading>加载中...</div>";
+    loadTradeItems().then(function() {
+      app.innerHTML = renderDetail(id);
+    }).catch(function() {
+      app.innerHTML = renderDetail(id);
+    });
+    fab.style.display = "none";
+    return;
+  }
+  app.innerHTML = "<div class=loading>加载中...</div>";
+  loadTradeItems().then(function() {
+    app.innerHTML = renderList();
+    bindListEvents();
+  }).catch(function() {
+    app.innerHTML = renderList();
+    bindListEvents();
+  });
+}
+
+function goBack() {
+  if (location.hash) { location.hash = ""; }
+  else { history.back(); }
+}
+
+function goPost() {
+  location.hash = "#/post";
+}
+
+function loadTradeItems() {
+  var items = [];
+  var map = {};
+  return workerRead("trades/approved.json").catch(function() { return []; }).then(function(appList) {
+    if (Array.isArray(appList)) {
+      appList.forEach(function(x) { if (x && x.id) { map[x.id] = x; items.push(x); } });
+    }
+    return workerRead(getCurrentMonthPath("trades")).catch(function() { return []; });
+  }).then(function(cur) {
+    if (Array.isArray(cur)) {
+      cur.forEach(function(x) {
+        if (!x || !x.id) return;
+        if (map[x.id]) {
+          var idx = items.indexOf(map[x.id]);
+          if (idx > -1) items[idx] = map[x.id];
+        } else {
+          map[x.id] = x;
+          items.push(x);
+        }
+      });
+    }
+    tradeItems = items.sort(function(a, b) {
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+  }).catch(function() {
+    tradeItems = [];
+  });
+}
+
+function renderList() {
+  var filtered = currentFilter === "all" ? tradeItems : tradeItems.filter(function(x) { return x.type === currentFilter; });
+  var myRoom = residentAuth ? residentAuth.roomNo : null;
+  var h = "";
+  h = h + '<div class="filter-bar">';
+  h = h + '<button class="filter-btn ' + (currentFilter === "all" ? "active" : "") + '" data-filter="all">全部</button>';
+  h = h + '<button class="filter-btn ' + (currentFilter === "supply" ? "active" : "") + '" data-filter="supply">供应</button>';
+  h = h + '<button class="filter-btn ' + (currentFilter === "demand" ? "active" : "") + '" data-filter="demand">需求</button>';
+  h = h + "</div>";
+
+  if (!filtered.length) {
+    h = h + '<div class="card"><div class="empty">暂无交易信息<br><span style="font-size:13px;color:#999;">点击右下角 + 发布第一条</span></div></div>';
+  } else {
+    h = h + '<div class="card"><div class="card-title">最新发布</div>';
+    filtered.forEach(function(item) {
+      var typeText = item.type === "supply" ? "供应" : "需求";
+      var catMap = { rent: "房屋出租", sale: "房屋出售", item: "物品交易", rentwant: "求租", buy: "求购", collect: "回收" };
+      var catText = catMap[item.category] || item.category || "其他";
+      var statusCls = item.status === "已通过" ? "status-approved" : (item.status === "已拒绝" ? "status-rejected" : "status-pending");
+      var isMine = myRoom && item.residentRoom === myRoom;
+      var imgUrl = (item.images && item.images[0]) ? item.images[0] : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+      h = h + '<div class="list-item" data-id="' + item.id + '">';
+      h = h + '<img src="' + imgUrl + '" alt="">';
+      h = h + '<div class="list-content">';
+      h = h + '<div class="list-title">' + escapeHtml(item.title) + (isMine ? '<span class="my-badge">我的</span>' : "") + "</div>";
+      h = h + '<div class="list-meta"><span class="status-tag ' + statusCls + '">' + (item.status || "审核中") + "</span><span>" + typeText + " / " + catText + "</span>" + (item.price ? '<span style="color:var(--primary);font-weight:600;">¥' + escapeHtml(item.price) + "</span>" : "<span>价格面议</span>") + "</div>";
+      h = h + '<div class="list-meta">' + escapeHtml(item.residentRoom || "") + " / " + formatDate(item.createdAt) + "</div>";
+      h = h + "</div></div>";
+    });
+    h = h + "</div>";
+  }
+  return h;
+}
+
+function bindListEvents() {
+  var btns = document.querySelectorAll(".filter-btn");
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].onclick = function() {
+      currentFilter = this.getAttribute("data-filter");
+      render();
+    };
+  }
+  var items = document.querySelectorAll(".list-item");
+  for (var i = 0; i < items.length; i++) {
+    items[i].onclick = function() {
+      location.hash = "#/detail/" + this.getAttribute("data-id");
+    };
+  }
+}
+
+function renderDetail(id) {
+  var item = null;
+  for (var i = 0; i < tradeItems.length; i++) {
+    if (tradeItems[i].id === id) { item = tradeItems[i]; break; }
+  }
+  if (!item) {
+    return '<div class="card"><div class="empty">信息不存在或已删除</div><div style="text-align:center;margin-top:16px;"><button class="btn btn-secondary" onclick="goBack()">返回</button></div></div>';
+  }
+  var catMap = { rent: "房屋出租", sale: "房屋出售", item: "物品交易", rentwant: "求租", buy: "求购", collect: "回收" };
+  var catText = catMap[item.category] || item.category || "其他";
+  var statusCls = item.status === "已通过" ? "status-approved" : (item.status === "已拒绝" ? "status-rejected" : "status-pending");
+  var h = '<div class="card">';
+  h = h + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">';
+  h = h + '<span class="status-tag ' + statusCls + '">' + (item.status || "审核中") + "</span>";
+  h = h + '<button class="btn btn-sm btn-secondary" onclick="goBack()">返回列表</button>';
+  h = h + "</div>";
+  h = h + '<h2 style="font-size:18px;margin-bottom:8px;">' + escapeHtml(item.title) + "</h2>";
+  h = h + '<div style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">' + (item.type === "supply" ? "供应" : "需求") + " / " + catText + " / " + formatDate(item.createdAt) + "</div>";
+  if (item.price) h = h + '<div style="font-size:22px;color:var(--primary);font-weight:700;margin-bottom:16px;">¥' + escapeHtml(item.price) + "</div>";
+  if (item.description) h = h + '<div style="line-height:1.7;margin-bottom:16px;font-size:14px;">' + escapeHtml(item.description).replace(/\n/g, "<br>") + "</div>";
+  if (item.images && item.images.length) {
+    h = h + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:16px;">';
+    item.images.forEach(function(url) {
+      h = h + '<img src="' + url + '" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer;" onclick="window.open(this.src)" loading="lazy">';
+    });
+    h = h + "</div>";
+  }
+  h = h + '<div style="background:#f8f9fa;border-radius:8px;padding:14px;font-size:13px;color:var(--text-secondary);line-height:1.8;">';
+  h = h + "<div>联系人：" + escapeHtml(item.contactName || item.residentName || "业主") + "</div>";
+  h = h + "<div>房号：" + escapeHtml(item.residentRoom || "") + "</div>";
+  if (item.contactPhone) h = h + "<div>电话：" + escapeHtml(item.contactPhone) + "</div>";
+  else if (residentAuth && item.residentRoom === residentAuth.roomNo) h = h + "<div>电话：（使用您登记的手机号）</div>";
+  h = h + "</div>";
+  h = h + "</div>";
+  return h;
+}
+
+function renderPostForm() {
+  _tradeImages = [];
+  _postType = _postType || "supply";
+  var supplyCats = [
+    {k:"rent",v:"房屋出租"},{k:"sale",v:"房屋出售"},{k:"item",v:"物品出售"},{k:"collect",v:"回收/收物品"}
+  ];
+  var demandCats = [
+    {k:"rentwant",v:"求租房屋"},{k:"buy",v:"求购物品"},{k:"collect",v:"回收/收物品"}
+  ];
+  var cats = _postType === "supply" ? supplyCats : demandCats;
+  var h = '<div class="card">';
+  h = h + '<div class="card-title">发布交易信息</div>';
+
+  h = h + '<div class="form-group">';
+  h = h + '<label>我是 <span style="color:var(--danger)">*</span></label>';
+  h = h + '<div class="identity-select">';
+  h = h + '<div class="identity-option ' + (_postType === "supply" ? "active" : "") + '" data-type="supply">';
+  h = h + '<div class="icon">&#128228;</div><div class="title">供应方</div><div class="desc">出租 / 出售</div>';
+  h = h + "</div>";
+  h = h + '<div class="identity-option ' + (_postType === "demand" ? "active" : "") + '" data-type="demand">';
+  h = h + '<div class="icon">&#128229;</div><div class="title">需求方</div><div class="desc">求租 / 求购</div>';
+  h = h + "</div>";
+  h = h + "</div>";
+  h = h + "</div>";
+
+  h = h + '<div class="form-group">';
+  h = h + '<label>分类 <span style="color:var(--danger)">*</span></label>';
+  h = h + '<div class="quick-cats" id="quickCats">';
+  cats.forEach(function(c) {
+    h = h + '<span class="quick-cat ' + (_postCategory === c.k ? "active" : "") + '" data-cat="' + c.k + '">' + c.v + '</span>';
+  });
+  h = h + "</div>";
+  h = h + '<input type="hidden" id="tpCategory" value="' + (_postCategory || "") + '">';
+  h = h + "</div>";
+
+  h = h + '<div class="form-group">';
+  h = h + '<label>标题 <span style="color:var(--danger)">*</span></label>';
+  h = h + '<input type="text" id="tpTitle" placeholder="如：两室一厅出租、闲置儿童自行车出售">';
+  h = h + "</div>";
+  h = h + '<div class="form-group">';
+  h = h + '<label>价格（可选）</label>';
+  h = h + '<input type="text" id="tpPrice" placeholder="如：2000元/月、500元、面议">';
+  h = h + "</div>";
+  h = h + '<div class="form-group">';
+  h = h + '<label>详细描述</label>';
+  h = h + '<textarea id="tpDesc" rows="4" placeholder="请描述物品详情、房屋情况、交易要求、联系方式等..."></textarea>';
+  h = h + "</div>";
+  h = h + '<div class="form-group">';
+  h = h + '<label>联系电话（可选）</label>';
+  h = h + '<input type="text" id="tpPhone" placeholder="留空则使用登记手机号">';
+  h = h + "</div>";
+  h = h + '<div class="form-group">';
+  h = h + '<label>图片（可选，最多6张，自动压缩）</label>';
+  h = h + '<div class="image-preview" id="tpImagePreview"></div>';
+  h = h + '<input type="file" id="tpImages" accept="image/*" multiple style="display:none">';
+  h = h + '<button type="button" class="btn btn-secondary btn-sm" id="btnAddImg">添加图片</button>';
+  h = h + "</div>";
+  h = h + '<div style="display:flex;gap:10px;margin-top:24px;">';
+  h = h + '<button class="btn" id="tpSubmitBtn" style="flex:1;font-size:15px;padding:12px;">确认发布</button>';
+  h = h + '<button class="btn btn-secondary" id="btnCancelPost" style="flex:1;font-size:15px;padding:12px;">取消</button>';
+  h = h + "</div>";
+  h = h + "</div>";
+  return h;
+}
+
+function bindPostEvents() {
+  var idOpts = document.querySelectorAll(".identity-option");
+  for (var i = 0; i < idOpts.length; i++) {
+    idOpts[i].onclick = function() {
+      _postType = this.getAttribute("data-type");
+      _postCategory = "";
+      document.getElementById("app").innerHTML = renderPostForm();
+      bindPostEvents();
+      document.getElementById("tpTitle").focus();
+    };
+  }
+  var catOpts = document.querySelectorAll(".quick-cat");
+  for (var i = 0; i < catOpts.length; i++) {
+    catOpts[i].onclick = function() {
+      _postCategory = this.getAttribute("data-cat");
+      document.getElementById("tpCategory").value = _postCategory;
+      for (var j = 0; j < catOpts.length; j++) catOpts[j].classList.remove("active");
+      this.classList.add("active");
+    };
+  }
+  document.getElementById("btnAddImg").onclick = function() { document.getElementById("tpImages").click(); };
+  document.getElementById("tpImages").onchange = function() { handleTPImages(this); };
+  document.getElementById("tpSubmitBtn").onclick = submitTrade;
+  document.getElementById("btnCancelPost").onclick = function() { location.hash = ""; };
+}
+
+function handleTPImages(input) {
+  var files = Array.prototype.slice.call(input.files, 0, 6);
+  var preview = document.getElementById("tpImagePreview");
+  var idx = 0;
+  function next() {
+    if (idx >= files.length) { input.value = ""; return; }
+    var f = files[idx];
+    compressImage(f, { maxWidth: 900, maxHeight: 900, quality: 0.6, maxSize: 120 * 1024 }).then(function(compressed) {
+      _tradeImages.push(compressed);
+      var url = URL.createObjectURL(compressed);
+      var imgIdx = _tradeImages.length - 1;
+      preview.insertAdjacentHTML("beforeend", '<div class="image-item" id="tp-img-' + imgIdx + '"><img src="' + url + '"><button class="remove" data-idx="' + imgIdx + '">x</button></div>');
+      bindRemoveBtns();
+      idx++;
+      next();
+    }).catch(function() {
+      _tradeImages.push(f);
+      var url = URL.createObjectURL(f);
+      var imgIdx = _tradeImages.length - 1;
+      preview.insertAdjacentHTML("beforeend", '<div class="image-item" id="tp-img-' + imgIdx + '"><img src="' + url + '"><button class="remove" data-idx="' + imgIdx + '">x</button></div>');
+      bindRemoveBtns();
+      idx++;
+      next();
+    });
+  }
+  next();
+}
+
+function bindRemoveBtns() {
+  var btns = document.querySelectorAll(".image-item .remove");
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].onclick = function(e) {
+      e.stopPropagation();
+      removeTPImage(parseInt(this.getAttribute("data-idx")));
+    };
+  }
+}
+
+function removeTPImage(idx) {
+  _tradeImages.splice(idx, 1);
+  var preview = document.getElementById("tpImagePreview");
+  preview.innerHTML = "";
+  _tradeImages.forEach(function(f, i) {
+    var url = URL.createObjectURL(f);
+    preview.insertAdjacentHTML("beforeend", '<div class="image-item" id="tp-img-' + i + '"><img src="' + url + '"><button class="remove" data-idx="' + i + '">x</button></div>');
+  });
+  bindRemoveBtns();
+}
+
+function compressImage(file, opts) {
+  if (typeof window._globalCompressImage === "function") {
+    return window._globalCompressImage(file, opts);
+  }
+  if (file.size <= (opts.maxSize || Infinity)) {
+    return Promise.resolve(file);
+  }
+  return new Promise(function(resolve, reject) {
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function() {
+      var canvas = document.createElement("canvas");
+      var w = img.width, h = img.height;
+      var maxW = opts.maxWidth || 1920, maxH = opts.maxHeight || 1920;
+      if (w > maxW || h > maxH) {
+        var r = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * r);
+        h = Math.round(h * r);
+      }
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      canvas.toBlob(function(b) {
+        if (b) resolve(new File([b], file.name, { type: file.type, lastModified: Date.now() }));
+        else reject();
+        URL.revokeObjectURL(url);
+      }, file.type, opts.quality || 0.8);
+    };
+    img.onerror = function() { reject(); };
+    img.src = url;
+  });
+}
+
+function submitTrade() {
+  if (isSubmitting) { showToast("正在提交中，请勿重复点击", "error"); return; }
+  var category = document.getElementById("tpCategory").value;
+  var title = document.getElementById("tpTitle").value.trim();
+  var price = document.getElementById("tpPrice").value.trim();
+  var desc = document.getElementById("tpDesc").value.trim();
+  var phone = document.getElementById("tpPhone").value.trim();
+
+  if (!_postType) { showToast("请选择身份（供应方或需求方）", "error"); return; }
+  if (!category) { showToast("请选择分类", "error"); return; }
+  if (!title) { showToast("请填写标题", "error"); return; }
+
+  var recentKey = "trade_recent_submit";
+  var recent = null;
+  try { recent = JSON.parse(localStorage.getItem(recentKey) || "null"); } catch(e) {}
+  var now = Date.now();
+  if (recent && recent.room === residentAuth.roomNo && recent.type === _postType && recent.title === title && (now - recent.time) < 60000) {
+    showToast("请勿重复提交，您刚刚发布过相同内容", "error");
+    return;
+  }
+
+  isSubmitting = true;
+  showOverlay("正在提交，请勿关闭页面或重复点击...");
+  var btn = document.getElementById("tpSubmitBtn");
+  btn.disabled = true;
+  btn.textContent = "提交中...";
+
+  var imageUrls = [];
+  var uploadIdx = 0;
+
+  function uploadNext() {
+    if (uploadIdx >= _tradeImages.length) {
+      doSubmit(imageUrls);
+      return;
+    }
+    workerUpload(_tradeImages[uploadIdx]).then(function(r) {
+      if (r && r.url) imageUrls.push(r.url);
+      uploadIdx++;
+      uploadNext();
+    }).catch(function(e) {
+      console.error("图片上传失败", e);
+      uploadIdx++;
+      uploadNext();
+    });
+  }
+
+  function doSubmit(urls) {
+    var item = {
+      id: "t-" + Date.now().toString(36) + "-" + Math.random().toString(36).substr(2, 4),
+      type: _postType,
+      category: category,
+      title: title,
+      price: price,
+      description: desc,
+      contactPhone: phone,
+      images: urls,
+      residentRoom: residentAuth.roomNo,
+      residentName: residentAuth.name,
+      status: "审核中",
+      createdAt: new Date().toISOString()
+    };
+
+    workerRead(getCurrentMonthPath("trades")).then(function(list) {
+      if (!Array.isArray(list)) list = [];
+      var dup = false;
+      for (var i = 0; i < list.length; i++) {
+        var x = list[i];
+        if (x.title === title && x.residentRoom === residentAuth.roomNo && x.type === _postType && (now - new Date(x.createdAt).getTime()) < 90000) {
+          dup = true; break;
+        }
+      }
+      if (dup) {
+        showToast("请勿重复提交，您刚刚发布过相同内容", "error");
+        isSubmitting = false;
+        hideOverlay();
+        btn.disabled = false;
+        btn.textContent = "确认发布";
+        return;
+      }
+      list.push(item);
+      return workerWrite(getCurrentMonthPath("trades"), list, "业主发布交易 " + title);
+    }).then(function() {
+      try { localStorage.setItem(recentKey, JSON.stringify({room: residentAuth.roomNo, type: _postType, title: title, time: now})); } catch(e) {}
+      tradeItems.unshift(item);
+      showToast("发布成功！审核通过后将公开展示", "success");
+      setTimeout(function() {
+        isSubmitting = false;
+        hideOverlay();
+        btn.disabled = false;
+        btn.textContent = "确认发布";
+        location.hash = "";
+      }, 800);
+    }).catch(function(e) {
+      showToast("发布失败：" + (e.message || "网络错误"), "error");
+      isSubmitting = false;
+      hideOverlay();
+      btn.disabled = false;
+      btn.textContent = "确认发布";
+    });
+  }
+
+  uploadNext();
+}
+
+document.getElementById("headerUser").textContent = residentAuth ? (residentAuth.name || "业主") : "未登录";
+if (!residentAuth) {
+  var bar = document.getElementById("noticeBar");
+  var warn = document.createElement("div");
+  warn.className = "notice-bar";
+  warn.style.background = "#fff3e0";
+  warn.style.color = "var(--warning)";
+  warn.textContent = "您尚未登录，仅可浏览。发布信息请先登录。";
+  bar.parentNode.insertBefore(warn, bar.nextSibling);
+}
+
+window.addEventListener("hashchange", render);
+render();
+</script>
+</body>
+</html>
