@@ -78,14 +78,14 @@ function renderComplaintsHTML(list){
   if(!list.length){ h+='<div class="empty">暂无反馈记录</div>'; }
   else{
     list.slice().reverse().forEach(item=>{
-      h+='<div class="list-item" onclick="navigate('complaint-detail',''+item.id+'')">';
+      h+='<div class="list-item" onclick="navigate(\'complaint-detail\',\''+item.id+'\')">';
       h+='<span class="list-badge '+cpStatusBadge(item.status)+'">'+item.status+'</span>';
       h+='<div class="list-content"><div class="list-title">'+(item.isAnonymous?'匿名'+item.type:escapeHtml(item.title))+'</div>';
       h+='<div class="list-meta">'+item.type+' · '+formatDate(item.createdAt)+'</div></div>';
       h+='<div class="list-arrow">›</div></div>';
     });
   }
-  h+='<div style="margin-top:16px;text-align:center;"><button class="poll-btn" onclick="navigate('submit-complaint')">➕ 提交反馈</button></div>';
+  h+='<div style="margin-top:16px;text-align:center;"><button class="poll-btn" onclick="navigate(\'submit-complaint\')">➕ 提交反馈</button></div>';
   h+='</div>'; return h;
 }
 
@@ -143,7 +143,7 @@ function renderSubmitComplaint(){
   h+='<div id="cpImagesPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;min-height:0;"></div>';
   h+='<div style="display:none;width:100%;text-align:center;padding:12px;color:var(--text-secondary);font-size:13px;" id="cpCompressStatus">正在压缩处理图片，请稍候...</div>';
   h+='<input type="file" id="cpImages" accept="image/*" multiple style="display:none" onchange="handleCPImages(this)">';
-  h+='<button type="button" class="btn" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;" onclick="document.getElementById('cpImages').click()">📎 选择图片</button>';
+  h+='<button type="button" class="btn" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;" onclick="document.getElementById(\'cpImages\').click()">📎 选择图片</button>';
   h+='<span style="font-size:12px;color:var(--text-secondary);margin-left:8px;">支持多张，自动压缩加速上传</span></div>';
   h+='<div class="form-group" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="cpAnonymous" style="width:auto;"><label for="cpAnonymous" style="margin-bottom:0;">匿名提交</label></div>';
   h+='<div style="margin-top:20px;"><button class="poll-btn" onclick="doSubmitComplaint()">提交</button>';
@@ -263,8 +263,8 @@ function renderComplaintDetail(id){
     h+='<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">'+formatDateTime(item.replyAt)+'</div></div>';
     if(item.status==='已回复'){
       h+='<div style="margin-top:12px;"><div style="font-weight:600;margin-bottom:8px;">您对处理结果是否满意？</div>';
-      h+='<button class="action-btn primary" onclick="doCPSatisfaction(''+item.id+'',true)">👍 满意</button>';
-      h+='<button class="action-btn secondary" style="margin-left:8px;" onclick="doCPSatisfaction(''+item.id+'',false)">👎 不满意</button></div>';
+      h+='<button class="action-btn primary" onclick="doCPSatisfaction(\''+item.id+'\',true)">👍 满意</button>';
+      h+='<button class="action-btn secondary" style="margin-left:8px;" onclick="doCPSatisfaction(\''+item.id+'\',false)">👎 不满意</button></div>';
     }
   }
   if(item.satisfaction!==null){

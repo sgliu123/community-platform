@@ -31,14 +31,14 @@ function renderWorkordersHTML(list){
   if(!list.length){ h+='<div class="empty">暂无报修记录</div>'; }
   else{
     list.slice().reverse().forEach(item=>{
-      h+='<div class="list-item" onclick="navigate('workorder-detail',''+item.id+'')">';
+      h+='<div class="list-item" onclick="navigate(\'workorder-detail\',\''+item.id+'\')">';
       h+='<span class="list-badge '+woStatusBadge(item.status)+'">'+item.status+'</span>';
       h+='<div class="list-content"><div class="list-title">'+escapeHtml(item.title)+'</div>';
       h+='<div class="list-meta">'+item.type+' · '+formatDate(item.createdAt)+'</div></div>';
       h+='<div class="list-arrow">›</div></div>';
     });
   }
-  h+='<div style="margin-top:16px;text-align:center;"><button class="poll-btn" onclick="navigate('submit-workorder')">➕ 新建报修</button></div>';
+  h+='<div style="margin-top:16px;text-align:center;"><button class="poll-btn" onclick="navigate(\'submit-workorder\')">➕ 新建报修</button></div>';
   h+='</div>'; return h;
 }
 
@@ -49,7 +49,7 @@ function renderSubmitWorkorder(){
   h+='<div class="form-group"><label>详细描述</label><textarea id="woDesc" rows="4" placeholder="请详细描述故障情况、具体位置等" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;"></textarea></div>';
   h+='<div class="form-group"><label>故障图片（可选，最多3张）</label><div id="woImagesPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>';
   h+='<input type="file" id="woImages" accept="image/*" multiple style="display:none" onchange="handleWOImages(this)">';
-  h+='<button type="button" class="btn" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;" onclick="document.getElementById('woImages').click()">📎 选择图片</button></div>';
+  h+='<button type="button" class="btn" style="padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;" onclick="document.getElementById(\'woImages\').click()">📎 选择图片</button></div>';
   h+='<div style="margin-top:20px;"><button class="poll-btn" onclick="doSubmitWorkorder()">提交报修</button>';
   h+='<button class="poll-btn" style="background:#888;margin-left:8px;" onclick="history.back()">取消</button></div></div>';
   return h;
@@ -182,7 +182,7 @@ function renderWorkorderDetail(id){
     h+='<div style="font-weight:600;margin-bottom:12px;">⭐ 请对本次服务进行评价</div>';
     h+='<div style="display:flex;gap:4px;margin-bottom:12px;" id="woRating"><span style="font-size:28px;cursor:pointer;" onclick="setWORating(1)">☆</span><span style="font-size:28px;cursor:pointer;" onclick="setWORating(2)">☆</span><span style="font-size:28px;cursor:pointer;" onclick="setWORating(3)">☆</span><span style="font-size:28px;cursor:pointer;" onclick="setWORating(4)">☆</span><span style="font-size:28px;cursor:pointer;" onclick="setWORating(5)">☆</span></div>';
     h+='<textarea id="woRatingComment" rows="2" placeholder="评价留言（可选）" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:14px;"></textarea>';
-    h+='<button class="poll-btn" style="margin-top:12px;" onclick="doWORating(''+item.id+'')">提交评价</button></div>';
+    h+='<button class="poll-btn" style="margin-top:12px;" onclick="doWORating(\''+item.id+'\')">提交评价</button></div>';
   }else if(item.rating != null && item.rating > 0){
     h+='<div style="margin-top:20px;padding:16px;background:#e8f5e9;border-radius:8px;">';
     h+='<div style="font-weight:600;margin-bottom:8px;">⭐ 业主评价</div>';
