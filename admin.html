@@ -987,23 +987,56 @@ function getPollDisplayStats(item) {
     totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
   }
 
-  // 如果有已固化的计票结果（calculatedAt 存在），直接使用权威数据
+  // 如果有已固化的计票结果（calculatedAt 存在），基于最新清册/居民数据校正
   if (res.calculatedAt && res.totalArea > 0) {
+    let pResidents = res.participatingResidents || 0;
+    let pArea = res.participatingArea || 0;
+    let aCount = res.agreeCount || 0;
+    let aArea = res.agreeArea || 0;
+
+    // 如果清册/居民总面积变了，按比例校正面积数据
+    if (totalArea > 0 && res.totalArea > 0 && Math.abs(totalArea - res.totalArea) > 0.01) {
+      const ratio = totalArea / res.totalArea;
+      pArea = pArea * ratio;
+      aArea = aArea * ratio;
+    }
+
+    // 如果 progress.current 与缓存的参与人数不一致（有新投票未重新计票），估算更新
+    const currentProgress = (item.progress && item.progress.current !== undefined) ? item.progress.current : 0;
+    const cachedParticipants = res.participatingResidents || 0;
+    if (currentProgress !== cachedParticipants && totalResidents > 0 && totalArea > 0) {
+      const avgArea = totalArea / totalResidents;
+      const diff = currentProgress - cachedParticipants;
+      pResidents = currentProgress;
+      pArea = Math.max(0, pArea + diff * avgArea);
+      // 同意数/面积按原比例调整
+      if (cachedParticipants > 0 && pResidents > 0) {
+        const agreeRatio = aCount / cachedParticipants;
+        aCount = Math.round(pResidents * agreeRatio);
+        if (res.participatingArea > 0) {
+          aArea = Math.max(0, pArea * (aArea / res.participatingArea));
+        } else {
+          aArea = Math.max(0, aCount * avgArea);
+        }
+      }
+    }
+
     return {
-      totalResidents: res.totalResidents || totalResidents,
-      totalArea: res.totalArea,
-      participatingResidents: res.participatingResidents || 0,
-      participatingArea: res.participatingArea || 0,
-      agreeCount: res.agreeCount || 0,
-      agreeArea: res.agreeArea || 0,
-      residentParticipationRate: res.residentParticipationRate || 0,
-      areaParticipationRate: res.areaParticipationRate || 0,
-      agreeResidentRate: res.agreeResidentRate || 0,
-      agreeAreaRate: res.agreeAreaRate || 0,
+      totalResidents: totalResidents,
+      totalArea: totalArea,
+      participatingResidents: pResidents,
+      participatingArea: pArea,
+      agreeCount: aCount,
+      agreeArea: aArea,
+      residentParticipationRate: totalResidents > 0 ? (pResidents / totalResidents * 100) : 0,
+      areaParticipationRate: totalArea > 0 ? (pArea / totalArea * 100) : 0,
+      agreeResidentRate: pResidents > 0 ? (aCount / pResidents * 100) : 0,
+      agreeAreaRate: pArea > 0 ? (aArea / pArea * 100) : 0,
       isPassed: res.isPassed,
       summary: res.summary || '',
       calculatedAt: res.calculatedAt,
-      fromCache: true
+      fromCache: true,
+      stale: currentProgress !== cachedParticipants || Math.abs(totalArea - (res.totalArea || 0)) > 0.01
     };
   }
 
@@ -1067,6 +1100,10 @@ function renderPollsAdmin() {
         passHtml = res.isPassed === true ? '<span class="tag tag-active">✅ 通过</span>' : (res.isPassed === false ? '<span class="tag tag-test">❌ 未通过</span>' : '<span style="color:#999;font-size:12px;">—</span>');
       } else if (item.status === '进行中') {
         passHtml = '<span class="tag" style="background:#fff3e0;color:#e65100;">🗳️ 进行中</span>';
+      }
+      // 数据新鲜度提示
+      if (disp.stale) {
+        passHtml += ' <span class="tag tag-test" style="cursor:pointer;" onclick="event.stopPropagation();recalculatePoll(\' + item.id + \')" title="检测到清册或投票数据有更新，点击重新计票">⚠️ 待刷新</span>';
       }
       const anchorHtml = item.status === '已结束' ? (item.anchorRecords && item.anchorRecords.some(r => !r.error) ? '<span class="tag tag-active" style="cursor:pointer;" onclick="event.stopPropagation();showAnchorDetails(\'' + item.id + '\')">🔗 已锚定</span>' : '<span class="tag tag-test" style="cursor:pointer;" onclick="event.stopPropagation();anchorVoteData(\'' + item.id + '\')">⚠️ 未锚定</span>') : '';
       const pendingObj = (item.objections || []).filter(o => !o.status || o.status === '待处理').length;
@@ -4385,22 +4422,48 @@ async function viewPollData(pollId) {
   if(!responses.length) {
     body += '<div class="empty-state"><div class="icon">📊</div><div>暂无数据</div></div>';
   } else {
+    // 计算清册/居民总面积（用于面积分布）
+    let totalResidents, totalArea;
+    if (p.rollStats && p.rollStats.totalCount > 0) {
+      totalResidents = p.rollStats.totalCount;
+      totalArea = p.rollStats.totalArea;
+    } else {
+      const allResidents = (appData.residents || []).filter(r => r.status === 'active');
+      totalResidents = allResidents.length;
+      totalArea = allResidents.reduce((sum, r) => sum + (parseFloat(r.area) || 0), 0);
+    }
+
+    // 对投票记录去重并计算每人的面积
+    const seen = new Set();
+    const dedupedResponses = [];
+    let totalVotedArea = 0;
+    responses.forEach(r => {
+      let dedupKey = r.residentId;
+      if (!dedupKey && r.roomNo) dedupKey = 'room:' + r.roomNo;
+      if (!dedupKey && r.residentRoom) dedupKey = 'room:' + r.residentRoom;
+      if (!dedupKey && r.name) dedupKey = 'name:' + r.name;
+      if (!dedupKey) dedupKey = 'idx:' + (r._idx || Math.random());
+      if (seen.has(dedupKey)) return;
+      seen.add(dedupKey);
+
+      let area = parseFloat(r.area) || 0;
+      if (!area && r.roomNo) area = residentAreaMap[r.roomNo] || 0;
+      if (!area && r.residentRoom) area = residentAreaMap[r.residentRoom] || 0;
+      if (!area && totalResidents > 0 && totalArea > 0) {
+        area = totalArea / totalResidents;
+      }
+      dedupedResponses.push({ ...r, _area: area });
+      totalVotedArea += area;
+    });
+
     body += '<div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>房号</th><th>姓名</th><th>面积(㎡)</th><th>提交时间</th>';
     (p.questions||[]).forEach(q => {
       body += '<th>' + escapeHtml(q.title) + '</th>';
     });
     body += '</tr></thead><tbody>';
-    responses.forEach(r => {
-      // 同时兼容 roomNo（投票记录字段）和 residentRoom（旧字段）
+    dedupedResponses.forEach(r => {
       const roomKey = r.roomNo || r.residentRoom || '';
-      let rArea = 0;
-      if (r.area !== undefined && r.area !== null && r.area !== '') {
-        const parsed = parseFloat(r.area);
-        if (!isNaN(parsed)) rArea = parsed;
-      }
-      if (rArea === 0 && roomKey) rArea = residentAreaMap[roomKey] || 0;
-      body += '<tr><td>' + (roomKey) + '</td><td>' + (r.residentName || r.name || '') + '</td><td>' + (rArea > 0 ? rArea.toFixed(2) : '—') + '</td><td>' + formatDateTime(r.createdAt || r.voteTime) + '</td>';
-      body += '<tr><td>' + (r.residentRoom||'') + '</td><td>' + (r.residentName||'') + '</td><td>' + (rArea > 0 ? rArea.toFixed(2) : '—') + '</td><td>' + formatDateTime(r.createdAt) + '</td>';
+      body += '<tr><td>' + (roomKey) + '</td><td>' + (r.residentName || r.name || '') + '</td><td>' + (r._area > 0 ? r._area.toFixed(2) : '—') + '</td><td>' + formatDateTime(r.createdAt || r.voteTime) + '</td>';
       (p.questions||[]).forEach(q => {
         const ans = r.answers.find(a => a.questionId === q.id);
         let val = '';
@@ -4414,28 +4477,44 @@ async function viewPollData(pollId) {
     });
     body += '</tbody></table></div>';
 
-    body += '<div style="margin-top:20px;"><div style="font-weight:600;margin-bottom:12px;">📈 选项统计</div>';
+    body += '<div style="margin-top:20px;"><div style="font-weight:600;margin-bottom:12px;">📈 选项统计（人数 + 面积分布）</div>';
     (p.questions||[]).forEach(q => {
       if(q.type === 'text') return;
       body += '<div style="background:#fafafa;border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:10px;">';
       body += '<div style="font-weight:600;margin-bottom:8px;">' + escapeHtml(q.title) + '</div>';
       const counts = {};
-      (q.options||[]).forEach(opt => counts[opt] = 0);
-      responses.forEach(r => {
+      const areaCounts = {};
+      (q.options||[]).forEach(opt => { counts[opt] = 0; areaCounts[opt] = 0; });
+      dedupedResponses.forEach(r => {
         const ans = r.answers.find(a => a.questionId === q.id);
         if(!ans || !ans.value) return;
         if(Array.isArray(ans.value)) {
-          ans.value.forEach(v => { if(counts[v] !== undefined) counts[v]++; });
+          ans.value.forEach(v => {
+            if(counts[v] !== undefined) {
+              counts[v]++;
+              areaCounts[v] = (areaCounts[v] || 0) + r._area;
+            }
+          });
         } else {
-          if(counts[ans.value] !== undefined) counts[ans.value]++;
+          if(counts[ans.value] !== undefined) {
+            counts[ans.value]++;
+            areaCounts[ans.value] = (areaCounts[ans.value] || 0) + r._area;
+          }
         }
       });
-      const total = responses.length || 1;
+      const totalPeople = dedupedResponses.length || 1;
       (q.options||[]).forEach(opt => {
         const c = counts[opt] || 0;
-        const pct = Math.round(c / total * 100);
-        body += '<div style="margin-bottom:6px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;"><span>' + escapeHtml(opt) + '</span><span>' + c + ' (' + pct + '%)</span></div>';
-        body += '<div style="background:#e0e0e0;border-radius:4px;height:16px;overflow:hidden;"><div style="height:100%;background:var(--primary);width:' + pct + '%;"></div></div></div>';
+        const a = areaCounts[opt] || 0;
+        const peoplePct = Math.round(c / totalPeople * 100);
+        const areaPct = totalVotedArea > 0 ? Math.round(a / totalVotedArea * 100) : 0;
+        body += '<div style="margin-bottom:10px;">';
+        body += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span>' + escapeHtml(opt) + '</span><span>' + c + '人 (' + peoplePct + '%) · ' + a.toFixed(2) + '㎡ (' + areaPct + '%)</span></div>';
+        // 人数条（绿色）
+        body += '<div style="background:#e0e0e0;border-radius:4px;height:10px;overflow:hidden;margin-bottom:2px;"><div style="height:100%;background:var(--primary);width:' + peoplePct + '%;"></div></div>';
+        // 面积条（蓝色）
+        body += '<div style="background:#e0e0e0;border-radius:4px;height:8px;overflow:hidden;"><div style="height:100%;background:#1976D2;width:' + areaPct + '%;"></div></div>';
+        body += '</div>';
       });
       body += '</div>';
     });
@@ -4474,7 +4553,6 @@ async function downloadPollData(pollId) {
   csv += '\n';
 
   responses.forEach(r => {
-    // 同时兼容 roomNo（投票记录字段）和 residentRoom（旧字段）
     const roomKey = r.roomNo || r.residentRoom || '';
     let dArea = 0;
     if (r.area !== undefined && r.area !== null && r.area !== '') {
@@ -4483,7 +4561,6 @@ async function downloadPollData(pollId) {
     }
     if (dArea === 0 && roomKey) dArea = residentAreaMap[roomKey] || 0;
     csv += (roomKey) + ',' + (r.residentName || r.name || '') + ',' + (dArea > 0 ? dArea.toFixed(2) : '') + ',"' + (r.createdAt || r.voteTime || '') + '"';
-    csv += (r.residentRoom||'') + ',' + (r.residentName||'') + ',' + (dArea > 0 ? dArea.toFixed(2) : '') + ',"' + (r.createdAt||'') + '"';
     (p.questions||[]).forEach(q => {
       const ans = r.answers.find(a => a.questionId === q.id);
       let val = '';
