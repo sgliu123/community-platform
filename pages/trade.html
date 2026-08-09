@@ -247,7 +247,7 @@ function renderList() {
     h = h + '<div class="card"><div class="card-title">最新发布</div>';
     filtered.forEach(function(item) {
       var typeText = item.type === "supply" ? "供应" : "需求";
-      var catMap = { rent: "房屋出租", sale: "房屋出售", item: "物品交易", rentwant: "求租", buy: "求购", collect: "回收" };
+      var catMap = { rent: "房屋出租", sale: "房屋出售", item: "物品出售", rentwant: "求租房屋", buyhouse: "求购房屋", buy: "求购物品", collect: "回收/收物品" };
       var catText = catMap[item.category] || item.category || "其他";
       var statusCls = item.status === "已通过" ? "status-approved" : (item.status === "已拒绝" ? "status-rejected" : "status-pending");
       var isMine = myRoom && item.residentRoom === myRoom;
@@ -289,7 +289,7 @@ function renderDetail(id) {
   if (!item) {
     return '<div class="card"><div class="empty">信息不存在或已删除</div><div style="text-align:center;margin-top:16px;"><button class="btn btn-secondary" onclick="goBack()">返回</button></div></div>';
   }
-  var catMap = { rent: "房屋出租", sale: "房屋出售", item: "物品交易", rentwant: "求租", buy: "求购", collect: "回收" };
+  var catMap = { rent: "房屋出租", sale: "房屋出售", item: "物品出售", rentwant: "求租房屋", buyhouse: "求购房屋", buy: "求购物品", collect: "回收/收物品" };
   var catText = catMap[item.category] || item.category || "其他";
   var statusCls = item.status === "已通过" ? "status-approved" : (item.status === "已拒绝" ? "status-rejected" : "status-pending");
   var h = '<div class="card">';
@@ -325,7 +325,7 @@ function renderPostForm() {
     {k:"rent",v:"房屋出租"},{k:"sale",v:"房屋出售"},{k:"item",v:"物品出售"},{k:"collect",v:"回收/收物品"}
   ];
   var demandCats = [
-    {k:"rentwant",v:"求租房屋"},{k:"buy",v:"求购物品"},{k:"collect",v:"回收/收物品"}
+    {k:"rentwant",v:"求租房屋"},{k:"buyhouse",v:"求购房屋"},{k:"buy",v:"求购物品"},{k:"collect",v:"回收/收物品"}
   ];
   var cats = _postType === "supply" ? supplyCats : demandCats;
   var h = '<div class="card">';
