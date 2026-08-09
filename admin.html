@@ -1021,6 +1021,7 @@ function getPollDisplayStats(item) {
       }
     }
 
+    const option1Label = (item.questions && item.questions[0] && item.questions[0].options && item.questions[0].options[0]) || (res.option1Label || '选项1');
     return {
       totalResidents: totalResidents,
       totalArea: totalArea,
@@ -1036,7 +1037,8 @@ function getPollDisplayStats(item) {
       summary: res.summary || '',
       calculatedAt: res.calculatedAt,
       fromCache: true,
-      stale: currentProgress !== cachedParticipants || Math.abs(totalArea - (res.totalArea || 0)) > 0.01
+      stale: currentProgress !== cachedParticipants || Math.abs(totalArea - (res.totalArea || 0)) > 0.01,
+      option1Label: option1Label
     };
   }
 
@@ -1055,6 +1057,7 @@ function getPollDisplayStats(item) {
     aArea = aCount * avgArea;
   }
 
+  const option1Label2 = (item.questions && item.questions[0] && item.questions[0].options && item.questions[0].options[0]) || '选项1';
   return {
     totalResidents: totalResidents,
     totalArea: totalArea,
@@ -1069,7 +1072,8 @@ function getPollDisplayStats(item) {
     isPassed: res.isPassed,
     summary: res.summary || '',
     calculatedAt: res.calculatedAt,
-    fromCache: false
+    fromCache: false,
+    option1Label: option1Label2
   };
 }
 
@@ -1464,8 +1468,8 @@ createMultiImageUploaderHTML('pollRollFiles', '请上传业主清册文件（PDF
       body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
       body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">参与人数 / 目标户数</div><div style="font-size:18px;font-weight:700;">' + disp.participatingResidents + ' / ' + disp.totalResidents + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, disp.residentParticipationRate) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + disp.residentParticipationRate.toFixed(2) + '%（门槛 ' + partTh + '）</div></div>';
       body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">参与面积 / 总面积</div><div style="font-size:18px;font-weight:700;">' + disp.participatingArea.toFixed(2) + ' / ' + disp.totalArea.toFixed(2) + ' ㎡</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, disp.areaParticipationRate) + '%;background:#1976D2;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + disp.areaParticipationRate.toFixed(2) + '%（门槛 ' + partTh + '）</div></div>';
-      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">同意人数 / 参与人数</div><div style="font-size:18px;font-weight:700;">' + disp.agreeCount + ' / ' + disp.participatingResidents + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, disp.agreeResidentRate) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + disp.agreeResidentRate.toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
-      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">同意面积 / 参与面积</div><div style="font-size:18px;font-weight:700;">' + disp.agreeArea.toFixed(2) + ' / ' + disp.participatingArea.toFixed(2) + ' ㎡</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, disp.agreeAreaRate) + '%;background:#1976D2;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + disp.agreeAreaRate.toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
+      const _opt1 = disp.option1Label || '选项1'; body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">' + escapeHtml(_opt1) + ' 人数 / 参与人数</div><div style="font-size:18px;font-weight:700;">' + disp.agreeCount + ' / ' + disp.participatingResidents + '</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, disp.agreeResidentRate) + '%;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + disp.agreeResidentRate.toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
+      body += '<div style="background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);"><div style="font-size:12px;color:var(--text-secondary);">' + escapeHtml(_opt1) + ' 面积 / 参与面积</div><div style="font-size:18px;font-weight:700;">' + disp.agreeArea.toFixed(2) + ' / ' + disp.participatingArea.toFixed(2) + ' ㎡</div><div class="progress-bar" style="margin-top:4px;height:8px;"><div class="progress-bar-fill" style="width:' + Math.min(100, disp.agreeAreaRate) + '%;background:#1976D2;"></div></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + disp.agreeAreaRate.toFixed(2) + '%（门槛 ' + agreeTh + '）</div></div>';
       body += '</div>';
       if (item.status === '已结束') {
         if (disp.isPassed === true) {
@@ -1989,14 +1993,14 @@ th { background: #f5f5f5; font-weight: 600; }
     <td>${disp.areaParticipationRate >= ((poll.threshold && poll.threshold.areaPct) || 66.67) ? '✅ 达标' : '❌ 未达标'}</td>
   </tr>
   <tr>
-    <td>同意户数 / 参与户数</td>
+    <td>首选项户数 / 参与户数</td>
     <td>${disp.agreeCount} / ${disp.participatingResidents}</td>
     <td>${disp.agreeResidentRate.toFixed(2)}%</td>
     <td>${poll.category === 'major' ? '75%' : '50%'}</td>
     <td>${disp.agreeResidentRate >= (poll.category === 'major' ? 75 : 50) ? '✅ 达标' : '❌ 未达标'}</td>
   </tr>
   <tr>
-    <td>同意面积 / 参与面积</td>
+    <td>首选项面积 / 参与面积</td>
     <td>${disp.agreeArea.toFixed(2)} / ${disp.participatingArea.toFixed(2)} ㎡</td>
     <td>${disp.agreeAreaRate.toFixed(2)}%</td>
     <td>${poll.category === 'major' ? '75%' : '50%'}</td>
