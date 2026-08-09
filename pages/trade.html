@@ -71,7 +71,6 @@ body{background:var(--bg);color:var(--text);line-height:1.5;-webkit-tap-highligh
 .quick-cat:hover{border-color:var(--primary);}
 .quick-cat.active{background:var(--primary);color:#fff;border-color:var(--primary);}
 </style>
-<base target="_blank">
 </head>
 <body>
 <div class="header">
@@ -554,7 +553,7 @@ function submitTrade() {
       createdAt: new Date().toISOString()
     };
 
-    workerRead(getCurrentMonthPath("trades")).then(function(list) {
+    workerRead(getCurrentMonthPath("trades")).catch(function() { return []; }).then(function(list) {
       if (!Array.isArray(list)) list = [];
       var dup = false;
       for (var i = 0; i < list.length; i++) {
@@ -569,7 +568,7 @@ function submitTrade() {
         hideOverlay();
         btn.disabled = false;
         btn.textContent = "确认发布";
-        return;
+        throw new Error("DUP_SKIP");
       }
       list.push(item);
       return workerWrite(getCurrentMonthPath("trades"), list, "业主发布交易 " + title);
@@ -585,6 +584,7 @@ function submitTrade() {
         location.hash = "";
       }, 800);
     }).catch(function(e) {
+      if (e.message === "DUP_SKIP") return;
       showToast("发布失败：" + (e.message || "网络错误"), "error");
       isSubmitting = false;
       hideOverlay();
