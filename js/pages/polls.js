@@ -27,7 +27,12 @@ function getPollResidents(p) {
 
 function getCommunityTotalArea(p) {
   var residents = getPollResidents(p);
-  if (!residents.length) return 0;
+  if (!residents.length) {
+    if (p.rollStats && typeof p.rollStats.totalArea === 'number' && p.rollStats.totalArea > 0) {
+      return p.rollStats.totalArea;
+    }
+    return 0;
+  }
   return residents.reduce(function(sum, r) {
     return sum + getResidentArea(r);
   }, 0);
@@ -51,6 +56,15 @@ function getPollAreaTarget(p) {
   if (!isNaN(v) && v > 0) return v;
   v = parseFloat(p.totalArea);
   if (!isNaN(v) && v > 0) return v;
+  // 从 voteResult 读取
+  if (p.voteResult) {
+    v = parseFloat(p.voteResult.totalArea);
+    if (!isNaN(v) && v > 0) return v;
+    v = parseFloat(p.voteResult.areaTarget);
+    if (!isNaN(v) && v > 0) return v;
+    v = parseFloat(p.voteResult.targetArea);
+    if (!isNaN(v) && v > 0) return v;
+  }
   // 从清册自动计算
   var total = getCommunityTotalArea(p);
   if (total > 0) return total;
@@ -63,6 +77,21 @@ function getPollAreaCurrent(p) {
     v = parseFloat(p.progress.areaCurrent);
     if (!isNaN(v)) return v;
     v = parseFloat(p.progress.currentArea);
+    if (!isNaN(v)) return v;
+  }
+  // 优先读取 admin 同步的 rollStats / voteResult
+  if (p.rollStats) {
+    v = parseFloat(p.rollStats.areaCurrent);
+    if (!isNaN(v)) return v;
+    v = parseFloat(p.rollStats.currentArea);
+    if (!isNaN(v)) return v;
+  }
+  if (p.voteResult) {
+    v = parseFloat(p.voteResult.areaCurrent);
+    if (!isNaN(v)) return v;
+    v = parseFloat(p.voteResult.currentArea);
+    if (!isNaN(v)) return v;
+    v = parseFloat(p.voteResult.participationArea);
     if (!isNaN(v)) return v;
   }
   v = parseFloat(p.currentArea);
@@ -613,6 +642,12 @@ function renderPollCommonInfo(p) {
       var agreeCount = vr.agreeCount;
       if (agreeCount == null) agreeCount = vr.agree;
       if (agreeCount == null) agreeCount = vr.yesCount;
+      if (agreeCount == null) agreeCount = vr.赞成Count;
+      if (agreeCount == null) agreeCount = vr.supportCount;
+      if (agreeCount == null) agreeCount = vr.赞同Count;
+      if (agreeCount == null) agreeCount = vr.认可Count;
+      if (agreeCount == null) agreeCount = vr.passCount;
+      if (agreeCount == null) agreeCount = vr.通过Count;
       if (agreeCount == null) agreeCount = 0;
 
       var totalCount = vr.totalCount;
@@ -631,6 +666,12 @@ function renderPollCommonInfo(p) {
 
       var agreeArea = vr.agreeArea;
       if (agreeArea == null) agreeArea = vr.yesArea;
+      if (agreeArea == null) agreeArea = vr.赞成Area;
+      if (agreeArea == null) agreeArea = vr.supportArea;
+      if (agreeArea == null) agreeArea = vr.赞同Area;
+      if (agreeArea == null) agreeArea = vr.认可Area;
+      if (agreeArea == null) agreeArea = vr.passArea;
+      if (agreeArea == null) agreeArea = vr.通过Area;
       if (agreeArea == null) agreeArea = 0;
 
       var totalArea = vr.totalArea;
@@ -763,10 +804,21 @@ function renderLocalPollResults(p, responses, hasVoted) {
     roomAreaMap[r.roomNo] = area;
     totalCommunityArea += area;
   });
+  // fallback: 若清册未加载，使用 rollStats / progress / voteResult 中的面积数据
+  if (totalCommunityArea <= 0) {
+    if (p.rollStats && p.rollStats.totalArea > 0) totalCommunityArea = p.rollStats.totalArea;
+    else if (p.voteResult && p.voteResult.totalArea > 0) totalCommunityArea = p.voteResult.totalArea;
+    else totalCommunityArea = getPollAreaTarget(p);
+  }
   var votedArea = 0;
   responses.forEach(function(r) {
     votedArea += (roomAreaMap[r.residentRoom] || 0);
   });
+  if (votedArea <= 0) {
+    if (p.rollStats && p.rollStats.currentArea > 0) votedArea = p.rollStats.currentArea;
+    else if (p.voteResult && p.voteResult.areaCurrent > 0) votedArea = p.voteResult.areaCurrent;
+    else votedArea = getPollAreaCurrent(p);
+  }
 
   let h = '<div style="margin-top:8px;">';
   if (hasVoted && p.status === '进行中') {
