@@ -123,6 +123,7 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
   .form-row { grid-template-columns:1fr; }
 }
 </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -181,13 +182,23 @@ window.onerror = function(msg, url, line) {
 
 /* ========== Worker 云端存储（与前台共用） ========== */
 var WORKER_BASE = (localStorage.getItem('workerBase') || 'https://community.firstblade.site').replace(/\/$/, '');
-var TRADE_DATA_FILE = 'trade_posts.json';
+function getCurrentMonthPath(module) {
+  var d = new Date();
+  return module + '/' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '.json';
+}
+var TRADE_DATA_FILE = getCurrentMonthPath('trades');
+var APPROVED_FILE = 'trades/approved.json';
 
 async function workerRead(filePath) {
-  var res = await fetch(WORKER_BASE + '/api/read/' + encodeURIComponent(filePath));
-  if (!res.ok) throw new Error('读取失败');
-  var text = await res.text();
-  return text ? JSON.parse(text) : [];
+  try {
+    var res = await fetch(WORKER_BASE + '/api/read/' + encodeURIComponent(filePath));
+    if (!res.ok) throw new Error('读取失败');
+    var text = await res.text();
+    return text ? JSON.parse(text) : [];
+  } catch (e) {
+    // 文件不存在时返回空数组，不抛错
+    return [];
+  }
 }
 async function workerWrite(filePath, data, message) {
   var res = await fetch(WORKER_BASE + '/api/write/' + encodeURIComponent(filePath), {
@@ -215,22 +226,34 @@ function setData(key, val) {
 }
 /* [FIX] 异步保存：先写本地，再尝试写云端 */
 async function savePostsAsync(posts, msg) {
-  try { 
-    await workerWrite(TRADE_DATA_FILE, posts, msg || '后台更新交易数据'); 
+  try {
+    // 写入当月总文件（所有状态）
+    await workerWrite(getCurrentMonthPath('trades'), posts, msg || '后台更新交易数据');
+    // 同步维护 approved.json（仅含已通过状态，供前台展示）
+    var approved = posts.filter(function(p) { return p && p.status === 'approved'; });
+    await workerWrite(APPROVED_FILE, approved, '同步已通过交易数据');
     setData('posts', posts);
   }
-  catch(e) { 
-    console.error('Worker同步失败', e); 
+  catch(e) {
+    console.error('Worker同步失败', e);
     throw new Error('云端同步失败：' + (e.message || '请检查Worker配置和网络'));
   }
 }
 async function loadPostsAsync() {
   try {
-    var cloudPosts = await workerRead(TRADE_DATA_FILE);
-    if(cloudPosts && Array.isArray(cloudPosts)) {
-      setData('posts', cloudPosts);
-      return cloudPosts;
-    }
+    // 读取当月全部帖子（含待审核、已通过等）
+    var monthPosts = await workerRead(getCurrentMonthPath('trades'));
+    if (!Array.isArray(monthPosts)) monthPosts = [];
+    // 读取已审核通过的镜像（前台展示用）
+    var approvedPosts = await workerRead(APPROVED_FILE);
+    if (!Array.isArray(approvedPosts)) approvedPosts = [];
+    // 合并：以当月文件为权威数据源，approved 作为补充（避免漏掉历史 approved 数据）
+    var mergedMap = {};
+    monthPosts.forEach(function(p) { if (p && p.id) mergedMap[p.id] = p; });
+    approvedPosts.forEach(function(p) { if (p && p.id && !mergedMap[p.id]) mergedMap[p.id] = p; });
+    var merged = Object.values(mergedMap);
+    setData('posts', merged);
+    return merged;
   } catch(e) { console.error('Worker读取失败，使用本地', e); }
   var localPosts = getData('posts', []);
   return Array.isArray(localPosts) ? localPosts : [];
@@ -239,7 +262,7 @@ async function ensureData() {
   var hasLocal = !!getData('posts', null);
   if(!hasLocal) {
     try {
-      var cloudPosts = await workerRead(TRADE_DATA_FILE);
+      var cloudPosts = await workerRead(getCurrentMonthPath('trades'));
       if(cloudPosts && Array.isArray(cloudPosts) && cloudPosts.length > 0) {
         setData('posts', cloudPosts);
         return;
