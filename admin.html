@@ -3253,7 +3253,17 @@ async function calculatePollResults(pollId) {
     }
     if (val) {
       const valStr = Array.isArray(val) ? val.join(',') : String(val);
-      if (valStr.includes('同意')) {
+      // 获取第一题的第一个选项名称（赞成/同意/是 等）
+      const firstOption = (poll.questions && poll.questions[0] && poll.questions[0].options && poll.questions[0].options[0]) || '';
+      // 判断逻辑：值等于第一个选项，或包含"同意"/"赞成"/"是"/"yes"等肯定性关键词
+      const isAgree = valStr === firstOption ||
+                      valStr.includes('同意') ||
+                      valStr.includes('赞成') ||
+                      valStr.includes('是') ||
+                      valStr.includes('yes') ||
+                      valStr.includes('支持') ||
+                      valStr.includes('通过');
+      if (isAgree) {
         agreeCount++;
         agreeArea += area;
       }
