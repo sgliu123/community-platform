@@ -3277,6 +3277,7 @@ async function calculatePollResults(pollId) {
 
   poll.results = {
     isPublished: poll.results && poll.results.isPublished || false,
+    option1Label: (poll.questions && poll.questions[0] && poll.questions[0].options && poll.questions[0].options[0]) || '选项1',
     summary: '参与 ' + participatingResidents + ' 户（' + residentParticipationRate.toFixed(2) + '%），面积 ' + participatingArea.toFixed(2) + ' ㎡（' + areaParticipationRate.toFixed(2) + '%）；同意 ' + agreeCount + ' 户（' + agreeResidentRate.toFixed(2) + '%），面积 ' + agreeArea.toFixed(2) + ' ㎡（' + agreeAreaRate.toFixed(2) + '%）',
     detailUrl: '',
     participatingResidents: participatingResidents,
