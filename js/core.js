@@ -57,6 +57,18 @@ function render() {
   }
 }
 
+function renderListItem(item, type) {
+  let badge = "";
+  if (type === "announcement") badge = item.isPinned ? '<span class="list-badge badge-pinned">置顶</span>' : '<span class="list-badge badge-normal">公告</span>';
+  else if (type === "document") badge = '<span class="list-badge badge-document">文件</span>';
+  else if (type === "activity") badge = '<span class="list-badge badge-activity">' + item.status + '</span>';
+  else if (type === "poll") badge = '<span class="list-badge badge-poll">' + item.status + '</span>';
+  const detailPages = { announcement: "announcement-detail", document: "document-detail", activity: "activity-detail", poll: "poll-detail" };
+  const dateFields = { announcement: "publishDate", document: "publishDate", activity: "date", poll: "endDate" };
+  const meta = item.author || item.source || item.location || "";
+  return `<div class="list-item" onclick="navigate('${detailPages[type]}','${item.id}')">${badge}<div class="list-content"><div class="list-title">${item.title}</div><div class="list-meta">${item[dateFields[type]]||""} · ${meta}</div></div><div class="list-arrow">›</div></div>`;
+}
+
 function showLogin() {
   document.getElementById("loginModal").classList.add("active");
   document.getElementById("loginError").style.display = "none";
@@ -156,7 +168,7 @@ function doGlobalSearch(keyword) {
       if (items.length) {
         h += '<div class="search-section">' + t + '</div>';
         items.slice(0, 4).forEach(function(item) {
-          h += '<div class="search-item" onclick="navigate('' + item.page + '','' + item.id + '');closeSearchDropdown();">';
+          h += '<div class="search-item" onclick="navigate(\'' + item.page + '\',\'' + item.id + '\');closeSearchDropdown();">';
           h += '<div class="search-item-title">' + escapeHtml(item.title) + '</div>';
           h += '<div class="search-item-meta">' + item.meta + '</div></div>';
         });
@@ -166,10 +178,18 @@ function doGlobalSearch(keyword) {
   }
   dropdown.classList.add('active');
 }
-
 function closeSearchDropdown() {
   var d = document.getElementById('globalSearchDropdown');
   var inp = document.getElementById('globalSearchInput');
   if (d) d.classList.remove('active');
   if (inp) inp.value = '';
 }
+
+window.addEventListener("hashchange", () => {
+  const r = getRoute();
+  if (isRealtimePage(r.page)) {
+    loadData().then(() => render()).catch(() => render());
+  } else {
+    render();
+  }
+});
