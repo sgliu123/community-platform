@@ -1023,6 +1023,16 @@ function renderLocalPollResults(p, responses, hasVoted) {
         });
       }
 
+      // 若选项面积计算失败但 votedArea 正确，按票数比例分配面积
+      if (totalQuestionArea <= 0 && votedArea > 0) {
+        totalQuestionArea = votedArea;
+        (q.options || []).forEach(function(opt) {
+          if (counts[opt] > 0) {
+            optionAreaCounts[opt] = Math.round(votedArea * (counts[opt] / total));
+          }
+        });
+      }
+
       (q.options || []).forEach(function(opt) {
         const c = counts[opt] || 0;
         const pct = Math.round(c / total * 100);
