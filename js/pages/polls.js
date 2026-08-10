@@ -750,18 +750,35 @@ function renderPollCommonInfo(p) {
   if (vr) {
     h += '<div style="margin:20px 0;padding:20px;background:#e8f5e9;border-radius:12px;border:1px solid #c8e6c9;">';
     h += '<div style="font-weight:600;margin-bottom:16px;font-size:15px;">\uD83D\uDCCB 计票结果</div>';
-    if (vr.isPublished || vr.published) {
+    var vr = p.voteResult || p.results || p.tallyResult || null;
+  if (vr) {
+    h += '<div style="margin:20px 0;padding:20px;background:#e8f5e9;border-radius:12px;border:1px solid #c8e6c9;">';
+    h += '<div style="font-weight:600;margin-bottom:16px;font-size:15px;">\uD83D\uDCCB 计票结果</div>';
+
+    var now = new Date();
+    var voteStart = p.startDate ? new Date(p.startDate.replace(/-/g, '/')) : null;
+    var voteEnd = p.endDate ? new Date(p.endDate.replace(/-/g, '/')) : null;
+    if (voteEnd) voteEnd.setHours(23, 59, 59, 999);
+
+    if (voteStart && now < voteStart) {
+      h += '<div style="font-size:13px;color:var(--text-secondary);text-align:center;padding:20px;background:#fff3e0;border-radius:8px;">';
+      h += '<div style="font-size:24px;margin-bottom:8px;">\u23F0</div>';
+      h += '<div style="font-weight:600;color:#e65100;margin-bottom:4px;">投票尚未开始</div>';
+      h += '<div>开始时间：' + p.startDate + '</div>';
+      h += '</div>';
+    } else if (voteEnd && now > voteEnd) {
+      // 投票已结束，显示最终结果
       var agreeCount = vr.agreeCount;
       if (agreeCount == null) agreeCount = vr.agree;
       if (agreeCount == null) agreeCount = vr.yesCount;
-      if (agreeCount == null) agreeCount = vr.赞成Count;
+      if (agreeCount == null) agreeCount = vr.\u8D5E\u6210Count;
       if (agreeCount == null) agreeCount = vr.supportCount;
-      if (agreeCount == null) agreeCount = vr.赞同Count;
-      if (agreeCount == null) agreeCount = vr.认可Count;
+      if (agreeCount == null) agreeCount = vr.\u8D5E\u540CCount;
+      if (agreeCount == null) agreeCount = vr.\u8BA4\u53EFCount;
       if (agreeCount == null) agreeCount = vr.passCount;
-      if (agreeCount == null) agreeCount = vr.通过Count;
-      if (agreeCount == null) agreeCount = vr.赞成;
-      if (agreeCount == null) agreeCount = vr.赞同;
+      if (agreeCount == null) agreeCount = vr.\u901A\u8FC7Count;
+      if (agreeCount == null) agreeCount = vr.\u8D5E\u6210;
+      if (agreeCount == null) agreeCount = vr.\u8D5E\u540C;
       if (agreeCount == null) agreeCount = 0;
 
       var totalCount = vr.totalCount;
@@ -773,19 +790,19 @@ function renderPollCommonInfo(p) {
 
       h += '<div style="flex:1;min-width:240px;background:#fff;border-radius:8px;padding:14px;border:1px solid #e8f5e9;">';
       h += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#2e7d32;">\uD83D\uDC65 人数统计</div>';
-      h += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>同意：' + agreeCount + ' / ' + totalCount + ' ' + unit + '</span><span style="color:#2e7d32;font-weight:700;font-size:15px;">同意率 ' + agreePct + '%</span></div>';
+      h += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>\u540C\u610F\uFF1A' + agreeCount + ' / ' + totalCount + ' ' + unit + '</span><span style="color:#2e7d32;font-weight:700;font-size:15px;">\u540C\u610F\u7387 ' + agreePct + '%</span></div>';
       h += '<div style="background:#e8f5e9;border-radius:6px;height:16px;overflow:hidden;">';
       h += '<div style="height:100%;background:linear-gradient(90deg,#2e7d32,#66bb6a);border-radius:6px;width:' + agreePct + '%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-size:10px;font-weight:600;">' + (agreePct > 8 ? agreePct + '%' : '') + '</div>';
       h += '</div></div>';
 
       var agreeArea = vr.agreeArea;
       if (agreeArea == null) agreeArea = vr.yesArea;
-      if (agreeArea == null) agreeArea = vr.赞成Area;
+      if (agreeArea == null) agreeArea = vr.\u8D5E\u6210Area;
       if (agreeArea == null) agreeArea = vr.supportArea;
-      if (agreeArea == null) agreeArea = vr.赞同Area;
-      if (agreeArea == null) agreeArea = vr.认可Area;
+      if (agreeArea == null) agreeArea = vr.\u8D5E\u540CArea;
+      if (agreeArea == null) agreeArea = vr.\u8BA4\u53EFArea;
       if (agreeArea == null) agreeArea = vr.passArea;
-      if (agreeArea == null) agreeArea = vr.通过Area;
+      if (agreeArea == null) agreeArea = vr.\u901A\u8FC7Area;
       if (agreeArea == null) agreeArea = 0;
 
       var totalArea = vr.totalArea;
@@ -796,7 +813,7 @@ function renderPollCommonInfo(p) {
 
       h += '<div style="flex:1;min-width:240px;background:#fff;border-radius:8px;padding:14px;border:1px solid #e3f2fd;">';
       h += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#1976d2;">\uD83D\uDCD0 面积统计</div>';
-      h += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>同意面积：' + agreeArea + ' / ' + totalArea + ' ' + areaUnit + '</span><span style="color:#1976d2;font-weight:700;font-size:15px;">同意率 ' + agreeAreaPct + '%</span></div>';
+      h += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>\u540C\u610F\u9762\u79EF\uFF1A' + agreeArea + ' / ' + totalArea + ' ' + areaUnit + '</span><span style="color:#1976d2;font-weight:700;font-size:15px;">\u540C\u610F\u7387 ' + agreeAreaPct + '%</span></div>';
       h += '<div style="background:#e3f2fd;border-radius:6px;height:16px;overflow:hidden;">';
       h += '<div style="height:100%;background:linear-gradient(90deg,#1976d2,#42a5f5);border-radius:6px;width:' + agreeAreaPct + '%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-size:10px;font-weight:600;">' + (agreeAreaPct > 8 ? agreeAreaPct + '%' : '') + '</div>';
       h += '</div></div>';
@@ -804,10 +821,68 @@ function renderPollCommonInfo(p) {
       h += '</div>';
 
       if (vr.summary) h += '<div style="font-size:14px;line-height:1.6;margin-top:8px;padding:12px;background:#fff;border-radius:8px;">' + escapeHtml(vr.summary) + '</div>';
-      if (vr.detailUrl) h += '<a href="' + vr.detailUrl + '" target="_blank" style="font-size:13px;color:var(--primary);text-decoration:underline;display:inline-block;margin-top:8px;">查看详细结果 →</a>';
-      if (vr.calculatedAt) h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">计算时间：' + vr.calculatedAt + '</div>';
+      if (vr.detailUrl) h += '<a href="' + vr.detailUrl + '" target="_blank" style="font-size:13px;color:var(--primary);text-decoration:underline;display:inline-block;margin-top:8px;">\u67E5\u770B\u8BE6\u7EC6\u7ED3\u679C \u2192</a>';
+      if (vr.calculatedAt) h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">\u8BA1\u7B97\u65F6\u95F4\uFF1A' + vr.calculatedAt + '</div>';
     } else {
-      h += '<div style="font-size:13px;color:var(--text-secondary);text-align:center;padding:20px;">计票结果尚未公示</div>';
+      // 投票进行中，显示实时数据
+      h += '<div style="font-size:13px;color:var(--primary);text-align:center;padding:12px;background:#e3f2fd;border-radius:8px;margin-bottom:12px;font-weight:600;">';
+      h += '\uD83D\uDDF3\uFE0F 投票进行中，以下为实时统计数据';
+      h += '</div>';
+
+      var agreeCount = vr.agreeCount;
+      if (agreeCount == null) agreeCount = vr.agree;
+      if (agreeCount == null) agreeCount = vr.yesCount;
+      if (agreeCount == null) agreeCount = vr.\u8D5E\u6210Count;
+      if (agreeCount == null) agreeCount = vr.supportCount;
+      if (agreeCount == null) agreeCount = vr.\u8D5E\u540CCount;
+      if (agreeCount == null) agreeCount = vr.\u8BA4\u53EFCount;
+      if (agreeCount == null) agreeCount = vr.passCount;
+      if (agreeCount == null) agreeCount = vr.\u901A\u8FC7Count;
+      if (agreeCount == null) agreeCount = vr.\u8D5E\u6210;
+      if (agreeCount == null) agreeCount = vr.\u8D5E\u540C;
+      if (agreeCount == null) agreeCount = 0;
+
+      var totalCount = vr.totalCount;
+      if (totalCount == null) totalCount = vr.total;
+      if (totalCount == null || totalCount === 0) totalCount = target || current || 1;
+      var agreePct = totalCount > 0 ? Math.round(agreeCount / totalCount * 100) : 0;
+
+      h += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">';
+
+      h += '<div style="flex:1;min-width:240px;background:#fff;border-radius:8px;padding:14px;border:1px solid #e8f5e9;">';
+      h += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#2e7d32;">\uD83D\uDC65 人数统计</div>';
+      h += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>\u540C\u610F\uFF1A' + agreeCount + ' / ' + totalCount + ' ' + unit + '</span><span style="color:#2e7d32;font-weight:700;font-size:15px;">\u540C\u610F\u7387 ' + agreePct + '%</span></div>';
+      h += '<div style="background:#e8f5e9;border-radius:6px;height:16px;overflow:hidden;">';
+      h += '<div style="height:100%;background:linear-gradient(90deg,#2e7d32,#66bb6a);border-radius:6px;width:' + agreePct + '%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-size:10px;font-weight:600;">' + (agreePct > 8 ? agreePct + '%' : '') + '</div>';
+      h += '</div></div>';
+
+      var agreeArea = vr.agreeArea;
+      if (agreeArea == null) agreeArea = vr.yesArea;
+      if (agreeArea == null) agreeArea = vr.\u8D5E\u6210Area;
+      if (agreeArea == null) agreeArea = vr.supportArea;
+      if (agreeArea == null) agreeArea = vr.\u8D5E\u540CArea;
+      if (agreeArea == null) agreeArea = vr.\u8BA4\u53EFArea;
+      if (agreeArea == null) agreeArea = vr.passArea;
+      if (agreeArea == null) agreeArea = vr.\u901A\u8FC7Area;
+      if (agreeArea == null) agreeArea = 0;
+
+      var totalArea = vr.totalArea;
+      if (totalArea == null || totalArea === 0) totalArea = areaTarget;
+      if (totalArea == null || totalArea === 0) totalArea = getCommunityTotalArea(p);
+      if (totalArea == null || totalArea === 0) totalArea = 1;
+      var agreeAreaPct = totalArea > 0 ? Math.round(agreeArea / totalArea * 100) : 0;
+
+      h += '<div style="flex:1;min-width:240px;background:#fff;border-radius:8px;padding:14px;border:1px solid #e3f2fd;">';
+      h += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#1976d2;">\uD83D\uDCD0 面积统计</div>';
+      h += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>\u540C\u610F\u9762\u79EF\uFF1A' + agreeArea + ' / ' + totalArea + ' ' + areaUnit + '</span><span style="color:#1976d2;font-weight:700;font-size:15px;">\u540C\u610F\u7387 ' + agreeAreaPct + '%</span></div>';
+      h += '<div style="background:#e3f2fd;border-radius:6px;height:16px;overflow:hidden;">';
+      h += '<div style="height:100%;background:linear-gradient(90deg,#1976d2,#42a5f5);border-radius:6px;width:' + agreeAreaPct + '%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-size:10px;font-weight:600;">' + (agreeAreaPct > 8 ? agreeAreaPct + '%' : '') + '</div>';
+      h += '</div></div>';
+
+      h += '</div>';
+
+      if (vr.summary) h += '<div style="font-size:14px;line-height:1.6;margin-top:8px;padding:12px;background:#fff;border-radius:8px;">' + escapeHtml(vr.summary) + '</div>';
+      if (vr.calculatedAt) h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">\u8BA1\u7B97\u65F6\u95F4\uFF1A' + vr.calculatedAt + '</div>';
     }
     h += '</div>';
   }
@@ -963,18 +1038,40 @@ function renderLocalPollResults(p, responses, hasVoted) {
   }
   // 辅助：根据 response 查找面积（支持 roomNo / name 多种匹配）
   function getResponseArea(response) {
-    var room = String(response.residentRoom || '').trim();
-    var name = String(response.residentName || '').trim();
+    // 1. 优先使用记录自带的面积字段
+    if (response.area != null) {
+      var pa = parseFloat(response.area);
+      if (!isNaN(pa) && pa > 0) return pa;
+    }
+    var room = String(response.residentRoom || response.roomNo || '').trim();
+    var name = String(response.residentName || response.name || '').trim();
+    // 2. 从 roomAreaMap 查找
     if (room) {
       if (roomAreaMap[room] > 0) return roomAreaMap[room];
       if (roomAreaMap[room.replace(/\s/g, '')] > 0) return roomAreaMap[room.replace(/\s/g, '')];
     }
     if (name && roomAreaMap[name] > 0) return roomAreaMap[name];
-    // 最后尝试在 residents 数组中遍历匹配
-    for (var i = 0; i < residents.length; i++) {
-      var rRoom = getResidentRoomNo(residents[i]);
-      if (rRoom && rRoom === room) return getResidentArea(residents[i]);
-      if (residents[i].name && String(residents[i].name).trim() === name) return getResidentArea(residents[i]);
+    // 3. 从所有可用 resident 数据源遍历匹配
+    var sources = [];
+    if (typeof residents !== 'undefined' && Array.isArray(residents)) sources.push(residents);
+    if (typeof appData !== 'undefined' && appData.residents && Array.isArray(appData.residents)) sources.push(appData.residents);
+    for (var s = 0; s < sources.length; s++) {
+      var list = sources[s];
+      for (var i = 0; i < list.length; i++) {
+        var r = list[i];
+        var rRoom = getResidentRoomNo(r);
+        var rName = String(r.name || r.residentName || '').trim();
+        var matchRoom = room && rRoom && (rRoom === room || rRoom.replace(/\s/g, '') === room.replace(/\s/g, ''));
+        var matchName = name && rName && rName === name;
+        if (matchRoom || matchName) {
+          var area = getResidentArea(r);
+          if (area > 0) {
+            if (room) roomAreaMap[room] = area;
+            if (name) roomAreaMap[name] = area;
+            return area;
+          }
+        }
+      }
     }
     return 0;
   }
@@ -1097,7 +1194,7 @@ function renderLocalPollResults(p, responses, hasVoted) {
         const c = counts[opt] || 0;
         const pct = Math.round(c / total * 100);
         const optArea = optionAreaCounts[opt] || 0;
-        const areaPct = totalQuestionArea > 0 ? Math.round(optArea / totalQuestionArea * 100) : 0;
+        const areaPct = votedArea > 0 ? Math.round(optArea / votedArea * 100) : 0;
 
         h += '<div style="margin-bottom:14px;padding:12px;background:#fff;border-radius:8px;border:1px solid #f0f0f0;">';
         h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
