@@ -17,3 +17,5 @@ function renderAuditLog() {
     '</tbody></table></div>';
   return html;
 }
+
+

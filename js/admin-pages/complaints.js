@@ -1,11 +1,11 @@
 /* js/admin-pages/complaints.js - 投诉建议管理 */
-let _cpFilterStatus = '';
-let _cpReplyImages = [];
 
 function renderComplaintsAdmin(){
   setTimeout(() => refreshComplaints(), 50);
   return '<div id="cpCard"><div class="empty-state"><div class="icon">📝</div><div>正在加载投诉建议数据...</div></div></div>';
 }
+
+
 
 function renderCPList(list){
   if(!list || !list.length) return '<div class="empty-state"><div class="icon">📝</div><div>暂无投诉建议数据</div></div>';
@@ -21,6 +21,12 @@ function renderCPList(list){
   h += '</tbody></table>';
   return h;
 }
+
+
+
+let _cpFilterStatus = '';
+
+
 
 function renderComplaintsContent(){
   const list = appData.complaints || [];
@@ -40,10 +46,14 @@ function renderComplaintsContent(){
   if(el) el.innerHTML = h;
 }
 
+
+
 function filterCPStatus(status){
   _cpFilterStatus = status;
   renderComplaintsContent();
 }
+
+
 
 async function refreshComplaints(){
   showLoading(true);
@@ -53,6 +63,44 @@ async function refreshComplaints(){
   }catch(e){ showToast('加载失败：'+e.message, 'error'); }
   finally{ showLoading(false); }
 }
+
+
+
+let _cpReplyImages = [];
+
+
+async function handleCPReplyImages(input){
+  const files = Array.from(input.files);
+  const preview = document.getElementById('cpReplyImagesPreview');
+  const countEl = document.getElementById('cpReplyImgCount');
+  for(const f of files){
+    if(!f.type.startsWith('image/')) continue;
+    let file = f;
+    try{ file = await compressImageToBlob(f, 0.03); }
+    catch(e){ showToast('"'+f.name+'" 压缩失败：'+e.message, 'error'); continue; }
+    const url = URL.createObjectURL(file);
+    const div = document.createElement('div');
+    div.style.cssText = 'position:relative;width:60px;height:60px;border-radius:4px;overflow:hidden;border:1px solid var(--border);';
+    div.dataset.fname = file.name;
+    div.innerHTML = '<img src="'+url+'" style="width:100%;height:100%;object-fit:cover;"><button type="button" onclick="removeCPReplyImage(this)" style="position:absolute;top:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>';
+    preview.appendChild(div);
+    _cpReplyImages.push(file);
+  }
+  if(countEl) countEl.textContent = _cpReplyImages.length;
+  input.value = '';
+}
+
+
+function removeCPReplyImage(btn){
+  const div = btn.parentElement;
+  const fname = div.dataset.fname;
+  _cpReplyImages = _cpReplyImages.filter(f => f.name !== fname);
+  div.remove();
+  const countEl = document.getElementById('cpReplyImgCount');
+  if(countEl) countEl.textContent = _cpReplyImages.length;
+}
+
+
 
 function openComplaintModal(id){
   _cpReplyImages = [];
@@ -117,6 +165,8 @@ function openComplaintModal(id){
   document.getElementById('modalOverlay').classList.add('active');
 }
 
+
+
 function previewComplaintFrontEnd(id){
   const list = appData.complaints || [];
   const item = list.find(x=>x.id===id);
@@ -154,6 +204,8 @@ function previewComplaintFrontEnd(id){
   overlay.className = 'preview-overlay';
   document.body.appendChild(overlay);
 }
+
+
 
 async function saveComplaintAction(id){
   const reply = document.getElementById('cpReply').value.trim();
@@ -202,35 +254,7 @@ async function saveComplaintAction(id){
   finally{ showLoading(false); }
 }
 
-async function handleCPReplyImages(input){
-  const files = Array.from(input.files);
-  const preview = document.getElementById('cpReplyImagesPreview');
-  const countEl = document.getElementById('cpReplyImgCount');
-  for(const f of files){
-    if(!f.type.startsWith('image/')) continue;
-    let file = f;
-    try{ file = await compressImageToBlob(f, 0.03); }
-    catch(e){ showToast('"'+f.name+'" 压缩失败：'+e.message, 'error'); continue; }
-    const url = URL.createObjectURL(file);
-    const div = document.createElement('div');
-    div.style.cssText = 'position:relative;width:60px;height:60px;border-radius:4px;overflow:hidden;border:1px solid var(--border);';
-    div.dataset.fname = file.name;
-    div.innerHTML = '<img src="'+url+'" style="width:100%;height:100%;object-fit:cover;"><button type="button" onclick="removeCPReplyImage(this)" style="position:absolute;top:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>';
-    preview.appendChild(div);
-    _cpReplyImages.push(file);
-  }
-  if(countEl) countEl.textContent = _cpReplyImages.length;
-  input.value = '';
-}
 
-function removeCPReplyImage(btn){
-  const div = btn.parentElement;
-  const fname = div.dataset.fname;
-  _cpReplyImages = _cpReplyImages.filter(f => f.name !== fname);
-  div.remove();
-  const countEl = document.getElementById('cpReplyImgCount');
-  if(countEl) countEl.textContent = _cpReplyImages.length;
-}
 
 function downloadComplaintSummary(id){
   const item = (appData.complaints||[]).find(x=>x.id===id);
@@ -265,3 +289,8 @@ function downloadComplaintSummary(id){
   a.click();
   URL.revokeObjectURL(url);
 }
+
+
+
+
+

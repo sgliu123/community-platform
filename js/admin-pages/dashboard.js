@@ -23,3 +23,4 @@ function renderDashboard() {
     `<button class="btn btn-primary" onclick="navigateTo('residents');openEditModal('residents',null)">➕ 添加业主</button>` +
     '</div></div>';
 }
+

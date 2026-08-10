@@ -26,3 +26,4 @@ function renderDocumentsAdmin() {
     }).join('') +
     '</tbody></table></div>';
 }
+

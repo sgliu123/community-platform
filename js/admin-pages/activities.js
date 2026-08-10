@@ -7,3 +7,4 @@ function renderActivitiesAdmin() {
     list.map(item => `<tr><td>${item.title||''}</td><td>${item.date||''}</td><td>${item.location||''}</td><td><span class="tag ${item.status==="进行中"?"tag-active":(item.status==="预告"?"tag-test":"tag-disabled")}">${item.status||'已结束'}</span></td><td class="actions"><button onclick="openEditModal('activities','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('activities','${item.id}')">删除</button></td></tr>`).join('') +
     '</tbody></table></div>';
 }
+

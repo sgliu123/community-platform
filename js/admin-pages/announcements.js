@@ -7,3 +7,4 @@ function renderAnnouncementsAdmin() {
     list.map(item => `<tr><td>${item.title||''}</td><td>${item.category||''}</td><td>${item.publishDate||''}</td><td>${item.isPinned?"📌":""}</td><td>${item.author||''}</td><td class="actions"><button onclick="openEditModal('announcements','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('announcements','${item.id}')">删除</button></td></tr>`).join('') +
     '</tbody></table></div>';
 }
+

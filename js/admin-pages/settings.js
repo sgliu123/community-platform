@@ -29,6 +29,19 @@ function renderSettings() {
 
 }
 
+
+
+function saveAnchorConfig() {
+  localStorage.setItem('githubToken', document.getElementById('cfgGithubToken').value.trim());
+  localStorage.setItem('githubRepo', document.getElementById('cfgGithubRepo').value.trim());
+  localStorage.setItem('wechatWebhook', document.getElementById('cfgWechatWebhook').value.trim());
+  localStorage.setItem('resendApiKey', document.getElementById('cfgResendKey').value.trim());
+  localStorage.setItem('anchorEmail', document.getElementById('cfgAnchorEmail').value.trim());
+  showToast('锚定配置已保存', 'success');
+}
+
+
+
 async function changePassword() {
   const oldPwd = document.getElementById('oldPassword').value;
   const newPwd = document.getElementById('newPassword').value;
@@ -65,14 +78,14 @@ async function changePassword() {
   }
 }
 
-function saveAnchorConfig() {
-  localStorage.setItem('githubToken', document.getElementById('cfgGithubToken').value.trim());
-  localStorage.setItem('githubRepo', document.getElementById('cfgGithubRepo').value.trim());
-  localStorage.setItem('wechatWebhook', document.getElementById('cfgWechatWebhook').value.trim());
-  localStorage.setItem('resendApiKey', document.getElementById('cfgResendKey').value.trim());
-  localStorage.setItem('anchorEmail', document.getElementById('cfgAnchorEmail').value.trim());
-  showToast('锚定配置已保存', 'success');
+
+
+function showTokenModal() {
+  showToast('当前使用 Cloudflare Worker 模式，无需配置 GitHub Token', 'info');
 }
+
+
+
 
 function saveWorkerBase() {
   const el = document.getElementById('workerBaseInput');
@@ -82,11 +95,10 @@ function saveWorkerBase() {
   showToast('Worker地址已保存，刷新页面后生效', 'success');
 }
 
+
 async function updateToken() {
   showToast('当前使用 Cloudflare Worker 模式，无需配置 GitHub Token', 'info');
   closeModal();
 }
 
-function showTokenModal() {
-  showToast('当前使用 Cloudflare Worker 模式，无需配置 GitHub Token', 'info');
-}
+
