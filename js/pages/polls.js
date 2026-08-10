@@ -3,7 +3,7 @@
 // ===== 面积工具函数 =====
 function getResidentArea(r) {
   if (!r || typeof r !== 'object') return 0;
-  var fields = ['area', 'houseArea', 'propertyArea', 'square', 'size', 'houseSize', 'property_area', 'house_area', 'house_size', '建筑面积', '套内面积', '房屋面积', '面积', 'propertySize', 'buildingArea', 'building_area', 'sqm', 'sqft', 'mianji', 'acreage', 'house_area_sqm', 'property_area_sqm', 'building_area_sqm', '室内面积', '使用面积', '专有面积', '公摊面积', '总面积'];
+  var fields = ['area', 'houseArea', 'propertyArea', 'square', 'size', 'houseSize', 'property_area', 'house_area', 'house_size', '建筑面积', '套内面积', '房屋面积', '面积', 'propertySize', 'buildingArea', 'building_area', 'sqm', 'sqft'];
   for (var i = 0; i < fields.length; i++) {
     var raw = r[fields[i]];
     if (raw == null) continue;
@@ -25,21 +25,13 @@ function getResidentArea(r) {
     var nested2 = getResidentArea(r.property);
     if (nested2 > 0) return nested2;
   }
-  for (var key in r) {
-    if (key === 'id' || key === 'age' || key === 'phone' || key === 'mobile' || key === 'password') continue;
-    var val = r[key];
-    if (val != null && typeof val !== 'object' && typeof val !== 'boolean') {
-      var nv = parseFloat(val);
-      if (!isNaN(nv) && nv > 10 && nv < 1000) return nv;
-    }
-  }
   return 0;
 }
 
 // 获取业主房间号（兼容多种字段名）
 function getResidentRoomNo(r) {
   if (!r || typeof r !== 'object') return '';
-  var fields = ['roomNo', 'room', 'houseNo', 'house', 'roomNumber', 'unitNo', '房号', '房间号', '房屋编号', 'name', 'residentRoom', 'room_no', 'house_no', 'fanghao', 'fangHao', '门牌号', '户号', 'houseId', 'roomId'];
+  var fields = ['roomNo', 'room', 'houseNo', 'house', 'roomNumber', 'unitNo', '房号', '房间号', '房屋编号', 'name', 'residentRoom'];
   for (var i = 0; i < fields.length; i++) {
     var v = r[fields[i]];
     if (v != null) {
@@ -54,15 +46,6 @@ function getResidentRoomNo(r) {
   if (r.property && typeof r.property === 'object') {
     var nested2 = getResidentRoomNo(r.property);
     if (nested2) return nested2;
-  }
-  for (var key in r) {
-    var val = r[key];
-    if (val != null && typeof val === 'string') {
-      var s = val.trim();
-      if (/^\d+[-\/]?\d*[-\/]?\d*$/.test(s) || /^[\u4e00-\u9fa5]?\d+/.test(s)) {
-        return s;
-      }
-    }
   }
   return '';
 }
@@ -927,121 +910,81 @@ function renderLocalPollForm(p) {
 }
 
 function renderLocalPollResults(p, responses, hasVoted) {
-  // ===== 1. 收集所有 resident 数据 =====
-  var allResidents = [];
-  if (typeof appData !== 'undefined' && appData.residents && Array.isArray(appData.residents)) {
-    allResidents = allResidents.concat(appData.residents);
-  }
-  var pollResidents = getPollResidents(p);
-  if (pollResidents.length > 0) {
-    allResidents = allResidents.concat(pollResidents);
-  }
-
-  // ===== 2. 构建 roomAreaMap（去重，保留最大面积） =====
-  var roomAreaMap = {};
-  var totalCommunityArea = 0;
-  var countedRooms = new Set();
-
-  function addToRoomMap(r, area) {
-    if (area <= 0) return;
-    var roomNo = getResidentRoomNo(r);
-    if (roomNo) {
-      var cleanRoom = String(roomNo).trim();
-      if (!roomAreaMap[cleanRoom] || roomAreaMap[cleanRoom] < area) {
-        roomAreaMap[cleanRoom] = area;
-      }
-      var noSpace = cleanRoom.replace(/\s/g, '');
-      if (noSpace !== cleanRoom) {
-        if (!roomAreaMap[noSpace] || roomAreaMap[noSpace] < area) {
-          roomAreaMap[noSpace] = area;
+  // ===== 1. 直接从 response 读取面积（后台已计算好） =====
+  function getResponseAreaDirect(r) {
+    if (!r || typeof r !== 'object') return 0;
+    // 优先：response 自身携带的面积字段
+    var directFields = ['area', 'houseArea', 'propertyArea', 'square', 'houseSize', 'property_area', 'house_area', '建筑面积', '套内面积', '房屋面积', '面积'];
+    for (var i = 0; i < directFields.length; i++) {
+      var raw = r[directFields[i]];
+      if (raw == null) continue;
+      var v = parseFloat(raw);
+      if (!isNaN(v) && v > 0) return v;
+      if (typeof raw === 'string') {
+        var m = raw.match(/(\d+(?:\.\d+)?)/);
+        if (m) {
+          v = parseFloat(m[1]);
+          if (!isNaN(v) && v > 0) return v;
         }
       }
-      var digitsOnly = cleanRoom.replace(/\D/g, '');
-      if (digitsOnly && digitsOnly !== cleanRoom && digitsOnly !== noSpace) {
-        if (!roomAreaMap[digitsOnly] || roomAreaMap[digitsOnly] < area) {
-          roomAreaMap[digitsOnly] = area;
-        }
-      }
-      if (!countedRooms.has(cleanRoom)) {
-        countedRooms.add(cleanRoom);
-        totalCommunityArea += area;
-      }
     }
-    if (r.name) {
-      var n = String(r.name).trim();
-      if (n) {
-        if (!roomAreaMap[n] || roomAreaMap[n] < area) roomAreaMap[n] = area;
-      }
+    // 其次：从 resident 数据匹配
+    var allResidents = [];
+    if (typeof appData !== 'undefined' && appData.residents && Array.isArray(appData.residents)) {
+      allResidents = allResidents.concat(appData.residents);
     }
-    if (r.residentName) {
-      var rn = String(r.residentName).trim();
-      if (rn) {
-        if (!roomAreaMap[rn] || roomAreaMap[rn] < area) roomAreaMap[rn] = area;
+    var pollResidents = getPollResidents(p);
+    if (pollResidents.length > 0) allResidents = allResidents.concat(pollResidents);
+
+    var roomAreaMap = {};
+    allResidents.forEach(function(res) {
+      var area = getResidentArea(res);
+      if (area <= 0) return;
+      var room = getResidentRoomNo(res);
+      if (room) {
+        roomAreaMap[room] = area;
+        roomAreaMap[room.replace(/\s/g, '')] = area;
+        roomAreaMap[room.replace(/\D/g, '')] = area;
       }
-    }
-  }
+      if (res.name) roomAreaMap[String(res.name).trim()] = area;
+      if (res.residentName) roomAreaMap[String(res.residentName).trim()] = area;
+    });
 
-  allResidents.forEach(function(r) {
-    addToRoomMap(r, getResidentArea(r));
-  });
-
-  // 后备：从 poll 对象读取总面积
-  if (totalCommunityArea <= 0) {
-    var fa = getPollAreaTarget(p);
-    if (fa > 0) totalCommunityArea = fa;
-  }
-
-  // ===== 3. 根据 response 查找面积（强兼容匹配） =====
-  function getResponseArea(response) {
-    var room = String(response.residentRoom || '').trim();
-    var name = String(response.residentName || '').trim();
+    var room = String(r.residentRoom || '').trim();
+    var name = String(r.residentName || '').trim();
+    if (room && roomAreaMap[room] > 0) return roomAreaMap[room];
     if (room) {
-      if (roomAreaMap[room] > 0) return roomAreaMap[room];
-      var noSpace = room.replace(/\s/g, '');
-      if (roomAreaMap[noSpace] > 0) return roomAreaMap[noSpace];
-      var digitsOnly = room.replace(/\D/g, '');
-      if (digitsOnly && roomAreaMap[digitsOnly] > 0) return roomAreaMap[digitsOnly];
-      for (var key in roomAreaMap) {
-        if (key.indexOf(room) !== -1 || room.indexOf(key) !== -1) return roomAreaMap[key];
-        var keyDigits = key.replace(/\D/g, '');
-        if (keyDigits && keyDigits === digitsOnly) return roomAreaMap[key];
-      }
+      var ns = room.replace(/\s/g, '');
+      if (roomAreaMap[ns] > 0) return roomAreaMap[ns];
+      var nd = room.replace(/\D/g, '');
+      if (nd && roomAreaMap[nd] > 0) return roomAreaMap[nd];
     }
     if (name && roomAreaMap[name] > 0) return roomAreaMap[name];
-    for (var i = 0; i < allResidents.length; i++) {
-      var rRoom = getResidentRoomNo(allResidents[i]);
-      if (rRoom) {
-        if (rRoom === room) return getResidentArea(allResidents[i]);
-        if (rRoom.replace(/\s/g, '') === room.replace(/\s/g, '')) return getResidentArea(allResidents[i]);
-        if (rRoom.replace(/\D/g, '') === room.replace(/\D/g, '')) return getResidentArea(allResidents[i]);
+    for (var j = 0; j < allResidents.length; j++) {
+      var rr = getResidentRoomNo(allResidents[j]);
+      if (rr && (rr === room || rr.replace(/\s/g, '') === room.replace(/\s/g, ''))) {
+        return getResidentArea(allResidents[j]);
       }
-      var rName = allResidents[i].name ? String(allResidents[i].name).trim() : '';
-      var rResName = allResidents[i].residentName ? String(allResidents[i].residentName).trim() : '';
-      if (rName && rName === name) return getResidentArea(allResidents[i]);
-      if (rResName && rResName === name) return getResidentArea(allResidents[i]);
+      var nm = allResidents[j].name ? String(allResidents[j].name).trim() : '';
+      if (nm && nm === name) return getResidentArea(allResidents[j]);
     }
     return 0;
   }
 
-  // ===== 4. 计算每个 response 的面积和总投票面积 =====
+  // ===== 2. 计算总面积和每个 response 的面积 =====
   var responseAreas = [];
   var votedArea = 0;
   responses.forEach(function(r) {
-    var a = getResponseArea(r);
+    var a = getResponseAreaDirect(r);
     responseAreas.push(a);
     votedArea += a;
   });
 
-  // 后备：从 poll 对象读取已投票面积，平均分配
-  if (votedArea <= 0) {
-    var fc = getPollAreaCurrent(p);
-    if (fc > 0 && responses.length > 0) {
-      votedArea = fc;
-      var avg = Math.round(votedArea / responses.length);
-      for (var i = 0; i < responseAreas.length; i++) {
-        responseAreas[i] = avg;
-      }
-    }
+  // 社区总面积：从所有 response 面积之和 或 poll 对象读取
+  var totalCommunityArea = votedArea;
+  if (totalCommunityArea <= 0) {
+    var fa = getPollAreaTarget(p);
+    if (fa > 0) totalCommunityArea = fa;
   }
 
   let h = '<div style="margin-top:8px;">';
@@ -1109,46 +1052,30 @@ function renderLocalPollResults(p, responses, hasVoted) {
       });
       const total = responses.length || 1;
 
-      // ===== 选项面积计算（核心修复） =====
+      // ===== 选项面积计算：直接用 response 自身面积 =====
       var optionAreaCounts = {};
       var totalQuestionArea = 0;
-      var shouldCalcArea = (countedRooms.size > 0) || (votedArea > 0);
-      if (shouldCalcArea) {
-        responses.forEach(function(r, rIdx) {
-          var a = r.answers.find(function(x) { return x.questionId === q.id; });
-          if (!a || !a.value) return;
-          var area = responseAreas[rIdx];
-          if (area <= 0 && votedArea > 0 && responses.length > 0) {
-            area = Math.round(votedArea / responses.length);
-          }
-          totalQuestionArea += area;
-          if (Array.isArray(a.value)) {
-            a.value.forEach(function(v) {
-              if (optionAreaCounts[v] === undefined) optionAreaCounts[v] = 0;
-              optionAreaCounts[v] += area;
-            });
-          } else {
-            if (optionAreaCounts[a.value] === undefined) optionAreaCounts[a.value] = 0;
-            optionAreaCounts[a.value] += area;
-          }
-        });
-      }
-
-      // 若选项面积计算失败但 votedArea 正确，按票数比例分配面积
-      if (totalQuestionArea <= 0 && votedArea > 0) {
-        totalQuestionArea = votedArea;
-        (q.options || []).forEach(function(opt) {
-          if (counts[opt] > 0) {
-            optionAreaCounts[opt] = Math.round(votedArea * (counts[opt] / total));
-          }
-        });
-      }
+      responses.forEach(function(r, rIdx) {
+        var a = r.answers.find(function(x) { return x.questionId === q.id; });
+        if (!a || !a.value) return;
+        var area = responseAreas[rIdx];
+        totalQuestionArea += area;
+        if (Array.isArray(a.value)) {
+          a.value.forEach(function(v) {
+            if (optionAreaCounts[v] === undefined) optionAreaCounts[v] = 0;
+            optionAreaCounts[v] += area;
+          });
+        } else {
+          if (optionAreaCounts[a.value] === undefined) optionAreaCounts[a.value] = 0;
+          optionAreaCounts[a.value] += area;
+        }
+      });
 
       (q.options || []).forEach(function(opt) {
         const c = counts[opt] || 0;
         const pct = Math.round(c / total * 100);
         const optArea = optionAreaCounts[opt] || 0;
-        var areaDenominator = totalQuestionArea > 0 ? totalQuestionArea : (votedArea > 0 ? votedArea : 1);
+        var areaDenominator = totalQuestionArea > 0 ? totalQuestionArea : 1;
         const areaPct = Math.round(optArea / areaDenominator * 100);
 
         h += '<div style="margin-bottom:14px;padding:12px;background:#fff;border-radius:8px;border:1px solid #f0f0f0;">';
@@ -1160,7 +1087,7 @@ function renderLocalPollResults(p, responses, hasVoted) {
         h += '<div style="height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-light));border-radius:6px;width:' + pct + '%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-size:10px;font-weight:600;">' + (pct > 8 ? pct + '%' : '') + '</div>';
         h += '</div>';
 
-        if (shouldCalcArea) {
+        if (totalQuestionArea > 0) {
           h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
           h += '<span style="font-size:12px;color:var(--text-secondary);">\uD83D\uDCD0 面积：' + optArea + '㎡ (' + areaPct + '%)</span>';
           h += '</div>';
