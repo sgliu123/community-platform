@@ -1072,6 +1072,34 @@ function renderLocalPollResults(p, responses, hasVoted) {
   responses.forEach(function(r) {
     votedArea += getResponseArea(r);
   });
+  // ===== 同步后端权威面积数据（解决前端 residents 数据缺失导致的面积不一致）=====
+  var vr = p.voteResult || p.results || null;
+  var backendAgreeArea = 0;
+  var backendVotedArea = 0;
+  if (vr) {
+    var aa = vr.agreeArea;
+    if (aa == null) aa = vr.yesArea;
+    if (aa == null) aa = vr.赞成Area;
+    if (aa == null) aa = vr.supportArea;
+    if (aa == null) aa = vr.赞同Area;
+    if (aa == null) aa = vr.认可Area;
+    if (aa == null) aa = vr.passArea;
+    if (aa == null) aa = vr.通过Area;
+    if (aa != null) backendAgreeArea = parseFloat(aa) || 0;
+
+    var va = vr.areaCurrent || vr.currentArea || vr.participationArea || vr.votedArea || vr.participatingArea;
+    if (va == null && vr.summary && typeof vr.summary === 'string') {
+      var mBackend = vr.summary.match(/面积\s*(\d+(?:\.\d+)?)\s*㎡/);
+      if (mBackend) va = parseFloat(mBackend[1]);
+    }
+    if (va != null) backendVotedArea = parseFloat(va) || 0;
+  }
+  if (backendVotedArea <= 0) backendVotedArea = getPollAreaCurrent(p);
+
+  // 如果后端提供了参与面积，且与前端计算的不一致（差异>1㎡），以后端为准
+  if (backendVotedArea > 0 && Math.abs(backendVotedArea - votedArea) > 1) {
+    votedArea = backendVotedArea;
+  }
   if (votedArea <= 0) {
     if (p.rollStats && p.rollStats.currentArea > 0) votedArea = p.rollStats.currentArea;
     else if (p.voteResult && p.voteResult.areaCurrent > 0) votedArea = p.voteResult.areaCurrent;
@@ -1180,6 +1208,38 @@ function renderLocalPollResults(p, responses, hasVoted) {
             optionAreaCounts[opt] = Math.round(votedArea * (counts[opt] / total));
           }
         });
+      }
+      // 若后端提供了 agreeArea，同步到对应选项，确保与上方计票结果一致
+      if (backendAgreeArea > 0 && votedArea > 0) {
+        var agreeOpt = null, opposeOpt = null, otherOpts = [];
+        (q.options || []).forEach(function(opt) {
+          var lower = String(opt).toLowerCase();
+          if (lower.indexOf('同意') !== -1 || lower.indexOf('赞成') !== -1 || lower.indexOf('支持') !== -1 || lower.indexOf('通过') !== -1) {
+            agreeOpt = opt;
+          } else if (lower.indexOf('反对') !== -1 || lower.indexOf('否决') !== -1 || lower.indexOf('不同意') !== -1 || lower.indexOf('不赞成') !== -1) {
+            opposeOpt = opt;
+          } else {
+            otherOpts.push(opt);
+          }
+        });
+        if (agreeOpt) {
+          optionAreaCounts[agreeOpt] = backendAgreeArea;
+          var remaining = Math.max(0, votedArea - backendAgreeArea);
+          if (opposeOpt && otherOpts.length === 0) {
+            // 仅同意/反对两选项
+            optionAreaCounts[opposeOpt] = remaining;
+          } else if (opposeOpt) {
+            optionAreaCounts[opposeOpt] = remaining;
+            otherOpts.forEach(function(opt) { optionAreaCounts[opt] = 0; });
+          } else if (otherOpts.length > 0) {
+            // 无明确反对项，剩余面积按票数比例分配给其他选项
+            var otherTotalCount = otherOpts.reduce(function(s, o) { return s + (counts[o] || 0); }, 0);
+            otherOpts.forEach(function(opt) {
+              optionAreaCounts[opt] = otherTotalCount > 0 ? Math.round(remaining * ((counts[opt] || 0) / otherTotalCount)) : 0;
+            });
+          }
+          totalQuestionArea = votedArea;
+        }
       }
 
       (q.options || []).forEach(function(opt) {
