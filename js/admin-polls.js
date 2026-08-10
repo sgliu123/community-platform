@@ -1155,6 +1155,12 @@ function renderPollQuestionsEditor(questions) {
     html += '</div>';
     html += '<div id="qOptionsWrap-' + idx + '" style="' + (q.type==='text'?'display:none;':'') + '">';
     html += '<label style="font-size:12px;display:block;margin-bottom:6px;">选项（每行一个）</label>';
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">';
+    html += '<button type="button" class="btn btn-sm" onclick="fillQuestionOptions(' + idx + ', [\'同意\',\'不同意\'])" style="font-size:11px;padding:3px 10px;background:#e8f5e9;color:#2e7d32;border:1px solid #c8e6c9;border-radius:4px;cursor:pointer;">同意/不同意</button>';
+    html += '<button type="button" class="btn btn-sm" onclick="fillQuestionOptions(' + idx + ', [\'同意\',\'反对\'])" style="font-size:11px;padding:3px 10px;background:#e8f5e9;color:#2e7d32;border:1px solid #c8e6c9;border-radius:4px;cursor:pointer;">同意/反对</button>';
+    html += '<button type="button" class="btn btn-sm" onclick="fillQuestionOptions(' + idx + ', [\'赞成\',\'反对\'])" style="font-size:11px;padding:3px 10px;background:#e3f2fd;color:#1976d2;border:1px solid #bbdefb;border-radius:4px;cursor:pointer;">赞成/反对</button>';
+    html += '<button type="button" class="btn btn-sm" onclick="fillQuestionOptions(' + idx + ', [\'是\',\'否\'])" style="font-size:11px;padding:3px 10px;background:#fff3e0;color:#e65100;border:1px solid #ffe0b2;border-radius:4px;cursor:pointer;">是/否</button>';
+    html += '</div>';
     html += '<textarea id="qOpts-' + idx + '" rows="3" placeholder="选项1&#10;选项2&#10;选项3" style="font-family:inherit;">' + escapeHtml((q.options||[]).join('\n')) + '</textarea>';
     html += '</div>';
     html += '</div>';
@@ -1171,6 +1177,14 @@ function onQuestionTypeChange(idx) {
 }
 
 
+
+function fillQuestionOptions(idx, opts) {
+  const el = document.getElementById('qOpts-' + idx);
+  if (el) {
+    el.value = opts.join('\n');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}
 
 function addPollQuestion() {
   _pollQuestions.push({ id: 'q-' + Date.now() + '-' + Math.random().toString(36).substr(2,4), title: '', type: 'single', options: ['选项1','选项2'], required: true });
