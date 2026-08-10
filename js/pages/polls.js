@@ -28,6 +28,29 @@ function getResidentArea(r) {
   return 0;
 }
 
+// 获取业主房间号（兼容多种字段名）
+function getResidentRoomNo(r) {
+  if (!r || typeof r !== 'object') return '';
+  var fields = ['roomNo', 'room', 'houseNo', 'house', 'roomNumber', 'unitNo', '房号', '房间号', '房屋编号', 'name', 'residentRoom'];
+  for (var i = 0; i < fields.length; i++) {
+    var v = r[fields[i]];
+    if (v != null) {
+      var s = String(v).trim();
+      if (s) return s;
+    }
+  }
+  // 嵌套对象检查
+  if (r.house && typeof r.house === 'object') {
+    var nested = getResidentRoomNo(r.house);
+    if (nested) return nested;
+  }
+  if (r.property && typeof r.property === 'object') {
+    var nested2 = getResidentRoomNo(r.property);
+    if (nested2) return nested2;
+  }
+  return '';
+}
+
 function getPollResidents(p) {
   // 优先从投票对象自身的清册数据读取
   var sources = ['residents', 'ownerList', 'voterList', 'register', 'owner_list', 'voter_list', 'residentList', 'resident_list'];
@@ -892,17 +915,21 @@ function renderLocalPollResults(p, responses, hasVoted) {
   var roomAreaMap = {};
   var totalCommunityArea = 0;
   residents.forEach(function(r) {
+    var roomNo = getResidentRoomNo(r);
+    if (!roomNo) return;
     var area = getResidentArea(r);
-    roomAreaMap[r.roomNo] = area;
+    roomAreaMap[roomNo] = area;
     totalCommunityArea += area;
   });
   // 从 appData.residents 补充缺失的面积数据
   if (typeof appData !== 'undefined' && appData.residents && Array.isArray(appData.residents)) {
     appData.residents.forEach(function(r) {
-      if (roomAreaMap[r.roomNo]) return; // 已有面积，跳过
+      var roomNo = getResidentRoomNo(r);
+      if (!roomNo) return;
+      if (roomAreaMap[roomNo] > 0) return; // 已有正面积，跳过
       var area = getResidentArea(r);
       if (area > 0) {
-        roomAreaMap[r.roomNo] = area;
+        roomAreaMap[roomNo] = area;
         totalCommunityArea += area;
       }
     });
@@ -1009,7 +1036,7 @@ function renderLocalPollResults(p, responses, hasVoted) {
         responses.forEach(function(r) {
           var a = r.answers.find(function(x) { return x.questionId === q.id; });
           if (!a || !a.value) return;
-          var area = roomAreaMap[r.residentRoom] || 0;
+          var area = roomAreaMap[String(r.residentRoom || '').trim()] || 0;
           totalQuestionArea += area;
           if (Array.isArray(a.value)) {
             a.value.forEach(function(v) {
@@ -1023,14 +1050,22 @@ function renderLocalPollResults(p, responses, hasVoted) {
         });
       }
 
-      // 若选项面积计算失败但 votedArea 正确，按票数比例分配面积
+      // 若选项面积计算失败但 votedArea 正确，尝试从后端同步的选项面积数据获取
       if (totalQuestionArea <= 0 && votedArea > 0) {
-        totalQuestionArea = votedArea;
-        (q.options || []).forEach(function(opt) {
-          if (counts[opt] > 0) {
-            optionAreaCounts[opt] = Math.round(votedArea * (counts[opt] / total));
-          }
-        });
+        var optionAreasFromBackend = null;
+        if (p.voteResult && p.voteResult.optionAreas) optionAreasFromBackend = p.voteResult.optionAreas;
+        else if (p.results && p.results.optionAreas) optionAreasFromBackend = p.results.optionAreas;
+        else if (p.rollStats && p.rollStats.optionAreas) optionAreasFromBackend = p.rollStats.optionAreas;
+
+        if (optionAreasFromBackend) {
+          totalQuestionArea = votedArea;
+          (q.options || []).forEach(function(opt) {
+            if (optionAreasFromBackend[opt] != null) {
+              optionAreaCounts[opt] = parseFloat(optionAreasFromBackend[opt]) || 0;
+            }
+          });
+        }
+        // 注意：不再按票数比例分配面积，避免票数相同时显示错误数据
       }
 
       (q.options || []).forEach(function(opt) {
