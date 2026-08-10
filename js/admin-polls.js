@@ -74,6 +74,51 @@ function getPollDisplayStats(item) {
 
 
 
+function renderPollsAdmin() {
+  const list = appData.polls || [];
+  return `<div class="card"><div class="card-header"><h3>🗳️ 投票管理</h3><button class="btn btn-primary" onclick="openEditModal('polls',null)">➕ 新增投票</button></div>` +
+    '<table class="data-table"><thead><tr><th>案卷号</th><th>标题</th><th>类型</th><th>模式</th><th>状态</th><th>时间合规</th><th>进度</th><th>参与率</th><th>同意率</th><th>结果</th><th>操作</th></tr></thead><tbody>' +
+    list.map(item => {
+      const disp = getPollDisplayStats(item);
+      const res = item.results || {};
+      const modeLabel = item.mode === 'local' ? '<span class="tag tag-active">本地问卷</span>' : '<span class="tag tag-test">腾讯问卷</span>';
+      const catLabel = item.category === 'major' ? '<span class="tag" style="background:#ffebee;color:#c62828;">重大</span>' : '<span class="tag" style="background:#e8f5e9;color:#2e7d32;">一般</span>';
+      const statusTag = '<span class="tag ' + (item.status==="进行中"?"tag-active":"tag-disabled") + '">' + (item.status||'') + '</span>';
+
+      // 参与率（自动从业主库补全面积数据）
+      const rPart = disp.residentParticipationRate;
+      const aPart = disp.areaParticipationRate;
+      const partHtml = '<div style="font-size:12px;">人数 ' + rPart.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, rPart) + '%;"></div></div>面积 ' + aPart.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, aPart) + '%;background:#1976D2;"></div></div></div>';
+
+      // 同意率（自动从业主库补全面积数据）
+      const rAgree = disp.agreeResidentRate;
+      const aAgree = disp.agreeAreaRate;
+      const agreeHtml = '<div style="font-size:12px;">人数 ' + rAgree.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, rAgree) + '%;"></div></div>面积 ' + aAgree.toFixed(1) + '%<div class="progress-bar" style="height:6px;margin:2px 0;"><div class="progress-bar-fill" style="width:' + Math.min(100, aAgree) + '%;background:#1976D2;"></div></div></div>';
+
+      // 通过标签（只有已结束才显示最终判定）
+      let passHtml = '<span style="color:#999;font-size:12px;">—</span>';
+      if (item.status === '已结束') {
+        passHtml = res.isPassed === true ? '<span class="tag tag-active">✅ 通过</span>' : (res.isPassed === false ? '<span class="tag tag-test">❌ 未通过</span>' : '<span style="color:#999;font-size:12px;">—</span>');
+      } else if (item.status === '进行中') {
+        passHtml = '<span class="tag" style="background:#fff3e0;color:#e65100;">🗳️ 进行中</span>';
+      }
+      const anchorHtml = item.status === '已结束' ? (item.anchorRecords && item.anchorRecords.some(r => !r.error) ? '<span class="tag tag-active" style="cursor:pointer;" onclick="event.stopPropagation();showAnchorDetails(\'' + item.id + '\')">🔗 已锚定</span>' : '<span class="tag tag-test" style="cursor:pointer;" onclick="event.stopPropagation();anchorVoteData(\'' + item.id + '\')">⚠️ 未锚定</span>') : '';
+      const pendingObj = (item.objections || []).filter(o => !o.status || o.status === '待处理').length;
+      const objBadge = pendingObj > 0 ? '<span class="tag" style="background:#ffebee;color:#c62828;cursor:pointer;" onclick="event.stopPropagation();navigateTo(\'objections\')">⚠️ ' + pendingObj + ' 异议</span>' : '';
+
+      const progressHtml = '<div style="font-size:12px;">' + (item.progress && item.progress.current !== undefined ? item.progress.current : 0) + ' / ' + (item.progress && item.progress.target !== undefined ? item.progress.target : 300) + ' 户</div>';
+      let actions = `<button onclick="openEditModal('polls','${item.id}')">编辑</button><button class="danger" onclick="deleteItem('polls','${item.id}')">删除</button>`;
+      if(item.mode === 'local') {
+        actions += `<button onclick="viewPollData('${item.id}')" style="margin-left:4px;">📊 数据</button>`;
+      }
+      actions += `<button onclick="recalculatePoll('${item.id}')" style="margin-left:4px;">🔄 计票</button>`;
+      return `<tr><td>${item.caseNo||''}</td><td>${item.title||''}</td><td>${catLabel}</td><td>${modeLabel}</td><td>${statusTag}</td><td>${(function(){let tags='';if(item.announcement&&item.announcement.start&&item.startDate){const as=new Date(item.announcement.start);const vs=new Date(item.startDate);if((vs-as)>=15*86400000)tags+='<span class="tag tag-active">✅公告期合规</span> ';else tags+='<span class="tag tag-test">❌公告期不足15天</span> ';}else{tags+='<span class="tag tag-test">❌公告期不足15天</span> ';}if(item.consultation&&item.consultation.start&&item.consultation.end){const cs=new Date(item.consultation.start);const ce=new Date(item.consultation.end);if((ce-cs)>=6*86400000)tags+='<span class="tag tag-active">✅征求意见合规</span>';else tags+='<span class="tag tag-test">❌征求意见不足7天</span>';}else{tags+='<span class="tag tag-test">❌征求意见不足7天</span>';}return tags;})()}</td><td>${progressHtml}</td><td>${partHtml}</td><td>${agreeHtml}</td><td>${passHtml} ${anchorHtml} ${objBadge}</td><td class="actions">${actions}</td></tr>`;
+    }).join('') +
+    '</tbody></table></div>';
+}
+
+
+
 function renderPollAuditTimeline(pollId) {
   const container = document.getElementById('pollAuditTimeline');
   if (!container || !pollId) { if(container) container.innerHTML = ''; return; }
