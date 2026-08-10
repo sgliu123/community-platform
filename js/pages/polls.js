@@ -28,78 +28,10 @@ function getResidentArea(r) {
   return 0;
 }
 
-// 获取业主房间号/标识符（兼容多种字段名）
+// 获取业主房间号（兼容多种字段名）
 function getResidentRoomNo(r) {
   if (!r || typeof r !== 'object') return '';
-  var fields = ['roomNo','room','houseNo','house','roomNumber','unitNo',
-    '房号','房间号','房屋编号','houseNumber','unitNumber',
-    'name','residentName','resident_name','ownerName','owner_name',
-    'voterName','voter_name','householderName','householder_name',
-    'householdName','household_name','familyName','family_name',
-    'userName','user_name','loginName','login_name',
-    'memberName','member_name','participantName','participant_name',
-    'submitterName','submitter_name','authorName','author_name',
-    'creatorName','creator_name','operatorName','operator_name',
-    'handlerName','handler_name','processorName','processor_name',
-    'executorName','executor_name','performerName','performer_name',
-    'implementerName','implementer_name','doerName','doer_name',
-    'actorName','actor_name','agentName','agent_name',
-    'representativeName','representative_name','delegateName','delegate_name',
-    'proxyName','proxy_name','substituteName','substitute_name',
-    'replacementName','replacement_name','standInName','stand_in_name',
-    'alternateName','alternate_name','backupName','backup_name',
-    'spareName','spare_name','reserveName','reserve_name',
-    'contingencyName','contingency_name','emergencyName','emergency_name',
-    'fallbackName','fallback_name','defaultName','default_name',
-    'primaryName','primary_name','mainName','main_name',
-    'chiefName','chief_name','headName','head_name',
-    'leadName','lead_name','principalName','principal_name',
-    'keyName','key_name','coreName','core_name',
-    'centralName','central_name','focusName','focus_name',
-    'pivotName','pivot_name','hubName','hub_name',
-    'nexusName','nexus_name','kernelName','kernel_name',
-    'cruxName','crux_name','gistName','gist_name',
-    'essenceName','essence_name','quintessenceName','quintessence_name',
-    'soulName','soul_name','spiritName','spirit_name',
-    'heartName','heart_name','marrowName','marrow_name',
-    'pithName','pith_name','meatName','meat_name',
-    'substanceName','substance_name','stuffName','stuff_name',
-    'materialName','material_name','matterName','matter_name',
-    'contentName','content_name','subjectName','subject_name',
-    'topicName','topic_name','themeName','theme_name',
-    'motifName','motif_name','threadName','thread_name',
-    'strainName','strain_name','tenorName','tenor_name',
-    'driftName','drift_name','trendName','trend_name',
-    'directionName','direction_name','courseName','course_name',
-    'pathName','path_name','wayName','way_name',
-    'routeName','route_name','roadName','road_name',
-    'trackName','track_name','trailName','trail_name',
-    'laneName','lane_name','avenueName','avenue_name',
-    'streetName','street_name','boulevardName','boulevard_name',
-    'driveName','drive_name','terraceName','terrace_name',
-    'placeName','place_name','courtName','court_name',
-    'circleName','circle_name','loopName','loop_name',
-    'crescentName','crescent_name','heightsName','heights_name',
-    'ridgeName','ridge_name','valleyName','valley_name',
-    'glenName','glen_name','daleName','dale_name',
-    'valeName','vale_name','hollowName','hollow_name',
-    'ravineName','ravine_name','gorgeName','gorge_name',
-    'canyonName','canyon_name','passName','pass_name',
-    'gapName','gap_name','notchName','notch_name',
-    'saddleName','saddle_name','colName','col_name',
-    'bergschrundName','bergschrund_name','couloirName','couloir_name',
-    'chimneyName','chimney_name','gullyName','gully_name',
-    'drawName','draw_name','washName','wash_name',
-    'arroyoName','arroyo_name','wadiName','wadi_name',
-    'nullahName','nullah_name','khudName','khud_name',
-    'nalaName','nala_name','jhoraName','jhora_name',
-    'jhiriName','jhiri_name','choName','cho_name',
-    'jheelName','jheel_name','tankName','tank_name',
-    'talabName','talab_name','pokharName','pokhar_name',
-    'pukhuriName','pukhuri_name','beelName','beel_name',
-    'haorName','haor_name','baorName','baor_name',
-    'billName','bill_name','loughName','lough_name',
-    'lochName','loch_name','llynName','llyn_name'];
+  var fields = ['roomNo', 'room', 'houseNo', 'house', 'roomNumber', 'unitNo', '房号', '房间号', '房屋编号', 'name', 'residentRoom'];
   for (var i = 0; i < fields.length; i++) {
     var v = r[fields[i]];
     if (v != null) {
@@ -107,15 +39,13 @@ function getResidentRoomNo(r) {
       if (s) return s;
     }
   }
-  // 嵌套对象检查
-  var nestedKeys = ['house','property','resident','owner','voter','user','person',
-    'member','householder','household','family','unit','flat','apartment',
-    'suite','room','door','gate','entrance','block','tower','building'];
-  for (var k = 0; k < nestedKeys.length; k++) {
-    if (r[nestedKeys[k]] && typeof r[nestedKeys[k]] === 'object') {
-      var nested = getResidentRoomNo(r[nestedKeys[k]]);
-      if (nested) return nested;
-    }
+  if (r.house && typeof r.house === 'object') {
+    var nested = getResidentRoomNo(r.house);
+    if (nested) return nested;
+  }
+  if (r.property && typeof r.property === 'object') {
+    var nested2 = getResidentRoomNo(r.property);
+    if (nested2) return nested2;
   }
   return '';
 }
@@ -980,210 +910,115 @@ function renderLocalPollForm(p) {
 }
 
 function renderLocalPollResults(p, responses, hasVoted) {
-  var residents = getPollResidents(p);
+  // ===== 1. 收集所有resident数据（全局优先，确保面积数据最全） =====
+  var allResidents = [];
+  if (typeof appData !== 'undefined' && appData.residents && Array.isArray(appData.residents)) {
+    allResidents = allResidents.concat(appData.residents);
+  }
+  var pollResidents = getPollResidents(p);
+  if (pollResidents.length > 0) {
+    allResidents = allResidents.concat(pollResidents);
+  }
+
+  // ===== 2. 构建 roomAreaMap（去重，同一房间保留最大面积） =====
   var roomAreaMap = {};
   var totalCommunityArea = 0;
+  var countedRooms = new Set();
 
-  // 辅助：将面积存入 roomAreaMap（多种key格式，确保匹配）
   function addToRoomMap(r, area) {
     if (area <= 0) return;
-    // 1. 存储房间号（各种格式）
     var roomNo = getResidentRoomNo(r);
     if (roomNo) {
-      roomAreaMap[roomNo] = area;
-      roomAreaMap[roomNo.replace(/\s/g, '')] = area; // 去空格
-      roomAreaMap[roomNo.toLowerCase()] = area;      // 小写
-    }
-    // 2. 存储所有可能的标识符字段（确保 residentName/ownerName 等都能匹配）
-    var idFields = ['name','residentName','resident_name','ownerName','owner_name',
-      'voterName','voter_name','householderName','householder_name',
-      'householdName','household_name','familyName','family_name',
-      'userName','user_name','loginName','login_name',
-      'memberName','member_name','participantName','participant_name',
-      'submitterName','submitter_name','authorName','author_name',
-      'creatorName','creator_name','operatorName','operator_name',
-      'handlerName','handler_name','processorName','processor_name',
-      'executorName','executor_name','performerName','performer_name',
-      'implementerName','implementer_name','doerName','doer_name',
-      'actorName','actor_name','agentName','agent_name',
-      'representativeName','representative_name','delegateName','delegate_name',
-      'proxyName','proxy_name','substituteName','substitute_name',
-      'replacementName','replacement_name','standInName','stand_in_name',
-      'alternateName','alternate_name','backupName','backup_name',
-      'spareName','spare_name','reserveName','reserve_name',
-      'contingencyName','contingency_name','emergencyName','emergency_name',
-      'fallbackName','fallback_name','defaultName','default_name',
-      'primaryName','primary_name','mainName','main_name',
-      'chiefName','chief_name','headName','head_name',
-      'leadName','lead_name','principalName','principal_name',
-      'keyName','key_name','coreName','core_name',
-      'centralName','central_name','focusName','focus_name',
-      'pivotName','pivot_name','hubName','hub_name',
-      'nexusName','nexus_name','kernelName','kernel_name',
-      'cruxName','crux_name','gistName','gist_name',
-      'essenceName','essence_name','quintessenceName','quintessence_name',
-      'soulName','soul_name','spiritName','spirit_name',
-      'heartName','heart_name','marrowName','marrow_name',
-      'pithName','pith_name','meatName','meat_name',
-      'substanceName','substance_name','stuffName','stuff_name',
-      'materialName','material_name','matterName','matter_name',
-      'contentName','content_name','subjectName','subject_name',
-      'topicName','topic_name','themeName','theme_name',
-      'motifName','motif_name','threadName','thread_name',
-      'strainName','strain_name','tenorName','tenor_name',
-      'driftName','drift_name','trendName','trend_name',
-      'directionName','direction_name','courseName','course_name',
-      'pathName','path_name','wayName','way_name',
-      'routeName','route_name','roadName','road_name',
-      'trackName','track_name','trailName','trail_name',
-      'laneName','lane_name','avenueName','avenue_name',
-      'streetName','street_name','boulevardName','boulevard_name',
-      'driveName','drive_name','terraceName','terrace_name',
-      'placeName','place_name','courtName','court_name',
-      'circleName','circle_name','loopName','loop_name',
-      'crescentName','crescent_name','heightsName','heights_name',
-      'ridgeName','ridge_name','valleyName','valley_name',
-      'glenName','glen_name','daleName','dale_name',
-      'valeName','vale_name','hollowName','hollow_name',
-      'ravineName','ravine_name','gorgeName','gorge_name',
-      'canyonName','canyon_name','passName','pass_name',
-      'gapName','gap_name','notchName','notch_name',
-      'saddleName','saddle_name','colName','col_name',
-      'bergschrundName','bergschrund_name','couloirName','couloir_name',
-      'chimneyName','chimney_name','gullyName','gully_name',
-      'drawName','draw_name','washName','wash_name',
-      'arroyoName','arroyo_name','wadiName','wadi_name',
-      'nullahName','nullah_name','khudName','khud_name',
-      'nalaName','nala_name','jhoraName','jhora_name',
-      'jhiriName','jhiri_name','choName','cho_name',
-      'jheelName','jheel_name','tankName','tank_name',
-      'talabName','talab_name','pokharName','pokhar_name',
-      'pukhuriName','pukhuri_name','beelName','beel_name',
-      'haorName','haor_name','baorName','baor_name',
-      'billName','bill_name','loughName','lough_name',
-      'lochName','loch_name','llynName','llyn_name'];
-    for (var i = 0; i < idFields.length; i++) {
-      var v = r[idFields[i]];
-      if (v != null) {
-        var s = String(v).trim();
-        if (s) roomAreaMap[s] = area;
+      var cleanRoom = String(roomNo).trim();
+      if (!roomAreaMap[cleanRoom] || roomAreaMap[cleanRoom] < area) {
+        roomAreaMap[cleanRoom] = area;
+      }
+      var noSpace = cleanRoom.replace(/\s/g, '');
+      if (noSpace !== cleanRoom) {
+        if (!roomAreaMap[noSpace] || roomAreaMap[noSpace] < area) {
+          roomAreaMap[noSpace] = area;
+        }
+      }
+      if (!countedRooms.has(cleanRoom)) {
+        countedRooms.add(cleanRoom);
+        totalCommunityArea += area;
       }
     }
-    // 3. 存储所有字符串字段的值（暴力兜底）
-    var allKeys = Object.keys(r);
-    for (var k = 0; k < allKeys.length; k++) {
-      var val = r[allKeys[k]];
-      if (val != null && typeof val !== 'object' && typeof val !== 'boolean' && typeof val !== 'number') {
-        var str = String(val).trim();
-        if (str && str.length > 0 && str.length < 50) { // 限制长度，避免存储大文本
-          roomAreaMap[str] = area;
-        }
+    if (r.name) {
+      var n = String(r.name).trim();
+      if (n) {
+        if (!roomAreaMap[n] || roomAreaMap[n] < area) roomAreaMap[n] = area;
+      }
+    }
+    if (r.residentName) {
+      var rn = String(r.residentName).trim();
+      if (rn) {
+        if (!roomAreaMap[rn] || roomAreaMap[rn] < area) roomAreaMap[rn] = area;
       }
     }
   }
 
-  residents.forEach(function(r) {
+  allResidents.forEach(function(r) {
     addToRoomMap(r, getResidentArea(r));
-    totalCommunityArea += getResidentArea(r);
   });
-  // 从 appData.residents 补充缺失的面积数据
-  if (typeof appData !== 'undefined' && appData.residents && Array.isArray(appData.residents)) {
-    appData.residents.forEach(function(r) {
-      var roomNo = getResidentRoomNo(r);
-      if (roomNo && roomAreaMap[roomNo] > 0) return; // 已有正面积，跳过
-      var area = getResidentArea(r);
-      if (area > 0) {
-        addToRoomMap(r, area);
-        totalCommunityArea += area;
-      }
-    });
-  }
-  // 若清册未加载或面积解析失败，使用后台同步数据
+
+  // 后备：从 poll 对象读取总面积
   if (totalCommunityArea <= 0) {
-    if (p.rollStats && p.rollStats.totalArea > 0) totalCommunityArea = p.rollStats.totalArea;
-    else if (p.voteResult && p.voteResult.totalArea > 0) totalCommunityArea = p.voteResult.totalArea;
-    else if (p.results && p.results.totalArea > 0) totalCommunityArea = p.results.totalArea;
-    else if (p.results && p.results.summary && typeof p.results.summary === 'string') {
-      var m3 = p.results.summary.match(/总面积\s*(\d+(?:\.\d+)?)/);
-      if (m3) totalCommunityArea = parseFloat(m3[1]);
-    }
-    else if (p.stats && p.stats.totalArea > 0) totalCommunityArea = p.stats.totalArea;
-    else { var fa = getPollAreaTarget(p); if (fa > 0) totalCommunityArea = fa; }
+    var fa = getPollAreaTarget(p);
+    if (fa > 0) totalCommunityArea = fa;
   }
-  // 辅助：根据 response 查找面积（支持 roomNo / name / 任何标识符匹配）
+
+  // ===== 3. 根据response查找面积（支持模糊匹配） =====
   function getResponseArea(response) {
     var room = String(response.residentRoom || '').trim();
     var name = String(response.residentName || '').trim();
-
-    // 1. roomAreaMap 精确匹配（多种格式）
     if (room) {
       if (roomAreaMap[room] > 0) return roomAreaMap[room];
-      if (roomAreaMap[room.replace(/\s/g, '')] > 0) return roomAreaMap[room.replace(/\s/g, '')];
-      if (roomAreaMap[room.toLowerCase()] > 0) return roomAreaMap[room.toLowerCase()];
-    }
-    if (name) {
-      if (roomAreaMap[name] > 0) return roomAreaMap[name];
-      if (roomAreaMap[name.replace(/\s/g, '')] > 0) return roomAreaMap[name.replace(/\s/g, '')];
-      if (roomAreaMap[name.toLowerCase()] > 0) return roomAreaMap[name.toLowerCase()];
-    }
-
-    // 2. 遍历 residents 数组，比较所有可能的字段
-    var allResidentLists = [];
-    if (residents && residents.length > 0) allResidentLists.push(residents);
-    if (typeof appData !== 'undefined' && appData.residents && Array.isArray(appData.residents) && appData.residents.length > 0) {
-      allResidentLists.push(appData.residents);
-    }
-
-    for (var listIdx = 0; listIdx < allResidentLists.length; listIdx++) {
-      var list = allResidentLists[listIdx];
-      for (var i = 0; i < list.length; i++) {
-        var res = list[i];
-        // 比较房间号
-        var rRoom = getResidentRoomNo(res);
-        if (rRoom && (rRoom === room || rRoom === room.replace(/\s/g, '') || rRoom.toLowerCase() === room.toLowerCase())) {
-          return getResidentArea(res);
-        }
-        // 比较姓名
-        var rName = res.name || res.residentName || res.ownerName || res.householderName || res.householdName || res.familyName || res.userName || res.loginName || res.memberName || res.participantName || res.submitterName || res.authorName || res.creatorName || res.operatorName || res.handlerName || res.processorName || res.executorName || res.performerName || res.implementerName || res.doerName || res.actorName || res.agentName || res.representativeName || res.delegateName || res.proxyName || res.substituteName || res.replacementName || res.standInName || res.alternateName || res.backupName || res.spareName || res.reserveName || res.contingencyName || res.emergencyName || res.fallbackName || res.defaultName || res.primaryName || res.mainName || res.chiefName || res.headName || res.leadName || res.principalName || res.keyName || res.coreName || res.centralName || res.focusName || res.pivotName || res.hubName || res.nexusName || res.kernelName || res.cruxName || res.gistName || res.essenceName || res.quintessenceName || res.soulName || res.spiritName || res.heartName || res.marrowName || res.pithName || res.meatName || res.substanceName || res.stuffName || res.materialName || res.matterName || res.contentName || res.subjectName || res.topicName || res.themeName || res.motifName || res.threadName || res.strainName || res.tenorName || res.driftName || res.trendName || res.directionName || res.courseName || res.pathName || res.wayName || res.routeName || res.roadName || res.trackName || res.trailName || res.laneName || res.avenueName || res.streetName || res.boulevardName || res.driveName || res.terraceName || res.placeName || res.courtName || res.circleName || res.loopName || res.crescentName || res.heightsName || res.ridgeName || res.valleyName || res.glenName || res.daleName || res.valeName || res.hollowName || res.ravineName || res.gorgeName || res.canyonName || res.passName || res.gapName || res.notchName || res.saddleName || res.colName || res.bergschrundName || res.couloirName || res.chimneyName || res.gullyName || res.drawName || res.washName || res.arroyoName || res.wadiName || res.nullahName || res.khudName || res.nalaName || res.jhoraName || res.jhiriName || res.choName || res.jheelName || res.tankName || res.talabName || res.pokharName || res.pukhuriName || res.beelName || res.haorName || res.baorName || res.billName || res.loughName || res.lochName || res.llynName || '';
-        if (rName) {
-          rName = String(rName).trim();
-          if (rName === name || rName === room) {
-            return getResidentArea(res);
-          }
-        }
-        // 暴力匹配：检查所有字段
-        var keys = Object.keys(res);
-        for (var j = 0; j < keys.length; j++) {
-          var val = res[keys[j]];
-          if (val != null) {
-            var s = String(val).trim();
-            if (s && (s === room || s === name)) {
-              return getResidentArea(res);
-            }
-          }
+      var noSpace = room.replace(/\s/g, '');
+      if (roomAreaMap[noSpace] > 0) return roomAreaMap[noSpace];
+      // 模糊匹配：room包含key 或 key包含room
+      for (var key in roomAreaMap) {
+        if (key.indexOf(room) !== -1 || room.indexOf(key) !== -1) {
+          return roomAreaMap[key];
         }
       }
+    }
+    if (name && roomAreaMap[name] > 0) return roomAreaMap[name];
+    // 遍历所有residents精确匹配
+    for (var i = 0; i < allResidents.length; i++) {
+      var rRoom = getResidentRoomNo(allResidents[i]);
+      if (rRoom) {
+        if (rRoom === room || rRoom.replace(/\s/g, '') === room.replace(/\s/g, '')) {
+          return getResidentArea(allResidents[i]);
+        }
+      }
+      var rName = allResidents[i].name ? String(allResidents[i].name).trim() : '';
+      var rResName = allResidents[i].residentName ? String(allResidents[i].residentName).trim() : '';
+      if (rName && rName === name) return getResidentArea(allResidents[i]);
+      if (rResName && rResName === name) return getResidentArea(allResidents[i]);
     }
     return 0;
   }
 
+  // ===== 4. 计算已投票总面积 =====
   var votedArea = 0;
+  var responseAreas = [];
   responses.forEach(function(r) {
-    votedArea += getResponseArea(r);
+    var a = getResponseArea(r);
+    responseAreas.push(a);
+    votedArea += a;
   });
+  // 后备：从 poll 对象读取已投票面积
   if (votedArea <= 0) {
-    if (p.rollStats && p.rollStats.currentArea > 0) votedArea = p.rollStats.currentArea;
-    else if (p.voteResult && p.voteResult.areaCurrent > 0) votedArea = p.voteResult.areaCurrent;
-    else if (p.voteResult && p.voteResult.participationArea > 0) votedArea = p.voteResult.participationArea;
-    else if (p.results && p.results.areaCurrent > 0) votedArea = p.results.areaCurrent;
-    else if (p.results && p.results.participationArea > 0) votedArea = p.results.participationArea;
-    else if (p.results && p.results.participatingArea > 0) votedArea = p.results.participatingArea;
-    else if (p.results && p.results.summary && typeof p.results.summary === 'string') {
-      var m2 = p.results.summary.match(/面积\s*(\d+(?:\.\d+)?)\s*㎡/);
-      if (m2) votedArea = parseFloat(m2[1]);
+    var fc = getPollAreaCurrent(p);
+    if (fc > 0) {
+      votedArea = fc;
+      // 平均分配给每个response
+      var avg = Math.round(votedArea / (responses.length || 1));
+      for (var i = 0; i < responseAreas.length; i++) {
+        if (responseAreas[i] <= 0) responseAreas[i] = avg;
+      }
     }
-    else if (p.stats && p.stats.areaCurrent > 0) votedArea = p.stats.areaCurrent;
-    else { var fc = getPollAreaCurrent(p); if (fc > 0) votedArea = fc; }
   }
 
   let h = '<div style="margin-top:8px;">';
@@ -1251,13 +1086,20 @@ function renderLocalPollResults(p, responses, hasVoted) {
       });
       const total = responses.length || 1;
 
+      // ===== 选项面积计算（修复核心） =====
       var optionAreaCounts = {};
       var totalQuestionArea = 0;
-      if (totalCommunityArea > 0) {
-        responses.forEach(function(r) {
+      // 只要有resident数据或已投票面积，就计算选项面积
+      var shouldCalcArea = (allResidents.length > 0) || (votedArea > 0);
+      if (shouldCalcArea) {
+        responses.forEach(function(r, rIdx) {
           var a = r.answers.find(function(x) { return x.questionId === q.id; });
           if (!a || !a.value) return;
-          var area = getResponseArea(r);
+          var area = responseAreas[rIdx] || getResponseArea(r);
+          // 如果仍无法解析单个面积，但有总投票面积，按票数平均分配
+          if (area <= 0 && votedArea > 0 && responses.length > 0) {
+            area = Math.round(votedArea / responses.length);
+          }
           totalQuestionArea += area;
           if (Array.isArray(a.value)) {
             a.value.forEach(function(v) {
@@ -1271,36 +1113,24 @@ function renderLocalPollResults(p, responses, hasVoted) {
         });
       }
 
-      // 若选项面积计算失败但 votedArea 正确，先尝试从后端同步数据获取
+      // 若选项面积计算失败但 votedArea 正确，按票数比例分配面积
       if (totalQuestionArea <= 0 && votedArea > 0) {
-        var optionAreasFromBackend = null;
-        if (p.voteResult && p.voteResult.optionAreas) optionAreasFromBackend = p.voteResult.optionAreas;
-        else if (p.results && p.results.optionAreas) optionAreasFromBackend = p.results.optionAreas;
-        else if (p.rollStats && p.rollStats.optionAreas) optionAreasFromBackend = p.rollStats.optionAreas;
-
-        if (optionAreasFromBackend) {
-          totalQuestionArea = votedArea;
-          (q.options || []).forEach(function(opt) {
-            if (optionAreasFromBackend[opt] != null) {
-              optionAreaCounts[opt] = parseFloat(optionAreasFromBackend[opt]) || 0;
-            }
-          });
-        } else {
-          // 最后兜底：按票数比例分配
-          totalQuestionArea = votedArea;
-          (q.options || []).forEach(function(opt) {
-            if (counts[opt] > 0) {
-              optionAreaCounts[opt] = Math.round(votedArea * (counts[opt] / total));
-            }
-          });
-        }
+        totalQuestionArea = votedArea;
+        (q.options || []).forEach(function(opt) {
+          if (counts[opt] > 0) {
+            optionAreaCounts[opt] = Math.round(votedArea * (counts[opt] / total));
+          }
+        });
       }
 
       (q.options || []).forEach(function(opt) {
         const c = counts[opt] || 0;
         const pct = Math.round(c / total * 100);
         const optArea = optionAreaCounts[opt] || 0;
-        const areaPct = totalQuestionArea > 0 ? Math.round(optArea / totalQuestionArea * 100) : 0;
+        // 面积百分比分母：优先用 totalQuestionArea（回答本题的面积总和），
+        // 若为零则用 votedArea（所有投票面积总和），确保单选题百分比正确
+        var areaDenominator = totalQuestionArea > 0 ? totalQuestionArea : (votedArea > 0 ? votedArea : 1);
+        const areaPct = Math.round(optArea / areaDenominator * 100);
 
         h += '<div style="margin-bottom:14px;padding:12px;background:#fff;border-radius:8px;border:1px solid #f0f0f0;">';
         h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
@@ -1311,7 +1141,7 @@ function renderLocalPollResults(p, responses, hasVoted) {
         h += '<div style="height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-light));border-radius:6px;width:' + pct + '%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-size:10px;font-weight:600;">' + (pct > 8 ? pct + '%' : '') + '</div>';
         h += '</div>';
 
-        if (totalCommunityArea > 0) {
+        if (shouldCalcArea) {
           h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
           h += '<span style="font-size:12px;color:var(--text-secondary);">\uD83D\uDCD0 面积：' + optArea + '㎡ (' + areaPct + '%)</span>';
           h += '</div>';
@@ -1392,8 +1222,8 @@ async function submitLocalPoll(pollId) {
     list.push({
       id: 'pr-' + Date.now() + '-' + Math.random().toString(36).substr(2,4),
       pollId: pollId,
-      residentRoom: getResidentRoomNo(residentAuth) || residentAuth.roomNo || residentAuth.room || residentAuth.houseNo || residentAuth.name || '',
-      residentName: residentAuth.name || residentAuth.residentName || residentAuth.ownerName || residentAuth.householderName || residentAuth.householdName || residentAuth.familyName || residentAuth.userName || residentAuth.loginName || residentAuth.memberName || residentAuth.participantName || residentAuth.submitterName || residentAuth.authorName || residentAuth.creatorName || residentAuth.operatorName || residentAuth.handlerName || residentAuth.processorName || residentAuth.executorName || residentAuth.performerName || residentAuth.implementerName || residentAuth.doerName || residentAuth.actorName || residentAuth.agentName || residentAuth.representativeName || residentAuth.delegateName || residentAuth.proxyName || residentAuth.substituteName || residentAuth.replacementName || residentAuth.standInName || residentAuth.alternateName || residentAuth.backupName || residentAuth.spareName || residentAuth.reserveName || residentAuth.contingencyName || residentAuth.emergencyName || residentAuth.fallbackName || residentAuth.defaultName || residentAuth.primaryName || residentAuth.mainName || residentAuth.chiefName || residentAuth.headName || residentAuth.leadName || residentAuth.principalName || residentAuth.keyName || residentAuth.coreName || residentAuth.centralName || residentAuth.focusName || residentAuth.pivotName || residentAuth.hubName || residentAuth.nexusName || residentAuth.kernelName || residentAuth.cruxName || residentAuth.gistName || residentAuth.essenceName || residentAuth.quintessenceName || residentAuth.soulName || residentAuth.spiritName || residentAuth.heartName || residentAuth.marrowName || residentAuth.pithName || residentAuth.meatName || residentAuth.substanceName || residentAuth.stuffName || residentAuth.materialName || residentAuth.matterName || residentAuth.contentName || residentAuth.subjectName || residentAuth.topicName || residentAuth.themeName || residentAuth.motifName || residentAuth.threadName || residentAuth.strainName || residentAuth.tenorName || residentAuth.driftName || residentAuth.trendName || residentAuth.directionName || residentAuth.courseName || residentAuth.pathName || residentAuth.wayName || residentAuth.routeName || residentAuth.roadName || residentAuth.trackName || residentAuth.trailName || residentAuth.laneName || residentAuth.avenueName || residentAuth.streetName || residentAuth.boulevardName || residentAuth.driveName || residentAuth.terraceName || residentAuth.placeName || residentAuth.courtName || residentAuth.circleName || residentAuth.loopName || residentAuth.crescentName || residentAuth.heightsName || residentAuth.ridgeName || residentAuth.valleyName || residentAuth.glenName || residentAuth.daleName || residentAuth.valeName || residentAuth.hollowName || residentAuth.ravineName || residentAuth.gorgeName || residentAuth.canyonName || residentAuth.passName || residentAuth.gapName || residentAuth.notchName || residentAuth.saddleName || residentAuth.colName || residentAuth.bergschrundName || residentAuth.couloirName || residentAuth.chimneyName || residentAuth.gullyName || residentAuth.drawName || residentAuth.washName || residentAuth.arroyoName || residentAuth.wadiName || residentAuth.nullahName || residentAuth.khudName || residentAuth.nalaName || residentAuth.jhoraName || residentAuth.jhiriName || residentAuth.choName || residentAuth.jheelName || residentAuth.tankName || residentAuth.talabName || residentAuth.pokharName || residentAuth.pukhuriName || residentAuth.beelName || residentAuth.haorName || residentAuth.baorName || residentAuth.billName || residentAuth.loughName || residentAuth.lochName || residentAuth.llynName || '',
+      residentRoom: residentAuth.roomNo,
+      residentName: residentAuth.name,
       answers: answers,
       createdAt: new Date().toISOString()
     });
