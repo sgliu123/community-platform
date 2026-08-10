@@ -4,8 +4,6 @@ function checkLoginState() {
   autoSkipLogin();
 }
 
-
-
 function autoSkipLogin() {
   // 先尝试从 sessionStorage 恢复登录状态
   const savedSession = sessionStorage.getItem('adminSession');
@@ -33,8 +31,6 @@ function autoSkipLogin() {
   document.getElementById('tokenPage').style.display = 'none';
   document.getElementById('adminLayout').classList.remove('active');
 }
-
-
 
 async function doAdminLogin() {
   const roleId = document.getElementById('loginRole').value;
@@ -69,14 +65,10 @@ async function doAdminLogin() {
   showToast('欢迎，' + account.name, 'success');
 }
 
-
-
 async function saveToken() {
   // GitHub Token 已不再需要（使用 Cloudflare Worker），直接跳过
   autoSkipLogin();
 }
-
-
 
 function showAdminLayout() {
   document.getElementById('loginPage').style.display = 'none';
@@ -110,8 +102,6 @@ function showAdminLayout() {
   }
 }
 
-
-
 function logout() {
   if (confirm('确定要退出登录吗？')) {
     sessionStorage.removeItem('adminSession');
@@ -120,8 +110,6 @@ function logout() {
     location.reload();
   }
 }
-
-
 
 function renderSidebar() {
   if (!currentAdmin) return;
@@ -135,8 +123,6 @@ function renderSidebar() {
     { id: 'activities', label: '动态管理', icon: '🎉', perm: 'activities', roles: ['super','community'] },
     { id: 'polls', label: '投票管理', icon: '🗳️', perm: 'polls', roles: ['super','committee'] },
     { id: 'residents', label: '业主管理', icon: '👥', perm: 'residents', roles: ['super','property','committee'] },
-    { id: 'objections', label: '异议管理', icon: '⚖️', perm: 'polls', roles: ['super','committee'] },
-    { id: 'audit', label: '操作日志', icon: '📋', perm: 'audit-log', roles: ['super','committee'] },
     { id: 'workorders', label: '工单管理', icon: '🔧', perm: 'workorders', roles: ['super','property'] },
     { id: 'complaints', label: '投诉建议', icon: '📝', perm: 'complaints', roles: ['super','committee','community'] },
     { id: 'life', label: '生活服务', icon: '🍽️', perm: 'all', roles: ['super','property','committee','community'], external: 'admin-life.html' },
@@ -158,8 +144,6 @@ function renderSidebar() {
   document.getElementById('sidebarNav').innerHTML = html;
 }
 
-
-
 function navigateTo(module) {
   try {
     currentModule = module;
@@ -173,7 +157,6 @@ function navigateTo(module) {
     const renderers = {
       dashboard: renderDashboard, config: renderConfig, announcements: renderAnnouncementsAdmin,
       documents: renderDocumentsAdmin, activities: renderActivitiesAdmin, polls: renderPollsAdmin,
-      residents: renderResidentsAdmin, objections: renderObjectionsAdmin, audit: renderAuditLog,
       workorders: renderWorkordersAdmin,
       complaints: renderComplaintsAdmin,
       settings: renderSettings
@@ -190,132 +173,6 @@ function navigateTo(module) {
     if (ca) ca.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div>页面加载出错，请刷新重试</div><div style="font-size:12px;color:#999;margin-top:8px;">' + escapeHtml(e.message) + '</div></div>';
   }
 }
-
-
-
-function renderObjectionsAdmin() {
-  // 收集所有 polls 中的异议
-  let allObjections = [];
-  (appData.polls || []).forEach(p => {
-    (p.objections || []).forEach(o => {
-      allObjections.push({ ...o, pollId: p.id, pollTitle: p.title, pollCaseNo: p.caseNo });
-    });
-  });
-
-  // 也检查独立的 appData.objections（兼容两种存储方式）
-  (appData.objections || []).forEach(o => {
-    const poll = (appData.polls || []).find(p => p.id === o.pollId);
-    if (poll && !allObjections.find(x => x.id === o.id)) {
-      allObjections.push({ ...o, pollTitle: poll.title, pollCaseNo: poll.caseNo });
-    }
-  });
-
-  const pending = allObjections.filter(o => !o.status || o.status === '待处理').length;
-
-  let html = '<div class="card"><div class="card-header"><h3>⚖️ 异议管理' + (pending > 0 ? ' <span style="color:var(--danger);font-size:14px;">(' + pending + ' 待处理)</span>' : '') + '</h3></div>';
-  if (!allObjections.length) {
-    html += '<div class="empty-state"><div class="icon">⚖️</div><div>暂无异议记录</div></div>';
-    html += '</div>';
-    return html;
-  }
-
-  html += '<table class="data-table"><thead><tr><th>编号</th><th>投票案卷</th><th>申请人房号</th><th>内容摘要</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead><tbody>';
-  allObjections.slice().reverse().forEach(o => {
-    const statusTag = !o.status || o.status === '待处理' ? '<span class="tag tag-test">待处理</span>' : '<span class="tag tag-active">已处理</span>';
-    const contentPreview = (o.content || '').substring(0, 30) + ((o.content || '').length > 30 ? '...' : '');
-    html += '<tr><td>' + (o.id || '—') + '</td><td>' + escapeHtml(o.pollCaseNo || '') + '</td><td>' + escapeHtml(o.residentRoom || o.resident || '—') + '</td><td>' + escapeHtml(contentPreview) + '</td><td>' + formatDateTime(o.createdAt || o.time) + '</td><td>' + statusTag + '</td><td class="actions"><button onclick="openObjectionModal(\'' + (o.pollId || '') + '\',\'' + (o.id || '') + '\')">处理</button></td></tr>';
-  });
-  html += '</tbody></table></div>';
-  return html;
-}
-
-
-
-function openObjectionModal(pollId, objectionId) {
-  const poll = (appData.polls || []).find(p => p.id === pollId);
-  if (!poll) return;
-  const obj = (poll.objections || []).find(o => o.id === objectionId) || (appData.objections || []).find(o => o.id === objectionId);
-  if (!obj) return;
-
-  document.getElementById('modalTitle').textContent = '处理异议：' + (obj.id || '');
-  let body = '<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">';
-  body += '<div style="font-weight:600;margin-bottom:4px;">投票：' + escapeHtml(poll.title || '') + '</div>';
-  body += '<div style="font-size:13px;color:var(--text-secondary);">案卷号：' + (poll.caseNo || '') + ' · 申请人：' + escapeHtml(obj.resident || obj.residentRoom || '—') + '</div>';
-  body += '<div style="font-size:13px;margin-top:8px;padding:10px;background:#fff;border-radius:6px;border:1px solid var(--border);">' + escapeHtml(obj.content || '') + '</div>';
-  if (obj.images && obj.images.length) {
-    body += '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">';
-    obj.images.forEach(url => { body += '<img src="' + url + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="previewImage(\'' + url + '\')" loading="lazy">'; });
-    body += '</div>';
-  }
-  body += '</div>';
-
-  if (obj.reply) {
-    body += '<div style="margin-bottom:12px;padding:12px;background:#e3f2fd;border-radius:8px;border-left:4px solid #1976D2;">';
-    body += '<div style="font-weight:600;color:#1976D2;margin-bottom:4px;">已回复</div>';
-    body += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">' + formatDateTime(obj.handledAt) + ' · ' + escapeHtml(obj.handler || '') + '</div>';
-    body += '<div style="font-size:13px;">' + escapeHtml(obj.reply) + '</div>';
-    body += '</div>';
-  }
-
-  body += '<div class="form-group"><label>处理回复</label><textarea id="objReply" rows="4" placeholder="填写回复内容...">' + (obj.reply || '') + '</textarea></div>';
-  body += '<div class="form-group"><label>处理结果</label><select id="objStatus"><option value="待处理" ' + ((!obj.status || obj.status === '待处理') ? 'selected' : '') + '>待处理</option><option value="已处理" ' + (obj.status === '已处理' ? 'selected' : '') + '>已处理</option><option value="驳回" ' + (obj.status === '驳回' ? 'selected' : '') + '>驳回</option></select></div>';
-  body += '<div class="form-group"><label>上传回复附件（可选）</label>' + createMultiImageUploaderHTML('objReplyFiles', '支持拖拽或点击上传图片（自动压缩）') + '</div>';
-
-  document.getElementById('modalBody').innerHTML = body;
-  document.getElementById('modalFooter').innerHTML = '<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveObjectionAction(\'' + pollId + '\',\'' + objectionId + '\')">保存</button>';
-  document.getElementById('modalOverlay').classList.add('active');
-
-  setTimeout(function() {
-    if (obj.replyImages && obj.replyImages.length) setMultiUploadedPaths('objReplyFiles', obj.replyImages);
-  }, 50);
-}
-
-
-
-async function saveObjectionAction(pollId, objectionId) {
-  const reply = document.getElementById('objReply').value.trim();
-  const status = document.getElementById('objStatus').value;
-  if (!reply) { showToast('请填写回复内容', 'error'); return; }
-
-  showLoading(true);
-  try {
-    const poll = (appData.polls || []).find(p => p.id === pollId);
-    if (!poll) throw new Error('投票不存在');
-
-    let obj = (poll.objections || []).find(o => o.id === objectionId);
-    if (!obj) {
-      obj = (appData.objections || []).find(o => o.id === objectionId);
-      if (obj) {
-        // 迁移到 poll.objections
-        if (!poll.objections) poll.objections = [];
-        poll.objections.push(obj);
-      }
-    }
-    if (!obj) throw new Error('异议记录不存在');
-
-    obj.reply = reply;
-    obj.status = status;
-    obj.handler = currentAdmin && currentAdmin.name || '管理员';
-    obj.handledAt = new Date().toISOString();
-    obj.replyImages = getMultiUploadedPaths('objReplyFiles') || obj.replyImages || [];
-
-    // 保存 polls
-    await saveDataFile('polls', appData.polls, '处理异议 ' + objectionId + '：' + status, 'objection-resolve');
-
-    // 追加审计日志
-    await appendAuditLog('objection-resolve', 'polls', pollId, '管理员 ' + obj.handler + ' 处理异议 ' + objectionId + '，结果：' + status);
-
-    showToast('异议处理成功', 'success');
-    closeModal();
-    navigateTo('objections');
-  } catch(e) {
-    showToast('处理失败：' + e.message, 'error');
-  } finally {
-    showLoading(false);
-  }
-}
-
-
 
 function openEditModal(module, id) {
   const isNew = !id;
@@ -532,8 +389,6 @@ createMultiImageUploaderHTML('pollRollFiles', '请上传业主清册文件（PDF
   }, 50);
 }
 
-
-
 function generateCaseNo() {
   const year = new Date().getFullYear();
   const polls = appData.polls || [];
@@ -543,8 +398,6 @@ function generateCaseNo() {
   }, 0);
   return year + '-YJ-' + String(maxNum + 1).padStart(3, '0');
 }
-
-
 
 function autoFillPollDates(consultStartStr) {
   if (!consultStartStr) return;
@@ -576,8 +429,6 @@ function autoFillPollDates(consultStartStr) {
   const thDisplay = document.getElementById('edThresholdDisplay');
   if (thDisplay) thDisplay.value = '当前时间线：征求意见7天 → 间隔3天 → 正式公告15天 → 清册公示7天（同公告期开始）→ 投票10天（公告后16天）';
 }
-
-
 
 async function saveCurrentModule() {
   if (currentModule === 'config') {
@@ -621,8 +472,6 @@ async function saveCurrentModule() {
     }
   }
 }
-
-
 
 async function saveItem(module, id) {
   const isNew = !id;
@@ -831,9 +680,6 @@ async function saveItem(module, id) {
     showLoading(false);
   }
 }
-
-
-
 
 async function deleteItem(module, id) {
   if (!confirm('确定要删除吗？此操作不可恢复。')) return;
