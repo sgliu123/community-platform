@@ -896,6 +896,17 @@ function renderLocalPollResults(p, responses, hasVoted) {
     roomAreaMap[r.roomNo] = area;
     totalCommunityArea += area;
   });
+  // 从 appData.residents 补充缺失的面积数据
+  if (typeof appData !== 'undefined' && appData.residents && Array.isArray(appData.residents)) {
+    appData.residents.forEach(function(r) {
+      if (roomAreaMap[r.roomNo]) return; // 已有面积，跳过
+      var area = getResidentArea(r);
+      if (area > 0) {
+        roomAreaMap[r.roomNo] = area;
+        totalCommunityArea += area;
+      }
+    });
+  }
   // 若清册未加载或面积解析失败，使用后台同步数据
   if (totalCommunityArea <= 0) {
     if (p.rollStats && p.rollStats.totalArea > 0) totalCommunityArea = p.rollStats.totalArea;
