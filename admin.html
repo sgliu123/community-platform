@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台</title>
+<link rel="stylesheet" href="css/admin.css">
+  <link rel="icon" id="faviconLink" type="image/png" href="">
+</head>
+<body>
+
+<div class="login-page" id="loginPage" style="display:none;">
+  <div class="login-box">
+    <h2>🔐 管理员登录</h2>
+    <p class="subtitle">春天阳光小区 · 管理后台</p>
+    <div class="error" id="loginError"></div>
+    <select id="loginRole" style="width:100%;padding:12px 14px;margin-bottom:12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;">
+      <option value="">— 请选择身份 —</option>
+      <option value="admin-super">🔧 总维护人员</option>
+      <option value="admin-property">🏢 物管人员</option>
+      <option value="admin-committee">🏛️ 业委会成员</option>
+      <option value="admin-community">🏘️ 社区人员</option>
+    </select>
+    <input type="password" id="loginPassword" placeholder="请输入密码">
+    <button id="loginBtn" onclick="doAdminLogin()">登录</button>
+    <p class="tip" id="loginTip">请选择身份并输入对应密码<br>如需修改密码请编辑代码顶部 ADMIN_ACCOUNTS</p>
+  </div>
+</div>
+
+<div class="login-page" id="tokenPage" style="display:none;">
+  <div class="login-box">
+    <h2>🔑 配置 GitHub Token</h2>
+    <p class="subtitle">需要 GitHub Personal Access Token 才能保存数据</p>
+    <div class="error" id="tokenError"></div>
+    <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx">
+    <input type="text" id="adminName" placeholder="管理员名称（用于审计日志）">
+    <input type="text" id="repoName" placeholder="仓库名（如 community-platform，可选）">
+    <button onclick="saveToken()">保存并进入后台</button>
+    <p class="tip">GitHub Token 已不再需要<br>系统已改用 Cloudflare Worker 进行数据持久化</p>
+  </div>
+</div>
+
+<div class="admin-layout" id="adminLayout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo" id="siteLogoIcon">⚙️</div>
+      <div>
+        <div class="title" id="siteLogoTitle">管理后台</div>
+        <div class="role" id="adminRole">超级管理员</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav"></nav>
+    <div class="sidebar-footer">
+      <div id="adminInfo">管理员A</div>
+      <button onclick="logout()">退出登录</button>
+    </div>
+  </aside>
+  <main class="main-content">
+    <div class="topbar">
+      <h1 id="pageTitle">仪表盘</h1>
+      <div class="topbar-actions">
+        <button onclick="window.open('index.html','_blank')">🌐 查看前台</button>
+        <button class="primary" id="saveBtn" onclick="saveCurrentModule()" style="display:none;">💾 保存</button>
+      </div>
+    </div>
+    <div class="content-area" id="contentArea"></div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-header">
+      <h3 id="modalTitle">标题</h3>
+      <span class="close" onclick="closeModal()">&times;</span>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="js/admin-utils.js"></script>
+<script src="js/admin-data.js"></script>
+<script src="js/admin-upload.js"></script>
+<script src="js/admin-polls.js"></script>
+<script src="js/admin-pages/dashboard.js"></script>
+<script src="js/admin-pages/config.js"></script>
+<script src="js/admin-pages/announcements.js"></script>
+<script src="js/admin-pages/documents.js"></script>
+<script src="js/admin-pages/activities.js"></script>
+<script src="js/admin-pages/residents.js"></script>
+<script src="js/admin-pages/audit.js"></script>
+<script src="js/admin-pages/workorders.js"></script>
+<script src="js/admin-pages/complaints.js"></script>
+<script src="js/admin-pages/settings.js"></script>
+<script src="js/admin-core.js"></script>
+<script src="js/admin-app.js"></script>
+</body>
+</html>
