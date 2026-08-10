@@ -114,64 +114,64 @@ function getPollAreaCurrent(p) {
   var v;
   if (p.progress) {
     v = parseFloat(p.progress.areaCurrent);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.progress.currentArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.progress.participationArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
   }
   if (p.rollStats) {
     v = parseFloat(p.rollStats.areaCurrent);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.rollStats.currentArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.rollStats.participationArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
   }
   if (p.voteResult) {
     v = parseFloat(p.voteResult.areaCurrent);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.voteResult.currentArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.voteResult.participationArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.voteResult.votedArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
   }
   if (p.results) {
     v = parseFloat(p.results.areaCurrent);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.results.currentArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.results.participationArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.results.votedArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.results.participatingArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.results.agreeArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     // 从 results.summary 字符串提取面积，如 "面积 140.00 ㎡ (2.49%)"
     if (p.results.summary && typeof p.results.summary === 'string') {
       var m = p.results.summary.match(/面积\s*(\d+(?:\.\d+)?)\s*㎡/);
       if (m) {
         v = parseFloat(m[1]);
-        if (!isNaN(v) && v >= 0) return v;
+        if (!isNaN(v) && v > 0) return v;
       }
     }
   }
   if (p.stats) {
     v = parseFloat(p.stats.areaCurrent);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.stats.participationArea);
-    if (!isNaN(v) && v >= 0) return v;
+    if (!isNaN(v) && v > 0) return v;
   }
   v = parseFloat(p.currentArea);
-  if (!isNaN(v) && v >= 0) return v;
+  if (!isNaN(v) && v > 0) return v;
   v = parseFloat(p.areaCurrent);
-  if (!isNaN(v) && v >= 0) return v;
+  if (!isNaN(v) && v > 0) return v;
   v = parseFloat(p.participationArea);
-  if (!isNaN(v) && v >= 0) return v;
+  if (!isNaN(v) && v > 0) return v;
   return 0;
 }
 
@@ -198,28 +198,28 @@ function getPollPeopleCurrent(p) {
   var v;
   if (p.progress) {
     v = parseFloat(p.progress.current);
-    if (!isNaN(v)) return v;
+    if (!isNaN(v) && v > 0) return v;
   }
   if (p.results) {
     v = parseFloat(p.results.participatingResidents);
-    if (!isNaN(v)) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.results.current);
-    if (!isNaN(v)) return v;
+    if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.results.participants);
-    if (!isNaN(v)) return v;
+    if (!isNaN(v) && v > 0) return v;
     // 从 summary 提取人数，如 "参与 1 户"
     if (p.results.summary && typeof p.results.summary === 'string') {
       var m = p.results.summary.match(/参与\s*(\d+)\s*户/);
       if (m) {
         v = parseFloat(m[1]);
-        if (!isNaN(v)) return v;
+        if (!isNaN(v) && v > 0) return v;
       }
     }
   }
   v = parseFloat(p.currentParticipants);
-  if (!isNaN(v)) return v;
+  if (!isNaN(v) && v > 0) return v;
   v = parseFloat(p.current);
-  if (!isNaN(v)) return v;
+  if (!isNaN(v) && v > 0) return v;
   return 0;
 }
 
