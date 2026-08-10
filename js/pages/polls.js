@@ -147,6 +147,18 @@ function getPollAreaCurrent(p) {
     if (!isNaN(v) && v >= 0) return v;
     v = parseFloat(p.results.votedArea);
     if (!isNaN(v) && v >= 0) return v;
+    v = parseFloat(p.results.participatingArea);
+    if (!isNaN(v) && v >= 0) return v;
+    v = parseFloat(p.results.agreeArea);
+    if (!isNaN(v) && v >= 0) return v;
+    // 从 results.summary 字符串提取面积，如 "面积 140.00 ㎡ (2.49%)"
+    if (p.results.summary && typeof p.results.summary === 'string') {
+      var m = p.results.summary.match(/面积\s*(\d+(?:\.\d+)?)\s*㎡/);
+      if (m) {
+        v = parseFloat(m[1]);
+        if (!isNaN(v) && v >= 0) return v;
+      }
+    }
   }
   if (p.stats) {
     v = parseFloat(p.stats.areaCurrent);
@@ -187,6 +199,22 @@ function getPollPeopleCurrent(p) {
   if (p.progress) {
     v = parseFloat(p.progress.current);
     if (!isNaN(v)) return v;
+  }
+  if (p.results) {
+    v = parseFloat(p.results.participatingResidents);
+    if (!isNaN(v)) return v;
+    v = parseFloat(p.results.current);
+    if (!isNaN(v)) return v;
+    v = parseFloat(p.results.participants);
+    if (!isNaN(v)) return v;
+    // 从 summary 提取人数，如 "参与 1 户"
+    if (p.results.summary && typeof p.results.summary === 'string') {
+      var m = p.results.summary.match(/参与\s*(\d+)\s*户/);
+      if (m) {
+        v = parseFloat(m[1]);
+        if (!isNaN(v)) return v;
+      }
+    }
   }
   v = parseFloat(p.currentParticipants);
   if (!isNaN(v)) return v;
@@ -868,11 +896,15 @@ function renderLocalPollResults(p, responses, hasVoted) {
     roomAreaMap[r.roomNo] = area;
     totalCommunityArea += area;
   });
-  // 若清册未加载或面积解析失败，使用后台同步的统计数据
+  // 若清册未加载或面积解析失败，使用后台同步数据
   if (totalCommunityArea <= 0) {
     if (p.rollStats && p.rollStats.totalArea > 0) totalCommunityArea = p.rollStats.totalArea;
     else if (p.voteResult && p.voteResult.totalArea > 0) totalCommunityArea = p.voteResult.totalArea;
     else if (p.results && p.results.totalArea > 0) totalCommunityArea = p.results.totalArea;
+    else if (p.results && p.results.summary && typeof p.results.summary === 'string') {
+      var m3 = p.results.summary.match(/总面积\s*(\d+(?:\.\d+)?)/);
+      if (m3) totalCommunityArea = parseFloat(m3[1]);
+    }
     else if (p.stats && p.stats.totalArea > 0) totalCommunityArea = p.stats.totalArea;
     else { var fa = getPollAreaTarget(p); if (fa > 0) totalCommunityArea = fa; }
   }
@@ -886,6 +918,11 @@ function renderLocalPollResults(p, responses, hasVoted) {
     else if (p.voteResult && p.voteResult.participationArea > 0) votedArea = p.voteResult.participationArea;
     else if (p.results && p.results.areaCurrent > 0) votedArea = p.results.areaCurrent;
     else if (p.results && p.results.participationArea > 0) votedArea = p.results.participationArea;
+    else if (p.results && p.results.participatingArea > 0) votedArea = p.results.participatingArea;
+    else if (p.results && p.results.summary && typeof p.results.summary === 'string') {
+      var m2 = p.results.summary.match(/面积\s*(\d+(?:\.\d+)?)\s*㎡/);
+      if (m2) votedArea = parseFloat(m2[1]);
+    }
     else if (p.stats && p.stats.areaCurrent > 0) votedArea = p.stats.areaCurrent;
     else { var fc = getPollAreaCurrent(p); if (fc > 0) votedArea = fc; }
   }
