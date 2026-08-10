@@ -12,3 +12,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('contentArea').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div>初始化失败，请刷新页面重试</div><div style="font-size:12px;color:#999;margin-top:8px;">' + escapeHtml(e.message) + '</div></div>';
   }
 });
+
