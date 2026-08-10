@@ -567,7 +567,9 @@ async function calculatePollResults(pollId) {
     }
     if (val) {
       const valStr = Array.isArray(val) ? val.join(',') : String(val);
-      if (valStr.includes('同意')) {
+      // 匹配"同意"但排除"不同意"等否定形式（允许"不"与"同意"间有空格）
+      var isAgree = /同意/.test(valStr) && !/不\s*同意/.test(valStr);
+      if (isAgree) {
         agreeCount++;
         agreeArea += area;
       }
