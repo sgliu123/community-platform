@@ -7,10 +7,8 @@ function getResidentArea(r) {
   for (var i = 0; i < fields.length; i++) {
     var raw = r[fields[i]];
     if (raw == null) continue;
-    // 支持数字直接读取
     var v = parseFloat(raw);
     if (!isNaN(v) && v > 0) return v;
-    // 支持字符串如 "140.00㎡"、"140 m²"、"140平方米"
     if (typeof raw === 'string') {
       var m = raw.match(/(\d+(?:\.\d+)?)/);
       if (m) {
@@ -19,7 +17,6 @@ function getResidentArea(r) {
       }
     }
   }
-  // 支持嵌套对象如 r.house.area
   if (r.house && typeof r.house === 'object') {
     var nested = getResidentArea(r.house);
     if (nested > 0) return nested;
@@ -48,25 +45,20 @@ function getPollResidents(p) {
 function getCommunityTotalArea(p) {
   var residents = getPollResidents(p);
   if (!residents.length) {
-    if (p.rollStats && typeof p.rollStats.totalArea === 'number' && p.rollStats.totalArea > 0) {
-      return p.rollStats.totalArea;
-    }
-    if (p.voteResult && typeof p.voteResult.totalArea === 'number' && p.voteResult.totalArea > 0) {
-      return p.voteResult.totalArea;
-    }
+    if (p.rollStats && typeof p.rollStats.totalArea === 'number' && p.rollStats.totalArea > 0) return p.rollStats.totalArea;
+    if (p.voteResult && typeof p.voteResult.totalArea === 'number' && p.voteResult.totalArea > 0) return p.voteResult.totalArea;
+    if (p.results && typeof p.results.totalArea === 'number' && p.results.totalArea > 0) return p.results.totalArea;
+    if (p.stats && typeof p.stats.totalArea === 'number' && p.stats.totalArea > 0) return p.stats.totalArea;
     return 0;
   }
   var total = residents.reduce(function(sum, r) {
     return sum + getResidentArea(r);
   }, 0);
   if (total > 0) return total;
-  // 清册有数据但面积字段解析失败，fallback 到 rollStats / voteResult
-  if (p.rollStats && typeof p.rollStats.totalArea === 'number' && p.rollStats.totalArea > 0) {
-    return p.rollStats.totalArea;
-  }
-  if (p.voteResult && typeof p.voteResult.totalArea === 'number' && p.voteResult.totalArea > 0) {
-    return p.voteResult.totalArea;
-  }
+  if (p.rollStats && typeof p.rollStats.totalArea === 'number' && p.rollStats.totalArea > 0) return p.rollStats.totalArea;
+  if (p.voteResult && typeof p.voteResult.totalArea === 'number' && p.voteResult.totalArea > 0) return p.voteResult.totalArea;
+  if (p.results && typeof p.results.totalArea === 'number' && p.results.totalArea > 0) return p.results.totalArea;
+  if (p.stats && typeof p.stats.totalArea === 'number' && p.stats.totalArea > 0) return p.stats.totalArea;
   return 0;
 }
 
@@ -90,6 +82,14 @@ function getPollAreaTarget(p) {
     v = parseFloat(p.voteResult.areaTarget);
     if (!isNaN(v) && v > 0) return v;
     v = parseFloat(p.voteResult.targetArea);
+    if (!isNaN(v) && v > 0) return v;
+  }
+  if (p.results) {
+    v = parseFloat(p.results.totalArea);
+    if (!isNaN(v) && v > 0) return v;
+    v = parseFloat(p.results.areaTarget);
+    if (!isNaN(v) && v > 0) return v;
+    v = parseFloat(p.results.targetArea);
     if (!isNaN(v) && v > 0) return v;
   }
   if (p.stats) {
@@ -136,6 +136,16 @@ function getPollAreaCurrent(p) {
     v = parseFloat(p.voteResult.participationArea);
     if (!isNaN(v) && v >= 0) return v;
     v = parseFloat(p.voteResult.votedArea);
+    if (!isNaN(v) && v >= 0) return v;
+  }
+  if (p.results) {
+    v = parseFloat(p.results.areaCurrent);
+    if (!isNaN(v) && v >= 0) return v;
+    v = parseFloat(p.results.currentArea);
+    if (!isNaN(v) && v >= 0) return v;
+    v = parseFloat(p.results.participationArea);
+    if (!isNaN(v) && v >= 0) return v;
+    v = parseFloat(p.results.votedArea);
     if (!isNaN(v) && v >= 0) return v;
   }
   if (p.stats) {
@@ -642,7 +652,7 @@ function renderPollCommonInfo(p) {
   var areaUnit = p.areaUnit || (p.progress && p.progress.areaUnit) || '㎡';
   var areaPct = areaTarget > 0 ? Math.round(areaCurrent / areaTarget * 100) : 0;
   var residents = getPollResidents(p);
-  var showArea = areaTarget > 0 || (residents.length > 0);
+  var showArea = areaTarget > 0 || areaCurrent > 0 || (residents.length > 0);
 
   h += '<div style="margin:20px 0;padding:20px;background:#f8f9fa;border-radius:12px;border:1px solid #eef0f3;">';
   h += '<div style="font-weight:600;margin-bottom:16px;font-size:15px;">\uD83D\uDCCA 参与统计</div>';
@@ -855,35 +865,29 @@ function renderLocalPollResults(p, responses, hasVoted) {
   var totalCommunityArea = 0;
   residents.forEach(function(r) {
     var area = getResidentArea(r);
-    roomAreaMap[r.residentRoom] = area;
+    roomAreaMap[r.roomNo] = area;
     totalCommunityArea += area;
   });
-  // 多层 fallback：清册未加载或面积解析失败时，使用后台同步数据
+  // 若清册未加载或面积解析失败，使用后台同步的统计数据
   if (totalCommunityArea <= 0) {
-    if (p.rollStats && p.rollStats.totalArea > 0) {
-      totalCommunityArea = p.rollStats.totalArea;
-    } else if (p.voteResult && p.voteResult.totalArea > 0) {
-      totalCommunityArea = p.voteResult.totalArea;
-    } else {
-      var fallbackTarget = getPollAreaTarget(p);
-      if (fallbackTarget > 0) totalCommunityArea = fallbackTarget;
-    }
+    if (p.rollStats && p.rollStats.totalArea > 0) totalCommunityArea = p.rollStats.totalArea;
+    else if (p.voteResult && p.voteResult.totalArea > 0) totalCommunityArea = p.voteResult.totalArea;
+    else if (p.results && p.results.totalArea > 0) totalCommunityArea = p.results.totalArea;
+    else if (p.stats && p.stats.totalArea > 0) totalCommunityArea = p.stats.totalArea;
+    else { var fa = getPollAreaTarget(p); if (fa > 0) totalCommunityArea = fa; }
   }
   var votedArea = 0;
   responses.forEach(function(r) {
     votedArea += (roomAreaMap[r.residentRoom] || 0);
   });
   if (votedArea <= 0) {
-    if (p.rollStats && p.rollStats.currentArea > 0) {
-      votedArea = p.rollStats.currentArea;
-    } else if (p.voteResult && p.voteResult.areaCurrent > 0) {
-      votedArea = p.voteResult.areaCurrent;
-    } else if (p.voteResult && p.voteResult.participationArea > 0) {
-      votedArea = p.voteResult.participationArea;
-    } else {
-      var fallbackCurrent = getPollAreaCurrent(p);
-      if (fallbackCurrent > 0) votedArea = fallbackCurrent;
-    }
+    if (p.rollStats && p.rollStats.currentArea > 0) votedArea = p.rollStats.currentArea;
+    else if (p.voteResult && p.voteResult.areaCurrent > 0) votedArea = p.voteResult.areaCurrent;
+    else if (p.voteResult && p.voteResult.participationArea > 0) votedArea = p.voteResult.participationArea;
+    else if (p.results && p.results.areaCurrent > 0) votedArea = p.results.areaCurrent;
+    else if (p.results && p.results.participationArea > 0) votedArea = p.results.participationArea;
+    else if (p.stats && p.stats.areaCurrent > 0) votedArea = p.stats.areaCurrent;
+    else { var fc = getPollAreaCurrent(p); if (fc > 0) votedArea = fc; }
   }
 
   let h = '<div style="margin-top:8px;">';
