@@ -3,7 +3,7 @@
 // ===== 面积工具函数 =====
 function getResidentArea(r) {
   if (!r || typeof r !== 'object') return 0;
-  var fields = ['area', 'houseArea', 'propertyArea', 'square', 'size', 'houseSize', 'property_area', 'house_area', 'house_size', '建筑面积', '套内面积', '房屋面积', '面积', 'propertySize', 'buildingArea', 'building_area', 'sqm', 'sqft'];
+  var fields = ['area', 'houseArea', 'propertyArea', 'square', 'size', 'houseSize', 'property_area', 'house_area', 'house_size', '建筑面积', '套内面积', '房屋面积', '面积', 'propertySize', 'buildingArea', 'building_area', 'sqm', 'sqft', 'mianji', 'acreage', 'house_area_sqm', 'property_area_sqm', 'building_area_sqm', '室内面积', '使用面积', '专有面积', '公摊面积', '总面积'];
   for (var i = 0; i < fields.length; i++) {
     var raw = r[fields[i]];
     if (raw == null) continue;
@@ -25,13 +25,21 @@ function getResidentArea(r) {
     var nested2 = getResidentArea(r.property);
     if (nested2 > 0) return nested2;
   }
+  for (var key in r) {
+    if (key === 'id' || key === 'age' || key === 'phone' || key === 'mobile' || key === 'password') continue;
+    var val = r[key];
+    if (val != null && typeof val !== 'object' && typeof val !== 'boolean') {
+      var nv = parseFloat(val);
+      if (!isNaN(nv) && nv > 10 && nv < 1000) return nv;
+    }
+  }
   return 0;
 }
 
 // 获取业主房间号（兼容多种字段名）
 function getResidentRoomNo(r) {
   if (!r || typeof r !== 'object') return '';
-  var fields = ['roomNo', 'room', 'houseNo', 'house', 'roomNumber', 'unitNo', '房号', '房间号', '房屋编号', 'name', 'residentRoom'];
+  var fields = ['roomNo', 'room', 'houseNo', 'house', 'roomNumber', 'unitNo', '房号', '房间号', '房屋编号', 'name', 'residentRoom', 'room_no', 'house_no', 'fanghao', 'fangHao', '门牌号', '户号', 'houseId', 'roomId'];
   for (var i = 0; i < fields.length; i++) {
     var v = r[fields[i]];
     if (v != null) {
@@ -46,6 +54,15 @@ function getResidentRoomNo(r) {
   if (r.property && typeof r.property === 'object') {
     var nested2 = getResidentRoomNo(r.property);
     if (nested2) return nested2;
+  }
+  for (var key in r) {
+    var val = r[key];
+    if (val != null && typeof val === 'string') {
+      var s = val.trim();
+      if (/^\d+[-\/]?\d*[-\/]?\d*$/.test(s) || /^[\u4e00-\u9fa5]?\d+/.test(s)) {
+        return s;
+      }
+    }
   }
   return '';
 }
@@ -910,7 +927,7 @@ function renderLocalPollForm(p) {
 }
 
 function renderLocalPollResults(p, responses, hasVoted) {
-  // ===== 1. 收集所有resident数据（全局优先，确保面积数据最全） =====
+  // ===== 1. 收集所有 resident 数据 =====
   var allResidents = [];
   if (typeof appData !== 'undefined' && appData.residents && Array.isArray(appData.residents)) {
     allResidents = allResidents.concat(appData.residents);
@@ -920,7 +937,7 @@ function renderLocalPollResults(p, responses, hasVoted) {
     allResidents = allResidents.concat(pollResidents);
   }
 
-  // ===== 2. 构建 roomAreaMap（去重，同一房间保留最大面积） =====
+  // ===== 2. 构建 roomAreaMap（去重，保留最大面积） =====
   var roomAreaMap = {};
   var totalCommunityArea = 0;
   var countedRooms = new Set();
@@ -937,6 +954,12 @@ function renderLocalPollResults(p, responses, hasVoted) {
       if (noSpace !== cleanRoom) {
         if (!roomAreaMap[noSpace] || roomAreaMap[noSpace] < area) {
           roomAreaMap[noSpace] = area;
+        }
+      }
+      var digitsOnly = cleanRoom.replace(/\D/g, '');
+      if (digitsOnly && digitsOnly !== cleanRoom && digitsOnly !== noSpace) {
+        if (!roomAreaMap[digitsOnly] || roomAreaMap[digitsOnly] < area) {
+          roomAreaMap[digitsOnly] = area;
         }
       }
       if (!countedRooms.has(cleanRoom)) {
@@ -968,7 +991,7 @@ function renderLocalPollResults(p, responses, hasVoted) {
     if (fa > 0) totalCommunityArea = fa;
   }
 
-  // ===== 3. 根据response查找面积（支持模糊匹配） =====
+  // ===== 3. 根据 response 查找面积（强兼容匹配） =====
   function getResponseArea(response) {
     var room = String(response.residentRoom || '').trim();
     var name = String(response.residentName || '').trim();
@@ -976,21 +999,21 @@ function renderLocalPollResults(p, responses, hasVoted) {
       if (roomAreaMap[room] > 0) return roomAreaMap[room];
       var noSpace = room.replace(/\s/g, '');
       if (roomAreaMap[noSpace] > 0) return roomAreaMap[noSpace];
-      // 模糊匹配：room包含key 或 key包含room
+      var digitsOnly = room.replace(/\D/g, '');
+      if (digitsOnly && roomAreaMap[digitsOnly] > 0) return roomAreaMap[digitsOnly];
       for (var key in roomAreaMap) {
-        if (key.indexOf(room) !== -1 || room.indexOf(key) !== -1) {
-          return roomAreaMap[key];
-        }
+        if (key.indexOf(room) !== -1 || room.indexOf(key) !== -1) return roomAreaMap[key];
+        var keyDigits = key.replace(/\D/g, '');
+        if (keyDigits && keyDigits === digitsOnly) return roomAreaMap[key];
       }
     }
     if (name && roomAreaMap[name] > 0) return roomAreaMap[name];
-    // 遍历所有residents精确匹配
     for (var i = 0; i < allResidents.length; i++) {
       var rRoom = getResidentRoomNo(allResidents[i]);
       if (rRoom) {
-        if (rRoom === room || rRoom.replace(/\s/g, '') === room.replace(/\s/g, '')) {
-          return getResidentArea(allResidents[i]);
-        }
+        if (rRoom === room) return getResidentArea(allResidents[i]);
+        if (rRoom.replace(/\s/g, '') === room.replace(/\s/g, '')) return getResidentArea(allResidents[i]);
+        if (rRoom.replace(/\D/g, '') === room.replace(/\D/g, '')) return getResidentArea(allResidents[i]);
       }
       var rName = allResidents[i].name ? String(allResidents[i].name).trim() : '';
       var rResName = allResidents[i].residentName ? String(allResidents[i].residentName).trim() : '';
@@ -1000,23 +1023,23 @@ function renderLocalPollResults(p, responses, hasVoted) {
     return 0;
   }
 
-  // ===== 4. 计算已投票总面积 =====
-  var votedArea = 0;
+  // ===== 4. 计算每个 response 的面积和总投票面积 =====
   var responseAreas = [];
+  var votedArea = 0;
   responses.forEach(function(r) {
     var a = getResponseArea(r);
     responseAreas.push(a);
     votedArea += a;
   });
-  // 后备：从 poll 对象读取已投票面积
+
+  // 后备：从 poll 对象读取已投票面积，平均分配
   if (votedArea <= 0) {
     var fc = getPollAreaCurrent(p);
-    if (fc > 0) {
+    if (fc > 0 && responses.length > 0) {
       votedArea = fc;
-      // 平均分配给每个response
-      var avg = Math.round(votedArea / (responses.length || 1));
+      var avg = Math.round(votedArea / responses.length);
       for (var i = 0; i < responseAreas.length; i++) {
-        if (responseAreas[i] <= 0) responseAreas[i] = avg;
+        responseAreas[i] = avg;
       }
     }
   }
@@ -1086,17 +1109,15 @@ function renderLocalPollResults(p, responses, hasVoted) {
       });
       const total = responses.length || 1;
 
-      // ===== 选项面积计算（修复核心） =====
+      // ===== 选项面积计算（核心修复） =====
       var optionAreaCounts = {};
       var totalQuestionArea = 0;
-      // 只要有resident数据或已投票面积，就计算选项面积
-      var shouldCalcArea = (allResidents.length > 0) || (votedArea > 0);
+      var shouldCalcArea = (countedRooms.size > 0) || (votedArea > 0);
       if (shouldCalcArea) {
         responses.forEach(function(r, rIdx) {
           var a = r.answers.find(function(x) { return x.questionId === q.id; });
           if (!a || !a.value) return;
-          var area = responseAreas[rIdx] || getResponseArea(r);
-          // 如果仍无法解析单个面积，但有总投票面积，按票数平均分配
+          var area = responseAreas[rIdx];
           if (area <= 0 && votedArea > 0 && responses.length > 0) {
             area = Math.round(votedArea / responses.length);
           }
@@ -1127,8 +1148,6 @@ function renderLocalPollResults(p, responses, hasVoted) {
         const c = counts[opt] || 0;
         const pct = Math.round(c / total * 100);
         const optArea = optionAreaCounts[opt] || 0;
-        // 面积百分比分母：优先用 totalQuestionArea（回答本题的面积总和），
-        // 若为零则用 votedArea（所有投票面积总和），确保单选题百分比正确
         var areaDenominator = totalQuestionArea > 0 ? totalQuestionArea : (votedArea > 0 ? votedArea : 1);
         const areaPct = Math.round(optArea / areaDenominator * 100);
 
