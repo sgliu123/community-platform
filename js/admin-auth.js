@@ -490,4 +490,23 @@
     setTimeout(boot, 100);
   }
 
+
+  // 辅助：保存模块配置（带认证）
+  window.saveModuleConfig = async function(configData) {
+    try {
+      const token = getToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch(CONFIG.WORKER_URL + '/api/data/module-config', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ data: configData })
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('[Auth] 保存配置失败:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
 })();
