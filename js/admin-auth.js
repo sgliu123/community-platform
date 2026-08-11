@@ -85,6 +85,7 @@
     const password = $('loginPassword').value;
     const errorEl  = $('loginError');
 
+    console.log('[Auth] 登录开始，角色:', role);
     if (errorEl) errorEl.textContent = '';
     if (!role)     { if (errorEl) errorEl.textContent = '请选择身份'; return; }
     if (!password) { if (errorEl) errorEl.textContent = '请输入密码'; return; }
@@ -93,22 +94,29 @@
     if (loading) loading.style.display = 'flex';
 
     try {
+      console.log('[Auth] 请求登录 API...');
       const data = await apiPost('/api/auth/login', { role, password }, false);
+      console.log('[Auth] 收到响应:', JSON.stringify(data));
       if (loading) loading.style.display = 'none';
 
       if (!data.success) {
+        console.log('[Auth] 登录失败:', data.error);
         if (errorEl) errorEl.textContent = data.error || '登录失败';
         return;
       }
 
+      console.log('[Auth] 登录成功，保存认证信息');
       saveAuth(data.token, data.role, data.name, data.permissions);
 
       const loginPage = $('loginPage');
       const tokenPage = $('tokenPage');
       const adminLayout = $('adminLayout');
-      if (loginPage) loginPage.style.display = 'none';
-      if (tokenPage) tokenPage.style.display = 'none';
-      if (adminLayout) adminLayout.style.display = '';
+      console.log('[Auth] DOM 元素检查: loginPage=', !!loginPage, 'tokenPage=', !!tokenPage, 'adminLayout=', !!adminLayout);
+      if (loginPage) { loginPage.style.display = 'none'; console.log('[Auth] 已隐藏 loginPage'); }
+      else { console.warn('[Auth] 未找到 loginPage 元素'); }
+      if (tokenPage) { tokenPage.style.display = 'none'; console.log('[Auth] 已隐藏 tokenPage'); }
+      if (adminLayout) { adminLayout.style.display = ''; console.log('[Auth] 已显示 adminLayout'); }
+      else { console.warn('[Auth] 未找到 adminLayout 元素，页面无法切换'); }
 
       const roleEl = $('adminRole');
       const infoEl = $('adminInfo');
@@ -129,6 +137,7 @@
       if (loading) loading.style.display = 'none';
       if (errorEl) errorEl.textContent = '连接失败：' + (err.message || '请检查 Worker 是否已部署');
       console.error('[Auth] Login error:', err);
+      console.error('[Auth] 错误详情:', err.stack);
     }
   };
 
@@ -259,6 +268,7 @@
 
   async function boot() {
     const token = getToken();
+    console.log('[Auth] boot 检查，token 存在:', !!token);
     if (!token) return;
 
     const loading = $('loadingOverlay');
