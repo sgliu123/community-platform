@@ -183,21 +183,23 @@
       // 检查 contentArea 是否为空
       if (content && (!content.innerHTML || content.innerHTML.trim() === '' || content.children.length === 0)) {
         debugLog('UI', 'contentArea 为空，显示兜底仪表盘', true);
-        content.innerHTML = '<div id="fallbackDashboard" style="padding:30px;font-family:sans-serif;"><h1 style="margin-bottom:20px;">📊 仪表盘</h1><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">' +
-          '<div class="dash-card" data-mod="residents" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px;cursor:pointer;transition:transform .1s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"><h3 style="margin:0 0 8px;color:#0369a1;">👥 业主管理</h3><p style="margin:0;color:#64748b;font-size:14px;">管理小区业主信息</p></div>' +
-          '<div class="dash-card" data-mod="announcements" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;cursor:pointer;transition:transform .1s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"><h3 style="margin:0 0 8px;color:#15803d;">📢 公告管理</h3><p style="margin:0;color:#64748b;font-size:14px;">发布小区公告通知</p></div>' +
-          '<div class="dash-card" data-mod="workorders" style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:16px;cursor:pointer;transition:transform .1s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"><h3 style="margin:0 0 8px;color:#a16207;">🔧 工单管理</h3><p style="margin:0;color:#64748b;font-size:14px;">处理维修工单</p></div>' +
-          '<div class="dash-card" data-mod="polls" style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:16px;cursor:pointer;transition:transform .1s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"><h3 style="margin:0 0 8px;color:#7c3aed;">📊 投票管理</h3><p style="margin:0;color:#64748b;font-size:14px;">发起业主投票</p></div>' +
-          '<div class="dash-card" data-mod="config" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:16px;cursor:pointer;transition:transform .1s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"><h3 style="margin:0 0 8px;color:#c2410c;">⚙️ 小区配置</h3><p style="margin:0;color:#64748b;font-size:14px;">配置小区基本信息</p></div>' +
-          '<div class="dash-card" data-mod="documents" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:16px;cursor:pointer;transition:transform .1s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"><h3 style="margin:0 0 8px;color:#475569;">📄 文档管理</h3><p style="margin:0;color:#64748b;font-size:14px;">管理小区文档资料</p></div>' +
-          '<div class="dash-card" data-mod="activities" style="background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:16px;cursor:pointer;transition:transform .1s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"><h3 style="margin:0 0 8px;color:#be123c;">🎉 活动管理</h3><p style="margin:0;color:#64748b;font-size:14px;">组织小区活动</p></div>' +
-          '<div class="dash-card" data-mod="complaints" style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:16px;cursor:pointer;transition:transform .1s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"><h3 style="margin:0 0 8px;color:#0e7490;">💬 投诉建议</h3><p style="margin:0;color:#64748b;font-size:14px;">处理业主投诉</p></div>' +
+                content.innerHTML = '<div id="fallbackDashboard" style="padding:30px;font-family:sans-serif;">' +
+          '<h1 style="margin-bottom:20px;">📊 仪表盘</h1>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">' +
+          '<div class="dash-card" data-mod="residents" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px;cursor:pointer;"><h3 style="margin:0 0 8px;color:#0369a1;">👥 业主管理</h3><p style="margin:0;color:#64748b;font-size:14px;">管理小区业主信息</p></div>' +
+          '<div class="dash-card" data-mod="announcements" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;cursor:pointer;"><h3 style="margin:0 0 8px;color:#15803d;">📢 公告管理</h3><p style="margin:0;color:#64748b;font-size:14px;">发布小区公告通知</p></div>' +
+          '<div class="dash-card" data-mod="workorders" style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:16px;cursor:pointer;"><h3 style="margin:0 0 8px;color:#a16207;">🔧 工单管理</h3><p style="margin:0;color:#64748b;font-size:14px;">处理维修工单</p></div>' +
+          '<div class="dash-card" data-mod="polls" style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:16px;cursor:pointer;"><h3 style="margin:0 0 8px;color:#7c3aed;">📊 投票管理</h3><p style="margin:0;color:#64748b;font-size:14px;">发起业主投票</p></div>' +
+          '<div class="dash-card" data-mod="config" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:16px;cursor:pointer;"><h3 style="margin:0 0 8px;color:#c2410c;">⚙️ 小区配置</h3><p style="margin:0;color:#64748b;font-size:14px;">配置小区基本信息</p></div>' +
+          '<div class="dash-card" data-mod="documents" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:16px;cursor:pointer;"><h3 style="margin:0 0 8px;color:#475569;">📄 文档管理</h3><p style="margin:0;color:#64748b;font-size:14px;">管理小区文档资料</p></div>' +
+          '<div class="dash-card" data-mod="activities" style="background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:16px;cursor:pointer;"><h3 style="margin:0 0 8px;color:#be123c;">🎉 活动管理</h3><p style="margin:0;color:#64748b;font-size:14px;">组织小区活动</p></div>' +
+          '<div class="dash-card" data-mod="complaints" style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:16px;cursor:pointer;"><h3 style="margin:0 0 8px;color:#0e7490;">💬 投诉建议</h3><p style="margin:0;color:#64748b;font-size:14px;">处理业主投诉</p></div>' +
           '</div><p style="margin-top:24px;color:#999;font-size:12px;">⚠️ 模块数据加载异常，显示基础界面。请检查 js/admin-pages/ 下的模块文件。</p></div>';
 
         // 绑定卡片点击事件
-        setTimeout(() => {
-          const cards = content.querySelectorAll('.dash-card');
-          const fnMap = {
+        setTimeout(function() {
+          var cards = content.querySelectorAll('.dash-card');
+          var fnMap = {
             residents: 'renderResidentsAdmin',
             announcements: 'renderAnnouncementsAdmin',
             workorders: 'renderWorkordersAdmin',
@@ -207,10 +209,10 @@
             activities: 'renderActivitiesAdmin',
             complaints: 'renderComplaintsAdmin'
           };
-          cards.forEach(card => {
-            card.addEventListener('click', () => {
-              const mod = card.dataset.mod;
-              const fn = fnMap[mod];
+          cards.forEach(function(card) {
+            card.addEventListener('click', function() {
+              var mod = card.dataset.mod;
+              var fn = fnMap[mod];
               if (fn && typeof window[fn] === 'function') {
                 debugLog('UI', '卡片点击: ' + mod + ' -> ' + fn);
                 try { window[fn](); } catch(e) { debugLog('UI', fn + ' 报错', true); }
