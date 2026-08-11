@@ -427,7 +427,7 @@ function renderPolls() {
 
 /* ===== 公开反馈公示（无需登录） ===== */
 async function loadComplaintsFromWorker() {
-  const workerBase = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
+  const workerBase = localStorage.getItem('workerBase') || 'https://api.firstblade.site';
   try {
     const d = new Date();
     const path = 'complaints/' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '.json';
