@@ -7,7 +7,7 @@
   'use strict';
 
   const CONFIG = {
-    WORKER_URL: 'https://sunlight-api.515283794.workers.dev',
+    WORKER_URL: 'https://api.firstblade.site',
     TOKEN_KEY:      'admin_auth_token',
     ROLE_KEY:       'admin_auth_role',
     NAME_KEY:       'admin_auth_name',
