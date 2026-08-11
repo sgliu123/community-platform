@@ -42,20 +42,29 @@ async function doAdminLogin() {
   if (!roleId) { err.textContent = '请选择身份'; err.style.display = 'block'; return; }
   if (!pwd) { err.textContent = '请输入密码'; err.style.display = 'block'; return; }
 
-  const account = ADMIN_ACCOUNTS.find(a => a.id === roleId);
+  let account = ADMIN_ACCOUNTS.find(a => a.id === roleId);
+  let isRegistered = false;
+  if (!account) {
+    const reg = ((appData.config && appData.config.adminUsers) || []).find(a => a.id === roleId && a.status === 'approved');
+    if (reg) { account = reg; isRegistered = true; }
+  }
   if (!account) { err.textContent = '身份配置错误，请联系总维护人员'; err.style.display = 'block'; return; }
 
   btn.disabled = true; btn.textContent = '验证中...';
 
-  // 明文对比，方便直接修改代码中的密码
   if (pwd !== account.password) {
     err.textContent = '密码错误，请重新输入'; err.style.display = 'block';
     btn.disabled = false; btn.textContent = '登录';
     return;
   }
 
-  // 登录成功
-  currentAdmin = { id: account.id, name: account.name, role: account.role, permissions: account.permissions };
+  currentAdmin = {
+    id: account.id,
+    name: account.name,
+    role: isRegistered ? 'admin' : account.role,
+    canDelete: account.canDelete !== false,
+    isRegistered: isRegistered
+  };
   adminSession = { adminId: currentAdmin.id, loginTime: new Date().toISOString() };
   sessionStorage.setItem('adminSession', JSON.stringify(adminSession));
 
@@ -88,7 +97,7 @@ function showAdminLayout() {
     logout(); return;
   }
   document.getElementById('adminInfo').textContent = currentAdmin.name || '管理员';
-  const roleMap = { super: '总维护人员', property: '物管人员', committee: '业委会成员', community: '社区人员' };
+  const roleMap = { super: '总维护人员', admin: '管理员' };
   document.getElementById('adminRole').textContent = roleMap[currentAdmin.role] || currentAdmin.role;
   renderSidebar();
   const hash = location.hash;
@@ -113,24 +122,27 @@ function logout() {
 
 function renderSidebar() {
   if (!currentAdmin) return;
+  const perms = currentAdmin.permissions || [];
+  const isSuper = currentAdmin.role === 'super';
   const items = [
-    { id: 'dashboard',    label: '仪表盘',   icon: '📊', roles: ['super','property','committee','community','dev'] },
-    { id: 'config',       label: '社区配置', icon: '⚙️', roles: ['super'] },
-    { id: 'announcements',label: '公告管理', icon: '📢', roles: ['super','property','community'] },
-    { id: 'documents',    label: '文件管理', icon: '📄', roles: ['super','property'] },
-    { id: 'activities',   label: '动态管理', icon: '🎉', roles: ['super','community'] },
-    { id: 'polls',        label: '投票管理', icon: '🗳️', roles: ['super','committee'] },
-    { id: 'residents',    label: '业主管理', icon: '👥', roles: ['super','property','committee'] },
-    { id: 'workorders',   label: '工单管理', icon: '🔧', roles: ['super','property'] },
-    { id: 'complaints',   label: '投诉建议', icon: '📝', roles: ['super','committee','community'] },
-    { id: 'audit',        label: '审计日志', icon: '🔍', roles: ['super','committee'] },
-    { id: 'life',         label: '生活服务', icon: '🍽️', roles: ['super','property','committee','community'], external: 'admin-life.html' },
-    { id: 'trade',        label: '交易管理', icon: '🛒', roles: ['super','property','committee','community'], external: 'trade-admin.html' },
-    { id: 'settings',     label: '系统设置', icon: '🔐', roles: ['super','dev'] }
+    { id: 'dashboard', label: '仪表盘', icon: '📊', perm: 'view', roles: ['super','property','committee','community'] },
+    { id: 'config', label: '社区配置', icon: '⚙️', perm: 'all', roles: ['super'] },
+    { id: 'announcements', label: '公告管理', icon: '📢', perm: 'announcements', roles: ['super','property','community'] },
+    { id: 'documents', label: '文件管理', icon: '📄', perm: 'documents', roles: ['super','property'] },
+    { id: 'activities', label: '动态管理', icon: '🎉', perm: 'activities', roles: ['super','community'] },
+    { id: 'polls', label: '投票管理', icon: '🗳️', perm: 'polls', roles: ['super','committee'] },
+    { id: 'residents', label: '业主管理', icon: '👥', perm: 'residents', roles: ['super','property','committee'] },
+    { id: 'workorders', label: '工单管理', icon: '🔧', perm: 'workorders', roles: ['super','property'] },
+    { id: 'complaints', label: '投诉建议', icon: '📝', perm: 'complaints', roles: ['super','committee','community'] },
+    { id: 'life', label: '生活服务', icon: '🍽️', perm: 'all', roles: ['super','property','committee','community'], external: 'admin-life.html' },
+    { id: 'trade', label: '交易管理', icon: '🛒', perm: 'all', roles: ['super','property','committee','community'], external: 'trade-admin.html' },
+    { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', roles: ['super','property','committee','community'] }
   ];
   let html = '';
   items.forEach(item => {
-    if (item.roles.indexOf(currentAdmin.role) < 0) return;
+    const hasPerm = isSuper || perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0;
+    const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
+    if (!hasPerm || !hasRole) return;
     if (item.external) {
       html += `<div class="nav-item" data-module="${item.id}" onclick="window.open('${item.external}','_blank')">`;
     } else {
@@ -154,8 +166,8 @@ function navigateTo(module) {
     const renderers = {
       dashboard: renderDashboard, config: renderConfig, announcements: renderAnnouncementsAdmin,
       documents: renderDocumentsAdmin, activities: renderActivitiesAdmin, polls: renderPollsAdmin,
-      residents: renderResidentsAdmin, workorders: renderWorkordersAdmin,
-      complaints: renderComplaintsAdmin, audit: renderAuditLog,
+      workorders: renderWorkordersAdmin,
+      complaints: renderComplaintsAdmin,
       settings: renderSettings
     };
     const fn = renderers[module] || renderDashboard;
@@ -679,6 +691,10 @@ async function saveItem(module, id) {
 }
 
 async function deleteItem(module, id) {
+  if (currentAdmin && currentAdmin.canDelete === false) {
+    showToast('您的账号没有删除权限，请联系总维护人员', 'error');
+    return;
+  }
   if (!confirm('确定要删除吗？此操作不可恢复。')) return;
   const list = appData[module] || [];
   const item = list.find(x => x.id === id) || {};
@@ -696,3 +712,113 @@ async function deleteItem(module, id) {
   }
 }
 
+
+
+/* ===== 管理员注册与审批 ===== */
+
+function getAllAdminAccounts() {
+  const registered = ((appData.config && appData.config.adminUsers) || [])
+    .filter(a => a.status === 'approved')
+    .map(a => ({ id: a.id, name: a.name, role: 'admin', password: a.password, canDelete: a.canDelete !== false }));
+  return ADMIN_ACCOUNTS.concat(registered);
+}
+
+function renderLoginRoles() {
+  const select = document.getElementById('loginRole');
+  if (!select) return;
+  const accounts = getAllAdminAccounts();
+  select.innerHTML = '<option value="">— 请选择 —</option>' +
+    accounts.map(a => '<option value="' + a.id + '">' + escapeHtml(a.name) + '</option>').join('');
+}
+
+async function submitAdminRegister() {
+  const name = document.getElementById('regName').value.trim();
+  const id = document.getElementById('regId').value.trim();
+  const pwd = document.getElementById('regPassword').value;
+  const confirmPwd = document.getElementById('regConfirmPassword').value;
+  const err = document.getElementById('regError');
+
+  err.style.display = 'none';
+  if (!name || !id || !pwd) { err.textContent = '请填写所有必填项'; err.style.display = 'block'; return; }
+  if (pwd !== confirmPwd) { err.textContent = '两次密码不一致'; err.style.display = 'block'; return; }
+  if (pwd.length < 6) { err.textContent = '密码需6位以上'; err.style.display = 'block'; return; }
+  if (ADMIN_ACCOUNTS.find(a => a.id === id) || ((appData.config && appData.config.adminUsers) || []).find(a => a.id === id)) {
+    err.textContent = '该账号ID已存在'; err.style.display = 'block'; return;
+  }
+
+  const newAdmin = {
+    id: id, name: name, password: pwd, status: 'pending', canDelete: true,
+    registeredAt: new Date().toISOString()
+  };
+  if (!appData.config) appData.config = {};
+  if (!appData.config.adminUsers) appData.config.adminUsers = [];
+  appData.config.adminUsers.push(newAdmin);
+
+  showLoading(true);
+  try {
+    await saveDataFile('config', appData.config, '提交管理员注册申请：' + name, 'admin-register');
+    showToast('注册申请已提交，等待总维护人员审批', 'success');
+    document.getElementById('regName').value = '';
+    document.getElementById('regId').value = '';
+    document.getElementById('regPassword').value = '';
+    document.getElementById('regConfirmPassword').value = '';
+  } catch(e) {
+    showToast('提交失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function approveAdmin(adminId) {
+  const admin = ((appData.config && appData.config.adminUsers) || []).find(a => a.id === adminId);
+  if (!admin) return;
+  admin.status = 'approved';
+  admin.approvedAt = new Date().toISOString();
+  admin.approvedBy = currentAdmin.id;
+  showLoading(true);
+  try {
+    await saveDataFile('config', appData.config, '审批通过管理员：' + admin.name, 'admin-approve');
+    showToast('已批准 ' + admin.name, 'success');
+    navigateTo('settings');
+  } catch(e) {
+    showToast('保存失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function rejectAdmin(adminId) {
+  const reason = prompt('请输入拒绝原因（可选）：');
+  if (reason === null) return;
+  const admin = ((appData.config && appData.config.adminUsers) || []).find(a => a.id === adminId);
+  if (!admin) return;
+  admin.status = 'rejected';
+  admin.rejectedAt = new Date().toISOString();
+  admin.rejectedReason = reason || '';
+  showLoading(true);
+  try {
+    await saveDataFile('config', appData.config, '拒绝管理员申请：' + admin.name, 'admin-reject');
+    showToast('已拒绝 ' + admin.name, 'success');
+    navigateTo('settings');
+  } catch(e) {
+    showToast('保存失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function toggleAdminDelete(adminId) {
+  const admin = ((appData.config && appData.config.adminUsers) || []).find(a => a.id === adminId);
+  if (!admin) return;
+  admin.canDelete = !admin.canDelete;
+  showLoading(true);
+  try {
+    await saveDataFile('config', appData.config, '修改管理员删除权限：' + admin.name, 'admin-perm');
+    showToast(admin.name + ' 的删除权限已' + (admin.canDelete ? '开启' : '关闭'), 'success');
+    navigateTo('settings');
+  } catch(e) {
+    showToast('保存失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}

@@ -3,6 +3,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
   try { 
     await loadAllData(); 
+    renderLoginRoles();
     autoSkipLogin();
   } catch(e) { 
     console.error('Init error:', e);
