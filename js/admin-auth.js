@@ -1,7 +1,8 @@
+/** admin-auth.js v2.1 2026-08-11 18:20 */
 /**
  * admin-auth.js
  * 安全认证模块 + 权限系统 + 模块开关
- * 完整修复版
+ * 最终修复版 - 优先使用原始系统函数
  */
 
 (function() {
@@ -20,7 +21,6 @@
 
   window.AUTH_WORKER_URL = CONFIG.WORKER_URL;
 
-  // ========== 调试系统 ==========
   function debugLog(tag, msg, isError) {
     const line = '[' + new Date().toLocaleTimeString() + '] [' + tag + '] ' + msg;
     console.log(line);
@@ -44,8 +44,8 @@
     if (document.getElementById('authDebugPanel')) return;
     const panel = document.createElement('div');
     panel.id = 'authDebugPanel';
-    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:120px;background:rgba(0,0,0,0.85);color:#51cf66;overflow-y:auto;z-index:99999;font-family:monospace;font-size:11px;padding:4px;box-sizing:border-box;';
-    panel.innerHTML = '<div style="color:#ffd43b;padding:2px 4px;border-bottom:1px solid #555;">🔧 Auth 调试面板 (Ctrl+Shift+D 隐藏/显示)</div>';
+    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:100px;background:rgba(0,0,0,0.85);color:#51cf66;overflow-y:auto;z-index:99999;font-family:monospace;font-size:11px;padding:4px;box-sizing:border-box;';
+    panel.innerHTML = '<div style="color:#ffd43b;padding:2px 4px;border-bottom:1px solid #555;">🔧 Auth 调试面板 v2.1 (Ctrl+Shift+D 隐藏)</div>';
     document.body.appendChild(panel);
     document.addEventListener('keydown', function(e) {
       if (e.ctrlKey && e.shiftKey && e.key === 'D') {
@@ -112,191 +112,195 @@
       debugLog('API', '网络错误: ' + netErr.message, true);
       throw netErr;
     }
-    debugLog('API', '响应状态: ' + res.status);
-    // 登录接口的401是业务错误（密码错误），不拦截
+    debugLog('API', '响应: ' + res.status);
     if (res.status === 401 && path !== '/api/auth/login') {
-      debugLog('API', '收到401，清除认证', true);
+      debugLog('API', '401 清除认证', true);
       clearAuth();
       throw new Error('登录已过期（401）');
     }
-    const contentType = res.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
       const text = await res.text();
-      debugLog('API', '非JSON: ' + text.substring(0, 80), true);
       throw new Error('非JSON(' + res.status + ')：' + text.substring(0, 80));
     }
-    const data = await res.json();
-    debugLog('API', '响应: ' + JSON.stringify(data).substring(0, 200));
-    return data;
+    return res.json();
   }
 
-  // ========== 兜底渲染系统 ==========
-  function fallbackRenderAdmin(role, name) {
-    debugLog('Fallback', '开始兜底渲染');
+  // ========== 初始化后台界面 ==========
+  function initAdminUI(role, name) {
+    debugLog('UI', '初始化后台界面...');
+
+    // 1. 优先使用系统自带的 renderSidebar
+    if (typeof window.renderSidebar === 'function') {
+      debugLog('UI', '调用系统 renderSidebar()');
+      try {
+        window.renderSidebar();
+        debugLog('UI', 'renderSidebar() 成功');
+      } catch(e) {
+        debugLog('UI', 'renderSidebar() 失败: ' + e.message, true);
+      }
+    } else {
+      debugLog('UI', 'renderSidebar 不存在，使用兜底导航', true);
+      fallbackNav();
+    }
+
+    // 2. 加载默认页面（仪表盘）
+    const pageFns = ['renderDashboard', 'renderDashboardPage'];
+    let loaded = false;
+    for (const fn of pageFns) {
+      if (typeof window[fn] === 'function') {
+        debugLog('UI', '调用 ' + fn + '()');
+        try {
+          window[fn]();
+          loaded = true;
+          debugLog('UI', fn + '() 成功');
+          break;
+        } catch(e) {
+          debugLog('UI', fn + '() 失败: ' + e.message, true);
+        }
+      }
+    }
+    if (!loaded) {
+      debugLog('UI', '无可用仪表盘渲染函数', true);
+      const content = $('contentArea');
+      if (content) {
+        content.innerHTML = '<div style="padding:40px;text-align:center;"><h2>📊 仪表盘</h2><p>后台已加载</p><p style="color:#999;font-size:12px;">renderDashboard 不可用</p></div>';
+      }
+    }
+
+    // 3. 确保布局可见
+    const layout = $('adminLayout');
+    if (layout) {
+      layout.style.display = 'flex';
+      layout.style.visibility = 'visible';
+      layout.style.opacity = '1';
+    }
+    const sidebar = $('sidebar');
+    if (sidebar) { sidebar.style.display = ''; sidebar.style.visibility = 'visible'; }
+    const main = document.querySelector('.main-content');
+    if (main) { main.style.display = ''; main.style.visibility = 'visible'; }
+  }
+
+  // 兜底导航
+  function fallbackNav() {
+    debugLog('UI', '构建兜底导航...');
     const nav = $('sidebarNav');
-    const content = $('contentArea');
-    const pageTitle = $('pageTitle');
-    if (!nav) { debugLog('Fallback', '找不到 sidebarNav', true); return; }
+    if (!nav) { debugLog('UI', '无 sidebarNav', true); return; }
 
     const modules = [
-      { id: 'dashboard', icon: '📊', title: '仪表盘' },
-      { id: 'config', icon: '⚙️', title: '小区配置' },
-      { id: 'announcements', icon: '📢', title: '公告管理' },
-      { id: 'documents', icon: '📄', title: '文档管理' },
-      { id: 'activities', icon: '🎉', title: '活动管理' },
-      { id: 'residents', icon: '👥', title: '业主管理' },
-      { id: 'audit', icon: '🔍', title: '审计日志' },
-      { id: 'workorders', icon: '🔧', title: '工单管理' },
-      { id: 'complaints', icon: '💬', title: '投诉建议' },
-      { id: 'polls', icon: '📊', title: '投票管理' },
-      { id: 'settings', icon: '🔒', title: '系统设置' }
+      { id: 'dashboard', icon: '📊', title: '仪表盘', fn: 'renderDashboard' },
+      { id: 'config', icon: '⚙️', title: '小区配置', fn: 'renderConfig' },
+      { id: 'announcements', icon: '📢', title: '公告管理', fn: 'renderAnnouncementsAdmin' },
+      { id: 'documents', icon: '📄', title: '文档管理', fn: 'renderDocumentsAdmin' },
+      { id: 'activities', icon: '🎉', title: '活动管理', fn: 'renderActivitiesAdmin' },
+      { id: 'residents', icon: '👥', title: '业主管理', fn: 'renderResidentsAdmin' },
+      { id: 'audit', icon: '🔍', title: '审计日志', fn: 'renderAuditLog' },
+      { id: 'workorders', icon: '🔧', title: '工单管理', fn: 'renderWorkordersAdmin' },
+      { id: 'complaints', icon: '💬', title: '投诉建议', fn: 'renderComplaintsAdmin' },
+      { id: 'polls', icon: '📊', title: '投票管理', fn: 'renderPollsAdmin' },
+      { id: 'settings', icon: '🔒', title: '系统设置', fn: 'renderSettings' }
     ];
 
     const perms = getAuthPermissions();
     const config = getModuleConfig();
-
     nav.innerHTML = '';
+
     modules.forEach(mod => {
       if (config.modules && config.modules[mod.id] && config.modules[mod.id].visible === false) return;
+      if (typeof window[mod.fn] !== 'function') return;
+
       const a = document.createElement('a');
       a.href = 'javascript:void(0)';
       a.setAttribute('data-module', mod.id);
       a.innerHTML = mod.icon + ' ' + mod.title;
       a.onclick = function() {
-        if (pageTitle) pageTitle.textContent = mod.title;
+        $('pageTitle').textContent = mod.title;
         nav.querySelectorAll('a').forEach(x => x.classList.remove('active'));
         a.classList.add('active');
-        if (content) {
-          const fnName = 'render' + mod.id.charAt(0).toUpperCase() + mod.id.slice(1) + 'Page';
-          if (typeof window[fnName] === 'function') {
-            debugLog('Fallback', '调用 ' + fnName);
-            try { window[fnName](); } catch(e) { debugLog('Fallback', fnName + ' 报错', true); }
-          } else {
-            content.innerHTML = '<div style="padding:40px;text-align:center;"><h2>' + mod.icon + ' ' + mod.title + '</h2><p style="color:#666;">模块渲染函数 <code>' + fnName + '</code> 未定义</p><p style="color:#999;font-size:12px;">请确认 js/admin-pages/' + mod.id + '.js 已正确加载</p></div>';
-          }
-        }
+        try { window[mod.fn](); } catch(e) { debugLog('UI', mod.fn + ' 报错', true); }
       };
       nav.appendChild(a);
     });
 
-    if (perms.canToggleModules) {
-      const devA = document.createElement('a');
-      devA.href = 'javascript:void(0)';
-      devA.setAttribute('data-module', 'dev-modules');
-      devA.innerHTML = '🔧 开发者工具';
-      devA.onclick = function() {
-        if (pageTitle) pageTitle.textContent = '开发者工具';
-        if (typeof window.renderDevModulesPage === 'function') window.renderDevModulesPage();
-        else if (content) content.innerHTML = '<div style="padding:40px;text-align:center;"><h2>🔧 开发者工具</h2><p>renderDevModulesPage 未定义</p></div>';
+    if (perms.canToggleModules && typeof window.renderDevModulesPage === 'function') {
+      const a = document.createElement('a');
+      a.href = 'javascript:void(0)';
+      a.setAttribute('data-module', 'dev-modules');
+      a.innerHTML = '🔧 开发者工具';
+      a.onclick = function() {
+        $('pageTitle').textContent = '开发者工具';
+        try { window.renderDevModulesPage(); } catch(e) {}
       };
-      nav.appendChild(devA);
+      nav.appendChild(a);
     }
 
     const first = nav.querySelector('a');
     if (first) first.click();
-    debugLog('Fallback', '兜底渲染完成: ' + nav.children.length + ' 项');
-
-    // 强制确保后台布局可见
-    const adminLayout2 = $('adminLayout');
-    if (adminLayout2) {
-      adminLayout2.style.display = 'flex';
-      adminLayout2.style.visibility = 'visible';
-      adminLayout2.style.opacity = '1';
-      debugLog('Fallback', '已强制 adminLayout 可见');
-    }
-    const sidebar = $('sidebar');
-    if (sidebar) {
-      sidebar.style.display = '';
-      sidebar.style.visibility = 'visible';
-    }
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) {
-      mainContent.style.display = '';
-      mainContent.style.visibility = 'visible';
-    }
-    if (content) {
-      content.style.display = '';
-      content.style.visibility = 'visible';
-      content.style.minHeight = '200px';
-    }
+    debugLog('UI', '兜底导航: ' + nav.children.length + ' 项');
   }
 
   // ========== 登录 ==========
   window.doAdminLogin = async function() {
     ensureDebugPanel();
-    debugLog('Login', '========== 登录开始 ==========');
+    debugLog('Login', '========== 开始 ==========');
     const role = $('loginRole').value;
     const password = $('loginPassword').value;
     const errorEl = $('loginError');
     if (errorEl) errorEl.textContent = '';
-    if (!role) { if (errorEl) errorEl.textContent = '请选择身份'; debugLog('Login', '未选身份', true); return; }
-    if (!password) { if (errorEl) errorEl.textContent = '请输入密码'; debugLog('Login', '未输密码', true); return; }
+    if (!role) { if (errorEl) errorEl.textContent = '请选择身份'; return; }
+    if (!password) { if (errorEl) errorEl.textContent = '请输入密码'; return; }
 
     const loading = $('loadingOverlay');
     if (loading) loading.style.display = 'flex';
 
     try {
-      debugLog('Login', '请求登录: ' + role);
       const data = await apiPost('/api/auth/login', { role, password }, false);
       if (loading) loading.style.display = 'none';
 
       if (!data.success) {
-        debugLog('Login', '失败: ' + (data.error || '未知'), true);
         if (errorEl) errorEl.textContent = data.error || '登录失败';
+        debugLog('Login', '失败: ' + (data.error || '未知'), true);
         return;
       }
 
-      debugLog('Login', '登录成功');
       saveAuth(data.token, data.role, data.name, data.permissions);
 
-      const loginPage = $('loginPage');
-      const tokenPage = $('tokenPage');
-      const adminLayout = $('adminLayout');
-      debugLog('Login', 'DOM: loginPage=' + !!loginPage + ' tokenPage=' + !!tokenPage + ' adminLayout=' + !!adminLayout);
-      if (loginPage) { loginPage.style.display = 'none'; debugLog('Login', '隐藏 loginPage'); }
-      if (tokenPage) { tokenPage.style.display = 'none'; debugLog('Login', '隐藏 tokenPage'); }
-      if (adminLayout) { adminLayout.style.display = ''; debugLog('Login', '显示 adminLayout'); }
+      if ($('loginPage')) $('loginPage').style.display = 'none';
+      if ($('tokenPage')) $('tokenPage').style.display = 'none';
+      if ($('adminLayout')) $('adminLayout').style.display = '';
 
+      const name = data.name || '管理员';
       const roleEl = $('adminRole');
       const infoEl = $('adminInfo');
-      if (roleEl) roleEl.textContent = data.name || '管理员';
-      if (infoEl) infoEl.textContent = data.name || '管理员';
+      if (roleEl) roleEl.textContent = name;
+      if (infoEl) infoEl.textContent = name;
 
-      debugLog('Login', '加载模块配置...');
       await loadModuleConfig();
       applyModuleFilters();
       injectDevToolsEntry();
 
       setTimeout(() => {
-        debugLog('Login', '执行初始化...');
-        try {
-          if (typeof window.initAdminApp === 'function') { window.initAdminApp(); debugLog('Login', 'initAdminApp 完成'); }
-          else if (typeof window.renderNav === 'function') { window.renderNav(); debugLog('Login', 'renderNav 完成'); }
-          else { debugLog('Login', '无初始化函数，启用兜底', true); fallbackRenderAdmin(data.role, data.name); }
-          document.dispatchEvent(new Event('auth:ready'));
-          debugLog('Login', 'auth:ready 已派发');
-        } catch (e) {
-          debugLog('Login', '初始化报错: ' + e.message, true);
-        }
-        debugLog('Login', '========== 登录结束 ==========');
+        initAdminUI(data.role, name);
+        document.dispatchEvent(new Event('auth:ready'));
+        debugLog('Login', '========== 结束 ==========');
       }, 50);
 
     } catch (err) {
       if (loading) loading.style.display = 'none';
       const msg = '连接失败：' + (err.message || '请检查 Worker');
-      debugLog('Login', '异常: ' + msg, true);
       if (errorEl) errorEl.textContent = msg;
+      debugLog('Login', '异常: ' + msg, true);
     }
   };
 
   window.logout = function() {
     clearAuth();
-    const keysToRemove = [];
+    const keys = [];
     for (let i = localStorage.length - 1; i >= 0; i--) {
-      const key = localStorage.key(i);
-      if (key && (/admin|auth|token|login|user/i).test(key)) keysToRemove.push(key);
+      const k = localStorage.key(i);
+      if (k && (/admin|auth|token|login|user/i).test(k)) keys.push(k);
     }
-    keysToRemove.forEach(k => localStorage.removeItem(k));
+    keys.forEach(k => localStorage.removeItem(k));
     location.href = location.pathname;
   };
 
@@ -305,8 +309,8 @@
     opts = opts || {};
     opts.headers = opts.headers || {};
     let urlStr = typeof url === 'string' ? url : (url.href || url.toString());
-    const isApiRequest = urlStr.startsWith('/api/') || urlStr.includes(location.host + '/api/');
-    if (isApiRequest) {
+    const isApi = urlStr.startsWith('/api/') || urlStr.includes(location.host + '/api/');
+    if (isApi) {
       const token = getToken();
       if (token) {
         if (opts.headers instanceof Headers) opts.headers.set('Authorization', 'Bearer ' + token);
@@ -316,30 +320,15 @@
     return _origFetch(url, opts);
   };
 
-  // ========== 关键修复：loadModuleConfig 必须带 token ==========
   async function loadModuleConfig() {
     try {
-      const url = CONFIG.WORKER_URL + '/api/data/module-config';
       const token = getToken();
-      const headers = {};
-      if (token) {
-        headers['Authorization'] = 'Bearer ' + token;
-        debugLog('Config', '已附加 token');
-      } else {
-        debugLog('Config', '警告: 无 token', true);
-      }
-      debugLog('Config', 'GET ' + url);
-      const res = await fetch(url, { method: 'GET', headers: headers });
-      debugLog('Config', '响应: ' + res.status);
+      const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+      const res = await fetch(CONFIG.WORKER_URL + '/api/data/module-config', { method: 'GET', headers });
       const result = await res.json();
-      if (result.success && result.data) {
-        setModuleConfig(result.data);
-        debugLog('Config', '配置已保存');
-      } else {
-        debugLog('Config', '响应异常: ' + JSON.stringify(result), true);
-      }
+      if (result.success && result.data) setModuleConfig(result.data);
     } catch (err) {
-      debugLog('Config', '失败: ' + err.message, true);
+      debugLog('Config', '加载失败: ' + err.message, true);
     }
   }
 
@@ -348,13 +337,11 @@
     if (!nav) return;
     const config = getModuleConfig();
     if (!config || !config.modules) return;
-    const items = nav.querySelectorAll('a, .nav-item, [onclick]');
-    items.forEach(item => {
+    nav.querySelectorAll('a, .nav-item, [onclick]').forEach(item => {
       let moduleId = item.dataset.module;
       if (!moduleId) {
-        const onclick = item.getAttribute('onclick') || '';
-        const match = onclick.match(/loadModule\s*\(\s*['"]([^'"]+)['"]\s*\)/);
-        if (match) moduleId = match[1];
+        const m = (item.getAttribute('onclick') || '').match(/loadModule\s*\(\s*['"]([^'"]+)['"]\s*\)/);
+        if (m) moduleId = m[1];
       }
       if (!moduleId) return;
       const mod = config.modules[moduleId];
@@ -375,7 +362,7 @@
     entry.onclick = function(e) {
       e.preventDefault();
       if (typeof window.renderDevModulesPage === 'function') window.renderDevModulesPage();
-      else alert('开发者工具模块未加载');
+      else alert('开发者工具未加载');
     };
     nav.appendChild(entry);
   }
@@ -408,7 +395,7 @@
   async function boot() {
     ensureDebugPanel();
     const token = getToken();
-    debugLog('Boot', 'token 存在: ' + !!token);
+    debugLog('Boot', 'token: ' + !!token);
     if (!token) return;
     const loading = $('loadingOverlay');
     if (loading) loading.style.display = 'flex';
@@ -416,36 +403,26 @@
       const data = await apiPost('/api/auth/verify', {}, true);
       if (loading) loading.style.display = 'none';
       if (data.valid) {
-        const loginPage = $('loginPage');
-        const tokenPage = $('tokenPage');
-        const adminLayout = $('adminLayout');
-        if (loginPage) loginPage.style.display = 'none';
-        if (tokenPage) tokenPage.style.display = 'none';
-        if (adminLayout) adminLayout.style.display = '';
-        const name = sessionStorage.getItem(CONFIG.NAME_KEY);
+        if ($('loginPage')) $('loginPage').style.display = 'none';
+        if ($('tokenPage')) $('tokenPage').style.display = 'none';
+        if ($('adminLayout')) $('adminLayout').style.display = '';
+        const name = sessionStorage.getItem(CONFIG.NAME_KEY) || '管理员';
         const roleEl = $('adminRole');
         const infoEl = $('adminInfo');
-        if (roleEl) roleEl.textContent = name || '管理员';
-        if (infoEl) infoEl.textContent = name || '管理员';
+        if (roleEl) roleEl.textContent = name;
+        if (infoEl) infoEl.textContent = name;
         await loadModuleConfig();
         applyModuleFilters();
         injectDevToolsEntry();
         setTimeout(() => {
-          try {
-            if (typeof window.initAdminApp === 'function') window.initAdminApp();
-            else if (typeof window.renderNav === 'function') window.renderNav();
-            else fallbackRenderAdmin(data.role, name);
-            document.dispatchEvent(new Event('auth:ready'));
-          } catch (e) {
-            debugLog('Boot', '初始化报错: ' + e.message, true);
-          }
+          initAdminUI(data.role, name);
+          document.dispatchEvent(new Event('auth:ready'));
         }, 50);
       } else {
         clearAuth();
       }
     } catch (e) {
       if (loading) loading.style.display = 'none';
-      debugLog('Boot', '验证异常: ' + e.message, true);
       clearAuth();
     }
   }
