@@ -1,16 +1,12 @@
 /**
  * admin-auth.js
  * 安全认证模块 + 权限系统 + 模块开关
- * 
- * 修复：认证请求直接走 Worker 域名（绕过 Pages 405 问题）
- *       退出时彻底清除所有存储的登录信息
  */
 
 (function() {
   'use strict';
 
   const CONFIG = {
-    // 认证和模块配置请求直接走 Worker 域名，绕过 Pages
     WORKER_URL: 'https://sunlight-api.515283794.workers.dev',
     TOKEN_KEY:      'admin_auth_token',
     ROLE_KEY:       'admin_auth_role',
@@ -20,12 +16,9 @@
     MODULE_CONFIG_KEY:'admin_auth_module_config'
   };
 
-  // 暴露给 dev-modules.js 使用
   window.AUTH_WORKER_URL = CONFIG.WORKER_URL;
 
   function $(id) { return document.getElementById(id); }
-
-  // ==================== Session 管理 ====================
 
   function saveAuth(token, role, name, permissions) {
     sessionStorage.setItem(CONFIG.TOKEN_KEY, token);
@@ -66,8 +59,6 @@
     return !exp || Date.now() > parseInt(exp);
   }
 
-  // ==================== API 封装 ====================
-
   async function apiPost(path, body, needAuth) {
     const headers = { 'Content-Type': 'application/json' };
     if (needAuth) {
@@ -88,8 +79,6 @@
     }
     return res.json();
   }
-
-  // ==================== 覆盖：登录 ====================
 
   window.doAdminLogin = async function() {
     const role     = $('loginRole').value;
@@ -143,12 +132,8 @@
     }
   };
 
-  // ==================== 覆盖：退出（彻底清除） ====================
-
   window.logout = function() {
-    // 清除新认证系统的存储
     clearAuth();
-    // 清除旧认证系统可能使用的 localStorage
     const keysToRemove = [];
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
@@ -157,11 +142,8 @@
       }
     }
     keysToRemove.forEach(k => localStorage.removeItem(k));
-    // 强制刷新到干净状态
     location.href = location.pathname;
   };
-
-  // ==================== 全局 fetch 劫持（自动带 Token） ====================
 
   const _origFetch = window.fetch;
   window.fetch = function(url, opts) {
@@ -187,8 +169,6 @@
     return _origFetch(url, opts);
   };
 
-  // ==================== 模块配置加载（走 Worker） ====================
-
   async function loadModuleConfig() {
     try {
       const url = CONFIG.WORKER_URL + '/api/data/module-config';
@@ -201,8 +181,6 @@
       console.warn('[Auth] Failed to load module config:', err);
     }
   }
-
-  // ==================== 导航过滤 ====================
 
   function applyModuleFilters() {
     const nav = $('sidebarNav');
@@ -232,8 +210,6 @@
     });
   }
 
-  // ==================== 注入开发者工具入口 ====================
-
   function injectDevToolsEntry() {
     const nav = $('sidebarNav');
     const perms = getAuthPermissions();
@@ -255,8 +231,6 @@
 
     nav.appendChild(entry);
   }
-
-  // ==================== 暴露全局方法 ====================
 
   window.getAuthToken       = getToken;
   window.getCurrentRole     = getRole;
@@ -282,8 +256,6 @@
     const mod = config.modules[moduleId];
     return !mod || mod.editable !== false;
   };
-
-  // ==================== 启动校验 ====================
 
   async function boot() {
     const token = getToken();
