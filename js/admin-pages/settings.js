@@ -15,7 +15,7 @@ function renderSettings() {
     '<button class="btn btn-primary" onclick="changePassword()">修改密码</button>' +
     '<p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">提示：修改后的密码会尝试持久化到 Worker。如未配置 Worker，刷新页面后将恢复代码顶部 ADMIN_ACCOUNTS 中的默认密码。</p></div>' +
     '<div class="card"><div class="card-header"><h3>🌐 Worker 网关地址</h3></div>' +
-    '<div class="form-group"><label>Worker API 地址（留空则使用内存模式）</label><input type="text" id="workerBaseInput" value="' + (localStorage.getItem('workerBase') || '') + '" placeholder="https://community.firstblade.site 或留空"></div>' +
+    '<div class="form-group"><label>Worker API 地址（留空则使用内存模式）</label><input type="text" id="workerBaseInput" value="' + (localStorage.getItem('workerBase') || '') + '" placeholder="https://api.firstblade.site 或留空"></div>' +
     '<button class="btn btn-primary" onclick="saveWorkerBase()">保存地址</button>' +
     '<p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">留空表示开发模式（数据仅保存在浏览器内存中，刷新后丢失）。配置 Worker 地址后可实现数据持久化。</p></div>' +
     '<div class="card"><div class="card-header"><h3>🔗 证据锚定配置</h3></div>' +
