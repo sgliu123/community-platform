@@ -152,9 +152,16 @@
       if (typeof window[fn] === 'function') {
         debugLog('UI', '调用 ' + fn + '()');
         try {
-          window[fn]();
+          const result = window[fn]();
+          // 如果函数返回了HTML字符串，自动写入contentArea
+          if (typeof result === 'string' && result.trim()) {
+            const content = $('contentArea');
+            if (content) content.innerHTML = result;
+            debugLog('UI', fn + '() 返回HTML并已写入contentArea');
+          } else {
+            debugLog('UI', fn + '() 成功（无返回值或返回值非字符串）');
+          }
           loaded = true;
-          debugLog('UI', fn + '() 成功');
           break;
         } catch(e) {
           debugLog('UI', fn + '() 失败: ' + e.message, true);
