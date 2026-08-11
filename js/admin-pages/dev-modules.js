@@ -1,12 +1,6 @@
 /**
  * admin-pages/dev-modules.js
  * 开发者工具 - 模块开关管理页面
- * 
- * 功能：
- *   - 显示所有后台模块的开关状态
- *   - 开启/关闭模块的显示
- *   - 保存配置到 Worker（R2）
- *   - 仅 admin-super 和 admin-dev 可见
  */
 
 (function() {
@@ -26,7 +20,6 @@
     { id: 'settings',      name: '🔒 系统设置',    desc: '高级系统选项',           sensitive: true  }
   ];
 
-  // 内联样式（避免依赖外部 CSS）
   const STYLES = `
     .dev-modules-panel { max-width: 800px; margin: 0 auto; padding: 20px; }
     .dev-modules-header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb; }
@@ -77,13 +70,19 @@
     .dev-modules-error { text-align: center; padding: 40px; color: #dc2626; }
   `;
 
-  // 注入样式
   function injectStyles() {
     if (document.getElementById('dev-modules-styles')) return;
     const style = document.createElement('style');
     style.id = 'dev-modules-styles';
     style.textContent = STYLES;
     document.head.appendChild(style);
+  }
+
+  // 获取 Worker 基础 URL（从 admin-auth.js 暴露的全局变量）
+  function getWorkerUrl() {
+    return (typeof window !== 'undefined' && window.AUTH_WORKER_URL) 
+      ? window.AUTH_WORKER_URL 
+      : '';
   }
 
   // ==================== 主渲染入口 ====================
@@ -106,7 +105,9 @@
 
   async function loadAndRender(container) {
     try {
-      const res = await fetch('/api/data/module-config', { method: 'GET' });
+      const workerUrl = getWorkerUrl();
+      const url = workerUrl ? workerUrl + '/api/data/module-config' : '/api/data/module-config';
+      const res = await fetch(url, { method: 'GET' });
       const result = await res.json();
       const config = (result.success && result.data && result.data.modules)
         ? result.data
@@ -166,7 +167,7 @@
           <button class="btn-secondary" onclick="resetModuleConfig()">↩️ 恢复默认</button>
         </div>
         <div class="dev-modules-tip">
-          <p>💡 提示：修改保存后立即生效。敏感模块（居民管理、审计日志）建议保持开启。开发者角色可开关模块，但不可修改敏感数据。</p>
+          <p>💡 提示：修改保存后立即生效。敏感模块建议保持开启。开发者角色可开关模块，但不可修改敏感数据。</p>
         </div>
       </div>
     `;
@@ -184,7 +185,6 @@
     }
     window._currentModuleConfig.modules[moduleId].visible = visible;
 
-    // 实时更新当前项的样式
     const item = document.querySelector(`.dev-module-item[data-module="${moduleId}"]`);
     if (item) {
       item.classList.toggle('disabled', !visible);
@@ -199,7 +199,9 @@
     if (btn) { btn.textContent = '保存中...'; btn.disabled = true; }
 
     try {
-      const res = await fetch('/api/data/module-config', {
+      const workerUrl = getWorkerUrl();
+      const url = workerUrl ? workerUrl + '/api/data/module-config' : '/api/data/module-config';
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: window._currentModuleConfig })
@@ -207,11 +209,9 @@
       const result = await res.json();
 
       if (result.success) {
-        // 同步到 sessionStorage
         if (typeof window.setModuleConfig === 'function') {
           window.setModuleConfig(window._currentModuleConfig);
         }
-        // 立即应用过滤
         if (typeof window.applyModuleFilters === 'function') {
           window.applyModuleFilters();
         }
@@ -233,8 +233,6 @@
     const container = document.getElementById('contentArea');
     if (container) renderUI(container, window._currentModuleConfig);
   };
-
-  // ==================== 辅助函数 ====================
 
   function showToast(msg, type) {
     if (typeof window.showToast === 'function') {
