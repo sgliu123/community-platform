@@ -6,7 +6,7 @@
  *   1. 密码从 JS 源码中移除，改为由 Cloudflare Worker 环境变量存储
  *   2. 登录时前端只传递角色+密码给 Worker，Worker 校验后返回 Token
  *   3. Token 存在 sessionStorage 中，8 小时过期，关闭标签页即失效
- *   4. 劫持全局 fetch，自动给发往 Worker 的请求加上 Authorization Token
+ *   4. 劫持全局 fetch，自动给发往同域名 /api/ 的请求加上 Authorization Token
  * 
  * 部署：放到 js/admin-auth.js，admin.html 末尾引入即可
  */
@@ -16,7 +16,8 @@
 
   // ==================== 配置区域 ====================
   const CONFIG = {
-    WORKER_URL: 'https://sunlight-api.515283794.workers.dev',
+    // 前端和 Worker 共用同一个域名 community.firstblade.site
+    WORKER_URL: 'https://community.firstblade.site',
     TOKEN_KEY:    'admin_auth_token',
     ROLE_KEY:     'admin_auth_role',
     NAME_KEY:     'admin_auth_name',
@@ -114,7 +115,7 @@
 
     } catch (err) {
       _showLoading(false);
-      if (errorEl) errorEl.textContent = '连接失败，请检查 Worker 是否运行 / CORS 是否配置';
+      if (errorEl) errorEl.textContent = '连接失败，请检查 Worker 是否运行';
       console.error('[Auth] Login error:', err);
     }
   };
@@ -127,13 +128,21 @@
   };
 
   // ==================== 全局 fetch 劫持（自动带 Token） ====================
+  // 劫持所有 fetch，如果请求的是 community.firstblade.site 域名下的 /api/ 路径，自动加 Token
 
   const _origFetch = window.fetch;
   window.fetch = function(url, opts) {
     opts = opts || {};
     opts.headers = opts.headers || {};
 
-    if (typeof url === 'string' && url.includes('sunlight-api.515283794.workers.dev')) {
+    let urlStr = typeof url === 'string' ? url : url.href || url.toString();
+
+    // 匹配同域名下的 /api/ 请求（包括相对路径和绝对路径）
+    const isApiRequest = 
+      urlStr.startsWith('/api/') ||
+      urlStr.includes('community.firstblade.site/api/');
+
+    if (isApiRequest) {
       const token = getToken();
       if (token) {
         if (opts.headers instanceof Headers) {
