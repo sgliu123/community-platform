@@ -23,7 +23,7 @@
     </select>
     <input type="password" id="loginPassword" placeholder="请输入密码">
     <button id="loginBtn" onclick="doAdminLogin()">登录</button>
-    <p class="tip" id="loginTip">请选择身份并输入对应密码<br>如需修改密码请编辑代码顶部 ADMIN_ACCOUNTS</p>
+    <p class="tip" id="loginTip">请选择身份并输入密码<br>密码由服务端安全存储，前端不可见</p>
   </div>
 </div>
 
@@ -100,5 +100,6 @@
 <script src="js/admin-pages/settings.js"></script>
 <script src="js/admin-core.js"></script>
 <script src="js/admin-app.js"></script>
+<script src="js/admin-auth.js"></script>
 </body>
 </html>
