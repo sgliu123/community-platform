@@ -138,6 +138,7 @@
         debugLog('UI', 'renderSidebar() 成功');
       } catch(e) {
         debugLog('UI', 'renderSidebar() 失败: ' + e.message, true);
+        fallbackNav();
       }
     } else {
       debugLog('UI', 'renderSidebar 不存在，使用兜底导航', true);
@@ -160,15 +161,31 @@
         }
       }
     }
-    if (!loaded) {
-      debugLog('UI', '无可用仪表盘渲染函数', true);
-      const content = $('contentArea');
-      if (content) {
-        content.innerHTML = '<div style="padding:40px;text-align:center;"><h2>📊 仪表盘</h2><p>后台已加载</p><p style="color:#999;font-size:12px;">renderDashboard 不可用</p></div>';
-      }
-    }
 
-    // 3. 确保布局可见
+    // 3. 检查内容是否为空，如果是则显示兜底仪表盘
+    setTimeout(() => {
+      const content = $('contentArea');
+      const sidebarNav = $('sidebarNav');
+
+      // 检查 sidebarNav 是否为空
+      if (sidebarNav && sidebarNav.children.length === 0) {
+        debugLog('UI', 'sidebarNav 为空，启用兜底导航', true);
+        fallbackNav();
+      }
+
+      // 检查 contentArea 是否为空
+      if (content && (!content.innerHTML || content.innerHTML.trim() === '' || content.children.length === 0)) {
+        debugLog('UI', 'contentArea 为空，显示兜底仪表盘', true);
+        content.innerHTML = '<div style="padding:30px;font-family:sans-serif;"><h1 style="margin-bottom:20px;">📊 仪表盘</h1><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">' +
+          '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px;"><h3 style="margin:0 0 8px;color:#0369a1;">👥 业主管理</h3><p style="margin:0;color:#64748b;font-size:14px;">管理小区业主信息</p></div>' +
+          '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;"><h3 style="margin:0 0 8px;color:#15803d;">📢 公告管理</h3><p style="margin:0;color:#64748b;font-size:14px;">发布小区公告通知</p></div>' +
+          '<div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:16px;"><h3 style="margin:0 0 8px;color:#a16207;">🔧 工单管理</h3><p style="margin:0;color:#64748b;font-size:14px;">处理维修工单</p></div>' +
+          '<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:16px;"><h3 style="margin:0 0 8px;color:#7c3aed;">📊 投票管理</h3><p style="margin:0;color:#64748b;font-size:14px;">发起业主投票</p></div>' +
+          '</div><p style="margin-top:24px;color:#999;font-size:12px;">⚠️ 模块数据加载异常，显示基础界面。请检查 js/admin-pages/ 下的模块文件。</p></div>';
+      }
+    }, 300); // 延迟300ms等待异步渲染
+
+    // 4. 确保布局可见
     const layout = $('adminLayout');
     if (layout) {
       layout.style.display = 'flex';
