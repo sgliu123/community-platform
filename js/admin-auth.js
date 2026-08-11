@@ -2,13 +2,10 @@
  * admin-auth.js
  * 安全认证模块 —— 替换原有的前端硬编码密码校验
  * 
- * 原理：
- *   1. 密码从 JS 源码中移除，改为由 Cloudflare Worker 环境变量存储
- *   2. 登录时前端只传递角色+密码给 Worker，Worker 校验后返回 Token
- *   3. Token 存在 sessionStorage 中，8 小时过期，关闭标签页即失效
- *   4. 劫持全局 fetch，自动给发往同域名 /api/ 的请求加上 Authorization Token
- * 
- * 部署：放到 js/admin-auth.js，admin.html 末尾引入即可
+ * 核心原则：
+ *   - 没有 token 时绝不干预页面显示，让原有代码控制登录框
+ *   - 有 token 时验证有效性，自动进入后台
+ *   - 劫持全局 fetch，自动给同域名 /api/ 请求加 Authorization Token
  */
 
 (function() {
@@ -16,8 +13,8 @@
 
   // ==================== 配置区域 ====================
   const CONFIG = {
-    // 前端和 Worker 共用同一个域名 community.firstblade.site
-    WORKER_URL: 'https://community.firstblade.site',
+    // 前端和 Worker 共用域名（根据实际访问域名自动适配）
+    WORKER_URL: '', // 空字符串表示使用相对路径（同域名）
     TOKEN_KEY:    'admin_auth_token',
     ROLE_KEY:     'admin_auth_role',
     NAME_KEY:     'admin_auth_name',
@@ -26,21 +23,6 @@
   // =================================================
 
   function $(id) { return document.getElementById(id); }
-
-  const _showLoading = typeof window.showLoading === 'function' ? window.showLoading : function(show) {
-    const el = $('loadingOverlay');
-    if (el) el.style.display = show ? 'flex' : 'none';
-  };
-
-  const _showToast = typeof window.showToast === 'function' ? window.showToast : function(msg, type) {
-    const container = $('toastContainer');
-    if (!container) { alert(msg); return; }
-    const toast = document.createElement('div');
-    toast.className = 'toast ' + (type || 'info');
-    toast.textContent = msg;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-  };
 
   // ==================== Session 管理 ====================
 
@@ -74,7 +56,8 @@
       const t = getToken();
       if (t) headers['Authorization'] = 'Bearer ' + t;
     }
-    const res = await fetch(CONFIG.WORKER_URL + path, {
+    const url = (CONFIG.WORKER_URL || '') + path;
+    const res = await fetch(url, {
       method: 'POST',
       headers,
       body: JSON.stringify(body)
@@ -95,14 +78,15 @@
     const errorEl  = $('loginError');
 
     if (errorEl) errorEl.textContent = '';
-
     if (!role)     { if (errorEl) errorEl.textContent = '请选择身份'; return; }
     if (!password) { if (errorEl) errorEl.textContent = '请输入密码'; return; }
 
-    _showLoading(true);
+    const loading = $('loadingOverlay');
+    if (loading) loading.style.display = 'flex';
+
     try {
       const data = await apiPost('/api/auth/login', { role, password }, false);
-      _showLoading(false);
+      if (loading) loading.style.display = 'none';
 
       if (!data.success) {
         if (errorEl) errorEl.textContent = data.error || '登录失败';
@@ -110,12 +94,31 @@
       }
 
       saveAuth(data.token, data.role, data.name);
-      enterPanel(data.role, data.name);
-      _showToast('登录成功', 'success');
+
+      // 隐藏登录框，显示后台
+      const loginPage   = $('loginPage');
+      const tokenPage   = $('tokenPage');
+      const adminLayout = $('adminLayout');
+      if (loginPage)   loginPage.style.display   = 'none';
+      if (tokenPage)   tokenPage.style.display   = 'none';
+      if (adminLayout) adminLayout.style.display = '';
+
+      // 更新管理员信息
+      const roleEl = $('adminRole');
+      const infoEl = $('adminInfo');
+      if (roleEl) roleEl.textContent = data.name || '管理员';
+      if (infoEl) infoEl.textContent = data.name || '管理员';
+
+      // 触发原有初始化逻辑
+      setTimeout(() => {
+        if (typeof window.initAdminApp === 'function') window.initAdminApp();
+        else if (typeof window.renderNav === 'function') window.renderNav();
+        document.dispatchEvent(new Event('auth:ready'));
+      }, 50);
 
     } catch (err) {
-      _showLoading(false);
-      if (errorEl) errorEl.textContent = '连接失败，请检查 Worker 是否运行';
+      if (loading) loading.style.display = 'none';
+      if (errorEl) errorEl.textContent = '连接失败，请检查 Worker 是否运行 / CORS 配置';
       console.error('[Auth] Login error:', err);
     }
   };
@@ -128,19 +131,18 @@
   };
 
   // ==================== 全局 fetch 劫持（自动带 Token） ====================
-  // 劫持所有 fetch，如果请求的是 community.firstblade.site 域名下的 /api/ 路径，自动加 Token
 
   const _origFetch = window.fetch;
   window.fetch = function(url, opts) {
     opts = opts || {};
     opts.headers = opts.headers || {};
 
-    let urlStr = typeof url === 'string' ? url : url.href || url.toString();
+    let urlStr = typeof url === 'string' ? url : (url.href || url.toString());
 
-    // 匹配同域名下的 /api/ 请求（包括相对路径和绝对路径）
+    // 匹配同域名下的 /api/ 请求（相对路径或绝对路径）
     const isApiRequest = 
       urlStr.startsWith('/api/') ||
-      urlStr.includes('community.firstblade.site/api/');
+      urlStr.includes(location.host + '/api/');
 
     if (isApiRequest) {
       const token = getToken();
@@ -161,65 +163,46 @@
   window.getCurrentRole  = getRole;
   window.isAdminAuthenticated = function() { return !!getToken() && !isExpired(); };
 
-  // ==================== 页面切换 ====================
-
-  function enterPanel(role, name) {
-    const loginPage   = $('loginPage');
-    const tokenPage   = $('tokenPage');
-    const adminLayout = $('adminLayout');
-
-    if (loginPage)   loginPage.style.display   = 'none';
-    if (tokenPage)   tokenPage.style.display   = 'none';
-    if (adminLayout) adminLayout.style.display = '';
-
-    const roleEl = $('adminRole');
-    const infoEl = $('adminInfo');
-    if (roleEl) roleEl.textContent = name || '管理员';
-    if (infoEl) infoEl.textContent = name || '管理员';
-
-    setTimeout(() => {
-      if (typeof window.initAdminApp === 'function') window.initAdminApp();
-      else if (typeof window.renderNav === 'function') window.renderNav();
-      document.dispatchEvent(new Event('auth:ready'));
-    }, 50);
-  }
-
-  function showLogin() {
-    const loginPage   = $('loginPage');
-    const tokenPage   = $('tokenPage');
-    const adminLayout = $('adminLayout');
-    if (loginPage)   loginPage.style.display   = '';
-    if (tokenPage)   tokenPage.style.display   = 'none';
-    if (adminLayout) adminLayout.style.display = 'none';
-  }
-
-  // ==================== 启动校验 ====================
+  // ==================== 启动校验（温和模式） ====================
+  // 只在有 token 时验证并自动进入后台；没有 token 时不干预原有流程
 
   async function boot() {
-    const loginPage   = $('loginPage');
-    const tokenPage   = $('tokenPage');
-    const adminLayout = $('adminLayout');
-    if (loginPage)   loginPage.style.display   = 'none';
-    if (tokenPage)   tokenPage.style.display   = 'none';
-    if (adminLayout) adminLayout.style.display = 'none';
-
     const token = getToken();
-    if (!token) { showLogin(); return; }
+    if (!token) return; // 没有 token，让原有代码显示登录框，不做任何干预
 
-    _showLoading(true);
+    const loading = $('loadingOverlay');
+    if (loading) loading.style.display = 'flex';
+
     try {
       const data = await apiPost('/api/auth/verify', {}, true);
-      _showLoading(false);
+      if (loading) loading.style.display = 'none';
+
       if (data.valid) {
-        enterPanel(getRole(), sessionStorage.getItem(CONFIG.NAME_KEY));
+        // Token 有效，静默进入后台
+        const loginPage   = $('loginPage');
+        const tokenPage   = $('tokenPage');
+        const adminLayout = $('adminLayout');
+        if (loginPage)   loginPage.style.display   = 'none';
+        if (tokenPage)   tokenPage.style.display   = 'none';
+        if (adminLayout) adminLayout.style.display = '';
+
+        const name = sessionStorage.getItem(CONFIG.NAME_KEY);
+        const roleEl = $('adminRole');
+        const infoEl = $('adminInfo');
+        if (roleEl) roleEl.textContent = name || '管理员';
+        if (infoEl) infoEl.textContent = name || '管理员';
+
+        setTimeout(() => {
+          if (typeof window.initAdminApp === 'function') window.initAdminApp();
+          else if (typeof window.renderNav === 'function') window.renderNav();
+          document.dispatchEvent(new Event('auth:ready'));
+        }, 50);
       } else {
-        clearAuth();
-        showLogin();
+        clearAuth(); // Token 无效，清除后让原有代码显示登录框
       }
     } catch (e) {
-      _showLoading(false);
-      clearAuth();
-      showLogin();
+      if (loading) loading.style.display = 'none';
+      clearAuth(); // 验证失败，清除后让原有代码显示登录框
     }
   }
 
