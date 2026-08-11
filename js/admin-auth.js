@@ -1,13 +1,17 @@
 /**
  * admin-auth.js
  * 安全认证模块 + 权限系统 + 模块开关
+ * 
+ * 修复：认证请求直接走 Worker 域名（绕过 Pages 405 问题）
+ *       退出时彻底清除所有存储的登录信息
  */
 
 (function() {
   'use strict';
 
   const CONFIG = {
-    WORKER_URL: '',
+    // 认证和模块配置请求直接走 Worker 域名，绕过 Pages
+    WORKER_URL: 'https://sunlight-api.515283794.workers.dev',
     TOKEN_KEY:      'admin_auth_token',
     ROLE_KEY:       'admin_auth_role',
     NAME_KEY:       'admin_auth_name',
@@ -15,6 +19,9 @@
     PERMISSIONS_KEY:'admin_auth_permissions',
     MODULE_CONFIG_KEY:'admin_auth_module_config'
   };
+
+  // 暴露给 dev-modules.js 使用
+  window.AUTH_WORKER_URL = CONFIG.WORKER_URL;
 
   function $(id) { return document.getElementById(id); }
 
@@ -67,18 +74,17 @@
       const t = getToken();
       if (t) headers['Authorization'] = 'Bearer ' + t;
     }
-    const url = (CONFIG.WORKER_URL || '') + path;
+    const url = CONFIG.WORKER_URL + path;
     const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
     if (res.status === 401) {
       clearAuth();
       location.reload();
       throw new Error('登录已过期');
     }
-    // 如果返回的不是 JSON（比如 HTML 错误页面），给出明确提示
     const contentType = res.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
       const text = await res.text();
-      throw new Error('服务端返回非 JSON：' + text.substring(0, 100));
+      throw new Error('服务端返回非 JSON(' + res.status + ')：' + text.substring(0, 80));
     }
     return res.json();
   }
@@ -108,7 +114,6 @@
 
       saveAuth(data.token, data.role, data.name, data.permissions);
 
-      // 隐藏登录框，显示后台
       const loginPage = $('loginPage');
       const tokenPage = $('tokenPage');
       const adminLayout = $('adminLayout');
@@ -133,20 +138,30 @@
 
     } catch (err) {
       if (loading) loading.style.display = 'none';
-      if (errorEl) errorEl.textContent = '连接失败：' + (err.message || '请检查 Worker 是否已部署认证接口');
+      if (errorEl) errorEl.textContent = '连接失败：' + (err.message || '请检查 Worker 是否已部署');
       console.error('[Auth] Login error:', err);
     }
   };
 
-  // ==================== 覆盖：退出（确保能退出） ====================
+  // ==================== 覆盖：退出（彻底清除） ====================
 
   window.logout = function() {
+    // 清除新认证系统的存储
     clearAuth();
-    // 强制刷新，让原有代码重新初始化登录界面
+    // 清除旧认证系统可能使用的 localStorage
+    const keysToRemove = [];
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && (/admin|auth|token|login|user/i).test(key)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    // 强制刷新到干净状态
     location.href = location.pathname;
   };
 
-  // ==================== 全局 fetch 劫持 ====================
+  // ==================== 全局 fetch 劫持（自动带 Token） ====================
 
   const _origFetch = window.fetch;
   window.fetch = function(url, opts) {
@@ -172,11 +187,12 @@
     return _origFetch(url, opts);
   };
 
-  // ==================== 模块配置加载 ====================
+  // ==================== 模块配置加载（走 Worker） ====================
 
   async function loadModuleConfig() {
     try {
-      const res = await fetch('/api/data/module-config', { method: 'GET' });
+      const url = CONFIG.WORKER_URL + '/api/data/module-config';
+      const res = await fetch(url, { method: 'GET' });
       const result = await res.json();
       if (result.success && result.data) {
         setModuleConfig(result.data);
