@@ -44,7 +44,7 @@ let appData = {config:{},announcements:[],documents:[],activities:[],polls:[],re
 // ===== Worker 网关配置（工单/投诉管理模块，不影响原有功能） =====
 
 
-const WORKER_BASE = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
+const WORKER_BASE = localStorage.getItem('workerBase') || 'https://api.firstblade.site';
 
 
 function getWorkerBase(){ return WORKER_BASE.replace(/\/$/,''); }
