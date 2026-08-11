@@ -107,7 +107,10 @@
     try {
       const workerUrl = getWorkerUrl();
       const url = workerUrl ? workerUrl + '/api/data/module-config' : '/api/data/module-config';
-      const res = await fetch(url, { method: 'GET' });
+      const headers = {};
+      const token = (typeof window.getAuthToken === 'function') ? window.getAuthToken() : null;
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch(url, { method: 'GET', headers });
       const result = await res.json();
       const config = (result.success && result.data && result.data.modules)
         ? result.data
@@ -201,9 +204,12 @@
     try {
       const workerUrl = getWorkerUrl();
       const url = workerUrl ? workerUrl + '/api/data/module-config' : '/api/data/module-config';
+      const headers = { 'Content-Type': 'application/json' };
+      const token = (typeof window.getAuthToken === 'function') ? window.getAuthToken() : null;
+      if (token) headers['Authorization'] = 'Bearer ' + token;
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({ data: window._currentModuleConfig })
       });
       const result = await res.json();
