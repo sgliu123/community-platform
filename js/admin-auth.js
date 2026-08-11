@@ -1,19 +1,13 @@
 /**
  * admin-auth.js
  * 安全认证模块 + 权限系统 + 模块开关
- * 
- * 核心原则：
- *   - 没有 token 时绝不干预页面显示
- *   - 有 token 时验证有效性，自动进入后台
- *   - 劫持全局 fetch，自动给同域名 /api/ 请求加 Authorization Token
- *   - 根据角色权限过滤导航、注入开发者入口
  */
 
 (function() {
   'use strict';
 
   const CONFIG = {
-    WORKER_URL: '', // 空字符串 = 使用相对路径
+    WORKER_URL: '',
     TOKEN_KEY:      'admin_auth_token',
     ROLE_KEY:       'admin_auth_role',
     NAME_KEY:       'admin_auth_name',
@@ -80,6 +74,12 @@
       location.reload();
       throw new Error('登录已过期');
     }
+    // 如果返回的不是 JSON（比如 HTML 错误页面），给出明确提示
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await res.text();
+      throw new Error('服务端返回非 JSON：' + text.substring(0, 100));
+    }
     return res.json();
   }
 
@@ -121,7 +121,6 @@
       if (roleEl) roleEl.textContent = data.name || '管理员';
       if (infoEl) infoEl.textContent = data.name || '管理员';
 
-      // 加载模块配置并应用过滤
       await loadModuleConfig();
       applyModuleFilters();
       injectDevToolsEntry();
@@ -134,19 +133,20 @@
 
     } catch (err) {
       if (loading) loading.style.display = 'none';
-      if (errorEl) errorEl.textContent = '连接失败，请检查 Worker 是否运行';
+      if (errorEl) errorEl.textContent = '连接失败：' + (err.message || '请检查 Worker 是否已部署认证接口');
       console.error('[Auth] Login error:', err);
     }
   };
 
-  // ==================== 覆盖：退出 ====================
+  // ==================== 覆盖：退出（确保能退出） ====================
 
   window.logout = function() {
     clearAuth();
-    location.reload();
+    // 强制刷新，让原有代码重新初始化登录界面
+    location.href = location.pathname;
   };
 
-  // ==================== 全局 fetch 劫持（自动带 Token） ====================
+  // ==================== 全局 fetch 劫持 ====================
 
   const _origFetch = window.fetch;
   window.fetch = function(url, opts) {
@@ -233,16 +233,11 @@
       if (typeof window.renderDevModulesPage === 'function') {
         window.renderDevModulesPage();
       } else {
-        alert('开发者工具模块未加载');
+        alert('开发者工具模块未加载（dev-modules.js 404）');
       }
     };
 
-    const settingsItem = nav.querySelector('[data-module="settings"]');
-    if (settingsItem && settingsItem.nextSibling) {
-      nav.insertBefore(entry, settingsItem.nextSibling);
-    } else {
-      nav.appendChild(entry);
-    }
+    nav.appendChild(entry);
   }
 
   // ==================== 暴露全局方法 ====================
@@ -272,11 +267,11 @@
     return !mod || mod.editable !== false;
   };
 
-  // ==================== 启动校验（温和模式） ====================
+  // ==================== 启动校验 ====================
 
   async function boot() {
     const token = getToken();
-    if (!token) return; // 没有 token，让原有代码显示登录框
+    if (!token) return;
 
     const loading = $('loadingOverlay');
     if (loading) loading.style.display = 'flex';
@@ -299,7 +294,6 @@
         if (roleEl) roleEl.textContent = name || '管理员';
         if (infoEl) infoEl.textContent = name || '管理员';
 
-        // 加载配置并应用过滤
         await loadModuleConfig();
         applyModuleFilters();
         injectDevToolsEntry();
