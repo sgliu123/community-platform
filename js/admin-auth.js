@@ -134,10 +134,10 @@
 
     debugLog('API', '响应状态: ' + res.status);
 
-    if (res.status === 401) {
+    // 登录接口的 401 是正常业务错误（如密码错误），不要拦截
+    if (res.status === 401 && path !== '/api/auth/login') {
       debugLog('API', '收到 401，清除认证', true);
       clearAuth();
-      // 阻止自动刷新，改为显示错误
       throw new Error('登录已过期（401）');
     }
 
