@@ -195,6 +195,30 @@
     const first = nav.querySelector('a');
     if (first) first.click();
     debugLog('Fallback', '兜底渲染完成: ' + nav.children.length + ' 项');
+
+    // 强制确保后台布局可见
+    const adminLayout2 = $('adminLayout');
+    if (adminLayout2) {
+      adminLayout2.style.display = 'flex';
+      adminLayout2.style.visibility = 'visible';
+      adminLayout2.style.opacity = '1';
+      debugLog('Fallback', '已强制 adminLayout 可见');
+    }
+    const sidebar = $('sidebar');
+    if (sidebar) {
+      sidebar.style.display = '';
+      sidebar.style.visibility = 'visible';
+    }
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+      mainContent.style.display = '';
+      mainContent.style.visibility = 'visible';
+    }
+    if (content) {
+      content.style.display = '';
+      content.style.visibility = 'visible';
+      content.style.minHeight = '200px';
+    }
   }
 
   // ========== 登录 ==========
