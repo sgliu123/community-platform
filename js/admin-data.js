@@ -32,9 +32,10 @@ window.addEventListener('unhandledrejection', function(event) {
 
 const ADMIN_ACCOUNTS = [
   { id: 'admin-super',      name: '总维护人员',   role: 'super',      password: 'Sunlight2026',  permissions: ['all'] },
-  { id: 'admin-property',   name: '物管人员',       role: 'property',   password: 'Property2026',  permissions: ['announcements','documents','workorders','residents'] },
-  { id: 'admin-committee',  name: '业委会成员',     role: 'committee',  password: 'Committee2026', permissions: ['polls','residents','complaints','audit'] },
-  { id: 'admin-community',  name: '社区人员',       role: 'community',  password: 'Community2026', permissions: ['announcements','activities','complaints'] }
+  { id: 'admin-property',   name: '物管人员',       role: 'property',   password: 'Property2026',  permissions: [] },
+  { id: 'admin-committee',  name: '业委会成员',     role: 'committee',  password: 'Committee2026', permissions: [] },
+  { id: 'admin-community',  name: '社区人员',       role: 'community',  password: 'Community2026', permissions: [] },
+  { id: 'admin-dev',        name: '开发者',         role: 'dev',        password: 'Dev2026',       permissions: [] }
 ];
 
 
@@ -44,7 +45,7 @@ let appData = {config:{},announcements:[],documents:[],activities:[],polls:[],re
 // ===== Worker 网关配置（工单/投诉管理模块，不影响原有功能） =====
 
 
-const WORKER_BASE = localStorage.getItem('workerBase') || 'https://api.firstblade.site';
+const WORKER_BASE = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
 
 
 function getWorkerBase(){ return WORKER_BASE.replace(/\/$/,''); }

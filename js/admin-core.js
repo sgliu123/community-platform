@@ -113,27 +113,24 @@ function logout() {
 
 function renderSidebar() {
   if (!currentAdmin) return;
-  const perms = currentAdmin.permissions || [];
-  const isSuper = currentAdmin.role === 'super';
   const items = [
-    { id: 'dashboard', label: '仪表盘', icon: '📊', perm: 'view', roles: ['super','property','committee','community'] },
-    { id: 'config', label: '社区配置', icon: '⚙️', perm: 'all', roles: ['super'] },
-    { id: 'announcements', label: '公告管理', icon: '📢', perm: 'announcements', roles: ['super','property','community'] },
-    { id: 'documents', label: '文件管理', icon: '📄', perm: 'documents', roles: ['super','property'] },
-    { id: 'activities', label: '动态管理', icon: '🎉', perm: 'activities', roles: ['super','community'] },
-    { id: 'polls', label: '投票管理', icon: '🗳️', perm: 'polls', roles: ['super','committee'] },
-    { id: 'residents', label: '业主管理', icon: '👥', perm: 'residents', roles: ['super','property','committee'] },
-    { id: 'workorders', label: '工单管理', icon: '🔧', perm: 'workorders', roles: ['super','property'] },
-    { id: 'complaints', label: '投诉建议', icon: '📝', perm: 'complaints', roles: ['super','committee','community'] },
-    { id: 'life', label: '生活服务', icon: '🍽️', perm: 'all', roles: ['super','property','committee','community'], external: 'admin-life.html' },
-    { id: 'trade', label: '交易管理', icon: '🛒', perm: 'all', roles: ['super','property','committee','community'], external: 'trade-admin.html' },
-    { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', roles: ['super','property','committee','community'] }
+    { id: 'dashboard',    label: '仪表盘',   icon: '📊', roles: ['super','property','committee','community','dev'] },
+    { id: 'config',       label: '社区配置', icon: '⚙️', roles: ['super'] },
+    { id: 'announcements',label: '公告管理', icon: '📢', roles: ['super','property','community'] },
+    { id: 'documents',    label: '文件管理', icon: '📄', roles: ['super','property'] },
+    { id: 'activities',   label: '动态管理', icon: '🎉', roles: ['super','community'] },
+    { id: 'polls',        label: '投票管理', icon: '🗳️', roles: ['super','committee'] },
+    { id: 'residents',    label: '业主管理', icon: '👥', roles: ['super','property','committee'] },
+    { id: 'workorders',   label: '工单管理', icon: '🔧', roles: ['super','property'] },
+    { id: 'complaints',   label: '投诉建议', icon: '📝', roles: ['super','committee','community'] },
+    { id: 'audit',        label: '审计日志', icon: '🔍', roles: ['super','committee'] },
+    { id: 'life',         label: '生活服务', icon: '🍽️', roles: ['super','property','committee','community'], external: 'admin-life.html' },
+    { id: 'trade',        label: '交易管理', icon: '🛒', roles: ['super','property','committee','community'], external: 'trade-admin.html' },
+    { id: 'settings',     label: '系统设置', icon: '🔐', roles: ['super','dev'] }
   ];
   let html = '';
   items.forEach(item => {
-    const hasPerm = isSuper || perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0;
-    const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
-    if (!hasPerm || !hasRole) return;
+    if (item.roles.indexOf(currentAdmin.role) < 0) return;
     if (item.external) {
       html += `<div class="nav-item" data-module="${item.id}" onclick="window.open('${item.external}','_blank')">`;
     } else {
@@ -157,8 +154,8 @@ function navigateTo(module) {
     const renderers = {
       dashboard: renderDashboard, config: renderConfig, announcements: renderAnnouncementsAdmin,
       documents: renderDocumentsAdmin, activities: renderActivitiesAdmin, polls: renderPollsAdmin,
-      workorders: renderWorkordersAdmin,
-      complaints: renderComplaintsAdmin,
+      residents: renderResidentsAdmin, workorders: renderWorkordersAdmin,
+      complaints: renderComplaintsAdmin, audit: renderAuditLog,
       settings: renderSettings
     };
     const fn = renderers[module] || renderDashboard;
