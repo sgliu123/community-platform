@@ -144,19 +144,19 @@ function renderSidebar() {
   }
   const switches = (appData.config && appData.config.moduleSwitches) || {};
   let html = '';
-  items.forEach(function(item) {
+  items.forEach(item => {
     const hasPerm = isSuper || perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0;
     const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
     if (!hasPerm || !hasRole) return;
     if (switches[item.id] === false) return;
     var isActive = item.id === currentModule;
-    var cls = 'nav-item' + (isActive ? ' active' : '');
     var clickAction = item.external ? 'window.open(\'' + item.external + '\',\'_blank\')' : 'navigateTo(\'' + item.id + '\')';
-    html += '<a class="' + cls + '" data-module="' + item.id + '" onclick="' + clickAction + '" style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:4px 10px;border-radius:6px;cursor:pointer;font-size:14px;color:inherit;text-decoration:none;transition:all 0.2s;border-left:3px solid ' + (isActive ? '#fff' : 'transparent') + ';background:' + (isActive ? 'rgba(255,255,255,0.15)' : 'transparent') + ';font-weight:' + (isActive ? '600' : '400') + ';">';
+    var activeStyle = isActive ? 'background:rgba(255,255,255,0.15);font-weight:600;border-left-color:#fff;' : 'border-left-color:transparent;';
+    html += '<div class="nav-item' + (isActive ? ' active' : '') + '" data-module="' + item.id + '" onclick="' + clickAction + '" style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:3px 10px;border-radius:6px;cursor:pointer;font-size:14px;border-left:3px solid transparent;transition:all 0.2s;' + activeStyle + '" onmouseenter="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseleave="this.style.background=\'' + (isActive ? 'rgba(255,255,255,0.15)' : 'transparent') + '\'">';
     html += '<span style="font-size:17px;width:22px;text-align:center;flex-shrink:0;">' + item.icon + '</span>';
     html += '<span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(item.label) + '</span>';
     if (item.external) html += '<span style="font-size:10px;opacity:0.5;flex-shrink:0;">↗</span>';
-    html += '</a>';
+    html += '</div>';
   });
   var navEl = document.getElementById('sidebarNav');
   if (navEl) navEl.innerHTML = html;
