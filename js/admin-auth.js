@@ -134,11 +134,6 @@
   function fallbackRenderAdmin(role, name) {
     debugLog('Fallback', '开始兜底渲染');
     const nav = $('sidebarNav');
-    // 如果 sidebarNav 已有内容（由 renderSidebar 正确渲染），不再覆盖
-    if (nav && nav.children.length > 0) {
-      debugLog('Fallback', 'sidebarNav 已有 ' + nav.children.length + ' 个子项，跳过兜底渲染');
-      return;
-    }
     const content = $('contentArea');
     const pageTitle = $('pageTitle');
     if (!nav) { debugLog('Fallback', '找不到 sidebarNav', true); return; }
@@ -275,9 +270,20 @@
       setTimeout(() => {
         debugLog('Login', '执行初始化...');
         try {
-          if (typeof window.initAdminApp === 'function') { window.initAdminApp(); debugLog('Login', 'initAdminApp 完成'); }
-          else if (typeof window.renderNav === 'function') { window.renderNav(); debugLog('Login', 'renderNav 完成'); }
-          else { debugLog('Login', '无初始化函数，启用兜底', true); fallbackRenderAdmin(data.role, data.name); }
+          // 优先调用 admin-core.js 的 renderSidebar
+          if (typeof window.renderSidebar === 'function') {
+            debugLog('Login', '调用 renderSidebar()');
+            window.renderSidebar();
+          } else if (typeof window.initAdminApp === 'function') {
+            debugLog('Login', '调用 initAdminApp()');
+            window.initAdminApp();
+          } else if (typeof window.renderNav === 'function') {
+            debugLog('Login', '调用 renderNav()');
+            window.renderNav();
+          } else {
+            debugLog('Login', '无初始化函数，启用兜底', true);
+            fallbackRenderAdmin(data.role, data.name);
+          }
           document.dispatchEvent(new Event('auth:ready'));
           debugLog('Login', 'auth:ready 已派发');
         } catch (e) {
@@ -351,12 +357,6 @@
   function applyModuleFilters() {
     const nav = $('sidebarNav');
     if (!nav) return;
-    // Super 用户不受模块开关过滤
-    const role = getRole();
-    if (role === 'super' || role === 'admin-super') {
-      debugLog('Filter', 'Super 用户，跳过模块过滤');
-      return;
-    }
     const config = getModuleConfig();
     if (!config || !config.modules) return;
     const items = nav.querySelectorAll('a, .nav-item, [onclick]');
@@ -443,9 +443,20 @@
         injectDevToolsEntry();
         setTimeout(() => {
           try {
-            if (typeof window.initAdminApp === 'function') window.initAdminApp();
-            else if (typeof window.renderNav === 'function') window.renderNav();
-            else fallbackRenderAdmin(data.role, name);
+            // 优先调用 admin-core.js 的初始化
+            if (typeof window.renderSidebar === 'function') {
+              debugLog('Boot', '调用 renderSidebar()');
+              window.renderSidebar();
+            } else if (typeof window.initAdminApp === 'function') {
+              debugLog('Boot', '调用 initAdminApp()');
+              window.initAdminApp();
+            } else if (typeof window.renderNav === 'function') {
+              debugLog('Boot', '调用 renderNav()');
+              window.renderNav();
+            } else {
+              debugLog('Boot', '无初始化函数，启用兜底');
+              fallbackRenderAdmin(data.role, name);
+            }
             document.dispatchEvent(new Event('auth:ready'));
           } catch (e) {
             debugLog('Boot', '初始化报错: ' + e.message, true);
