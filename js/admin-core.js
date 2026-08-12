@@ -125,6 +125,8 @@ function renderSidebar() {
   const perms = currentAdmin.permissions || [];
   const isSuper = currentAdmin.role === 'super';
   const items = [
+    { id: 'dashboard', label: '仪表盘', icon: '📊', perm: 'view', roles: ['super','property','committee','community'] },
+    { id: 'config', label: '社区配置', icon: '⚙️', perm: 'all', roles: ['super'] },
     { id: 'announcements', label: '公告管理', icon: '📢', perm: 'announcements', roles: ['super','property','community'] },
     { id: 'documents', label: '文件管理', icon: '📄', perm: 'documents', roles: ['super','property'] },
     { id: 'activities', label: '动态管理', icon: '🎉', perm: 'activities', roles: ['super','community'] },
@@ -146,7 +148,7 @@ function renderSidebar() {
     const hasPerm = isSuper || perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0;
     const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
     if (!hasPerm || !hasRole) return;
-    if (switches[item.id] === false) return;
+    if (switches[item.id] === false && !isSuper) return;
     var isActive = item.id === currentModule;
     var cls = 'nav-item' + (isActive ? ' active' : '');
     var clickAction = item.external ? 'window.open(\'' + item.external + '\',\'_blank\')' : 'navigateTo(\'' + item.id + '\')';
