@@ -858,6 +858,202 @@ function renderDevTools() {
     { key: 'polls', label: '投票管理', desc: '民意调查与投票' },
     { key: 'workorders', label: '工单管理', desc: '维修工单处理跟踪' },
     { key: 'complaints', label: '投诉管理', desc: '投诉建议收集处理' },
+    { key: 'life', label: '生活服务', desc: '前台生活服务导航' },
+    { key: 'trade', label: '交易管理', desc: '前台房屋租售和物品交易导航' },
+    { key: 'audit', label: '审计日志', desc: '操作记录与审计追踪', sensitive: true },
+    { key: 'settings', label: '系统设置', desc: '高级系统选项', sensitive: true }
+  ];
+  var html = '<div style="margin-bottom:12px;"><button class="btn" onclick="navigateTo(\'dashboard\')">⬅️ 返回仪表盘</button><button class="btn" onclick="logout()" style="background:var(--danger);color:#fff;margin-left:8px;">🚪 退出登录</button></div>';
+  html += '<div class="card"><div class="card-header"><h3>🛠️ 开发者工具 - 模块开关</h3></div>';
+  modules.forEach(function(m) {
+    var enabled = switches[m.key] !== false;
+    var bg = enabled ? 'var(--primary)' : '#ccc';
+    var transform = enabled ? 'translateX(20px)' : 'translateX(0)';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#fafafa;border-radius:8px;margin-bottom:10px;">' +
+      '<div>' +
+        '<div style="font-weight:600;font-size:14px;">' + m.label + (m.sensitive ? ' <span style="background:#ffebee;color:#c62828;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px;">敏感</span>' : '') + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + m.desc + '</div>' +
+      '</div>' +
+      '<label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;">' +
+        '<input type="checkbox" id="sw-' + m.key + '" style="opacity:0;width:0;height:0;" ' + (enabled ? 'checked' : '') + ' onchange="toggleModuleSwitch(' + "'" + m.key + "'" + ')">' +
+        '<span id="sw-span-' + m.key + '" style="position:absolute;top:0;left:0;right:0;bottom:0;background:' + bg + ';border-radius:24px;transition:.3s;">' +
+          '<span style="position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;transform:' + transform + ';"></span>' +
+        '</span>' +
+      '</label>' +
+    '</div>';
+  });
+  html += '<div style="margin-top:16px;display:flex;gap:10px;">' +
+    '<button class="btn btn-primary" onclick="saveModuleSwitches()">💾 保存配置</button>' +
+    '<button class="btn" onclick="resetModuleSwitches()">🔄 恢复默认</button>' +
+    '</div>';
+  html += '<p style="font-size:12px;color:var(--text-secondary);margin-top:12px;">💡 提示：修改保存后立即生效，前台导航同步隐藏/显示。</p>';
+  html += '</div>';
+  return html;
+}
+function getAllAdminAccounts() {
+  var registered = ((appData.config && appData.config.adminUsers) || [])
+    .filter(function(a) { return a.status === 'approved'; })
+    .map(function(a) { return { id: a.id, name: a.name, role: 'admin', password: a.password, canDelete: a.canDelete !== false }; });
+  return ADMIN_ACCOUNTS.concat(registered);
+}
+
+function renderLoginRoles() {
+  var select = document.getElementById('loginRole');
+  if (!select) return;
+  var accounts = getAllAdminAccounts();
+  var html = '<option value="">— 请选择 —</option>';
+  accounts.forEach(function(a) {
+    html += '<option value="' + a.id + '">' + escapeHtml(a.name) + '</option>';
+  });
+  select.innerHTML = html;
+}
+
+async function submitAdminRegister() {
+  var name = document.getElementById('regName').value.trim();
+  var id = document.getElementById('regId').value.trim();
+  var pwd = document.getElementById('regPassword').value;
+  var confirmPwd = document.getElementById('regConfirmPassword').value;
+  var err = document.getElementById('regError');
+
+  err.style.display = 'none';
+  if (!name || !id || !pwd) { err.textContent = '请填写所有必填项'; err.style.display = 'block'; return; }
+  if (pwd !== confirmPwd) { err.textContent = '两次密码不一致'; err.style.display = 'block'; return; }
+  if (pwd.length < 6) { err.textContent = '密码需6位以上'; err.style.display = 'block'; return; }
+  if (ADMIN_ACCOUNTS.find(function(a) { return a.id === id; }) || ((appData.config && appData.config.adminUsers) || []).find(function(a) { return a.id === id; })) {
+    err.textContent = '该账号ID已存在'; err.style.display = 'block'; return;
+  }
+
+  var newAdmin = {
+    id: id, name: name, password: pwd, status: 'pending', canDelete: true,
+    registeredAt: new Date().toISOString()
+  };
+  if (!appData.config) appData.config = {};
+  if (!appData.config.adminUsers) appData.config.adminUsers = [];
+  appData.config.adminUsers.push(newAdmin);
+
+  showLoading(true);
+  try {
+    await saveDataFile('config', appData.config, '提交管理员注册申请：' + name, 'admin-register');
+    showToast('注册申请已提交，等待总维护人员审批', 'success');
+    document.getElementById('regName').value = '';
+    document.getElementById('regId').value = '';
+    document.getElementById('regPassword').value = '';
+    document.getElementById('regConfirmPassword').value = '';
+  } catch(e) {
+    showToast('提交失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function approveAdmin(adminId) {
+  var admin = ((appData.config && appData.config.adminUsers) || []).find(function(a) { return a.id === adminId; });
+  if (!admin) return;
+  admin.status = 'approved';
+  admin.approvedAt = new Date().toISOString();
+  admin.approvedBy = currentAdmin.id;
+  showLoading(true);
+  try {
+    await saveDataFile('config', appData.config, '审批通过管理员：' + admin.name, 'admin-approve');
+    showToast('已批准 ' + admin.name, 'success');
+    navigateTo('admin-manage');
+  } catch(e) {
+    showToast('保存失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function rejectAdmin(adminId) {
+  var reason = prompt('请输入拒绝原因（可选）：');
+  if (reason === null) return;
+  var admin = ((appData.config && appData.config.adminUsers) || []).find(function(a) { return a.id === adminId; });
+  if (!admin) return;
+  admin.status = 'rejected';
+  admin.rejectedAt = new Date().toISOString();
+  admin.rejectedReason = reason || '';
+  showLoading(true);
+  try {
+    await saveDataFile('config', appData.config, '拒绝管理员申请：' + admin.name, 'admin-reject');
+    showToast('已拒绝 ' + admin.name, 'success');
+    navigateTo('admin-manage');
+  } catch(e) {
+    showToast('保存失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function toggleAdminDelete(adminId) {
+  var admin = ((appData.config && appData.config.adminUsers) || []).find(function(a) { return a.id === adminId; });
+  if (!admin) return;
+  admin.canDelete = !admin.canDelete;
+  showLoading(true);
+  try {
+    await saveDataFile('config', appData.config, '修改管理员删除权限：' + admin.name, 'admin-perm');
+    showToast(admin.name + ' 的删除权限已' + (admin.canDelete ? '开启' : '关闭'), 'success');
+    navigateTo('admin-manage');
+  } catch(e) {
+    showToast('保存失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+function renderAdminManage() {
+  var adminUsers = (appData.config && appData.config.adminUsers) || [];
+  var pending = adminUsers.filter(function(a) { return a.status === 'pending'; });
+  var approved = adminUsers.filter(function(a) { return a.status === 'approved'; });
+  var rejected = adminUsers.filter(function(a) { return a.status === 'rejected'; });
+
+  var html = '<div class="card"><div class="card-header"><h3>👤 管理员审批</h3></div>';
+
+  if (pending.length === 0) {
+    html += '<p style="color:var(--text-secondary);font-size:14px;">暂无待审批的申请</p>';
+  } else {
+    html += '<p style="font-weight:600;margin-bottom:10px;">⏳ 待审批（' + pending.length + '）</p>';
+    pending.forEach(function(a) {
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#fff8e1;border-radius:6px;margin-bottom:8px;">' +
+        '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 申请时间: ' + (a.registeredAt || '').split('T')[0] + '</div></div>' +
+        '<div style="display:flex;gap:6px;">' +
+        '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;" onclick="approveAdmin(' + "'" + a.id + "'" + ')">✅ 同意</button>' +
+        '<button class="btn" style="padding:4px 12px;font-size:12px;background:var(--danger);color:#fff;" onclick="rejectAdmin(' + "'" + a.id + "'" + ')">❌ 拒绝</button>' +
+        '</div></div>';
+    });
+  }
+
+  if (approved.length > 0) {
+    html += '<p style="font-weight:600;margin:16px 0 10px;">✅ 已启用（' + approved.length + '）</p>';
+    approved.forEach(function(a) {
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#e8f5e9;border-radius:6px;margin-bottom:8px;">' +
+        '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 审批时间: ' + (a.approvedAt || '').split('T')[0] + '</div></div>' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+        '<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">' +
+        '<input type="checkbox" ' + (a.canDelete !== false ? 'checked' : '') + ' onchange="toggleAdminDelete(' + "'" + a.id + "'" + ')">允许删除</label>' +
+        '</div></div>';
+    });
+  }
+
+  if (rejected.length > 0) {
+    html += '<p style="font-weight:600;margin:16px 0 10px;">❌ 已拒绝（' + rejected.length + '）</p>';
+    rejected.forEach(function(a) {
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#ffebee;border-radius:6px;margin-bottom:8px;">' +
+        '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 拒绝时间: ' + (a.rejectedAt || '').split('T')[0] + (a.rejectedReason ? ' · 原因: ' + escapeHtml(a.rejectedReason) : '') + '</div></div></div>';
+    });
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderDevTools() {
+  var switches = (appData.config && appData.config.moduleSwitches) || {};
+  var modules = [
+    { key: 'announcements', label: '公告模块', desc: '前台公告导航与后台公告管理' },
+    { key: 'documents', label: '文件模块', desc: '前台文件导航与后台文件管理' },
+    { key: 'activities', label: '动态模块', desc: '前台动态导航与后台动态管理' },
+    { key: 'polls', label: '投票管理', desc: '民意调查与投票' },
+    { key: 'workorders', label: '工单管理', desc: '维修工单处理跟踪' },
+    { key: 'complaints', label: '投诉管理', desc: '投诉建议收集处理' },
     { key: 'audit', label: '审计日志', desc: '操作记录与审计追踪', sensitive: true },
     { key: 'settings', label: '系统设置', desc: '高级系统选项', sensitive: true }
   ];
