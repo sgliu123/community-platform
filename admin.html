@@ -6,14 +6,6 @@
 <title>管理后台</title>
 <link rel="stylesheet" href="css/admin.css">
   <link rel="icon" id="faviconLink" type="image/png" href="">
-<style>
-  /* 隐藏底部调试面板 */
-  #ui-debug-panel,#debug-panel,#console-panel,#log-panel,
-  .ui-debug-panel,.debug-panel,.console-panel,.log-panel,
-  [id*="DebugPanel"],[id*="LogPanel"],[id*="ConsolePanel"] {
-    display:none !important;visibility:hidden !important;height:0 !important;
-  }
-</style>
 </head>
 <body>
 
@@ -111,14 +103,5 @@
 <script src="js/admin-core.js"></script>
 <script src="js/admin-app.js"></script>
 <script src="js/admin-auth.js"></script>
-<script>
-(function(){
-  function cleanDebug(){
-    var sels=['#ui-debug-panel','#debug-panel','#console-panel','#log-panel','.ui-debug-panel','.debug-panel','.console-panel','.log-panel'];
-    sels.forEach(function(sel){ document.querySelectorAll(sel).forEach(function(el){ el.remove(); }); });
-  }
-  cleanDebug(); setTimeout(cleanDebug,300); setTimeout(cleanDebug,1000);
-})();
-</script>
 </body>
 </html>
