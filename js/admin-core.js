@@ -5,12 +5,14 @@ function checkLoginState() {
 }
 
 function autoSkipLogin() {
+  // 先尝试从 sessionStorage 恢复登录状态
   const savedSession = sessionStorage.getItem('adminSession');
   if (savedSession) {
     try {
       const session = JSON.parse(savedSession);
       const account = ADMIN_ACCOUNTS.find(a => a.id === session.adminId);
       if (account && session.loginTime) {
+        // 会话有效期：8小时
         const loginTime = new Date(session.loginTime).getTime();
         if (Date.now() - loginTime < 8 * 3600 * 1000) {
           currentAdmin = { id: account.id, name: account.name, role: account.role, permissions: account.permissions };
@@ -24,6 +26,7 @@ function autoSkipLogin() {
     } catch(e) {}
     sessionStorage.removeItem('adminSession');
   }
+  // 无有效会话，显示登录页
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('tokenPage').style.display = 'none';
   document.getElementById('adminLayout').classList.remove('active');
@@ -72,6 +75,7 @@ async function doAdminLogin() {
 }
 
 async function saveToken() {
+  // GitHub Token 已不再需要（使用 Cloudflare Worker），直接跳过
   autoSkipLogin();
 }
 
@@ -147,8 +151,8 @@ function renderSidebar() {
     if (switches[item.id] === false) return;
     var isActive = item.id === currentModule;
     var cls = 'nav-item' + (isActive ? ' active' : '');
-    var clickAction = item.external ? "window.open('" + item.external + "','_blank')" : "navigateTo('" + item.id + "')";
-    html += '<a class="' + cls + '" data-module="' + item.id + '" onclick="' + clickAction + '" style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:4px 10px;border-radius:6px;cursor:pointer;font-size:14px;color:inherit;text-decoration:none;transition:all 0.2s;border-left:3px solid ' + (isActive ? '#fff' : 'transparent') + ';background:' + (isActive ? 'rgba(255,255,255,0.15)' : 'transparent') + ';font-weight:' + (isActive ? '600' : '400') + '">';
+    var clickAction = item.external ? 'window.open(\'' + item.external + '\',\'_blank\')' : 'navigateTo(\'' + item.id + '\')';
+    html += '<a class="' + cls + '" data-module="' + item.id + '" onclick="' + clickAction + '" style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:4px 10px;border-radius:6px;cursor:pointer;font-size:14px;color:inherit;text-decoration:none;transition:all 0.2s;border-left:3px solid ' + (isActive ? '#fff' : 'transparent') + ';background:' + (isActive ? 'rgba(255,255,255,0.15)' : 'transparent') + ';font-weight:' + (isActive ? '600' : '400') + ';">';
     html += '<span style="font-size:17px;width:22px;text-align:center;flex-shrink:0;">' + item.icon + '</span>';
     html += '<span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(item.label) + '</span>';
     if (item.external) html += '<span style="font-size:10px;opacity:0.5;flex-shrink:0;">↗</span>';
@@ -238,6 +242,7 @@ function openEditModal(module, id) {
       '<div class="form-group"><label>上传本地视频（支持多选拖拽，最多5个，单个800M以内，上传后自动压缩至100M以内）</label>' +
       createMultiVideoUploaderHTML('actVideos', '支持拖拽或点击上传视频（mp4/mov/webm/avi等，单个100M以内，GitHub API限制）') + '</div>' +
       '<div class="form-group"><label>视频链接（每行一个，支持哔哩哔哩/YouTube/抖音/西瓜/腾讯等，不限制数量）</label><textarea id="edVideoLinks" rows="3" placeholder="https://www.bilibili.com/video/BVxxxxx\nhttps://www.youtube.com/watch?v=xxxxx">' + (item.videoLinks||[]).join('\n') + '</textarea></div>' +
+      
       '<div class="form-group"><label>外部链接（每行一个，不限制数量）</label><textarea id="edExternalLinks" rows="2" placeholder="https://www.example.com/article">' + (item.externalLinks||[]).join('\n') + '</textarea></div>' +
       '<div class="form-group"><label>内容</label><textarea id="edContent">' + (item.content||'') + '</textarea></div>';
     } else if (module === 'polls') {
@@ -273,7 +278,7 @@ function openEditModal(module, id) {
 '<button type="button" class="btn btn-sm btn-primary" onclick="syncRollFromResidents()" title="自动从业主库统计总户数和总面积并填入表单">🔄 从业主库自动同步</button>' +
 '</div>' +
 '<div class="form-group" style="margin-bottom:0;">' +
-'<label>上传清册文件（PDF/CSV/Excel）<span style="color:var(--danger);">*</span> <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">上传CSV可自动解析户数和面积；PDF仅作存档。点击已有文件的×删除后可重新上传覆盖。</span></label>' +
+'<label>上传清册文件（PDF/CSV/Excel）<span style="color:var(--danger);">*</span> <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">上传CSV可自动解析户数和面积；PDF仅作存档。点击已有文件的×删除后可重新上传实现覆盖。</span></label>' +
 createMultiImageUploaderHTML('pollRollFiles', '请上传业主清册文件（PDF/CSV/Excel），支持删除后重新上传覆盖', 'application/pdf,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel') + 
 '</div>' +
 '</div>' +
@@ -297,6 +302,7 @@ createMultiImageUploaderHTML('pollRollFiles', '请上传业主清册文件（PDF
       '<div class="form-group"><label>结果摘要</label><textarea id="edResultSummary">' + (item.results&&item.results.summary||'') + '</textarea></div>' +
       '<div class="form-group"><label>描述</label><textarea id="edDesc">' + (item.description||'') + '</textarea></div>';
 
+    // === 计票结果展示（只读）===
     const disp = getPollDisplayStats(item);
     const res = item.results || {};
     const hasResult = res.calculatedAt !== undefined;
@@ -332,6 +338,7 @@ createMultiImageUploaderHTML('pollRollFiles', '请上传业主清册文件（PDF
       if (item.ruleFiles && item.ruleFiles.length) setMultiUploadedPaths('pollRuleFiles', item.ruleFiles);
       if (item.rollFiles && item.rollFiles.length) setMultiUploadedPaths('pollRollFiles', item.rollFiles);
       if (item.meetingFiles && item.meetingFiles.length) setMultiUploadedPaths('pollMeetingFiles', item.meetingFiles);
+      // 初始化清册统计显示
       if (item.rollStats) {
         updateRollStats(item.rollStats.totalCount, item.rollStats.totalArea);
       } else {
@@ -374,20 +381,24 @@ createMultiImageUploaderHTML('pollRollFiles', '请上传业主清册文件（PDF
   document.getElementById('modalFooter').innerHTML = `<button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveItem('${module}','${id||''}')">保存</button>`;
   document.getElementById('modalOverlay').classList.add('active');
 
+  // 初始化已有文件预览
   setTimeout(function() {
     if (module === 'activities') {
       if (item.coverImage) setUploadedPath('actCover', item.coverImage, 'cover');
       if (item.images && item.images.length) setMultiUploadedPaths('actImages', item.images);
       let videos = (item.videos || []).map(v => typeof v === 'string' ? { path: v, name: 'video', size: 0 } : v);
+      // 兼容旧数据：只有当 videoUrl 存在且是本地路径（非外部链接）时才显示
       if (!videos.length && item.videoUrl && !item.videoUrl.match(/^https?:\/\//)) {
         videos = [{ path: item.videoUrl, name: 'video', size: 0 }];
       }
       if (videos.length) setMultiUploadedVideos('actVideos', videos);
     } else if (module === 'documents') {
       let docPaths = [];
+      // 优先从新的 attachments 数组加载（参照公告管理）
       if (item.attachments && item.attachments.length) {
         docPaths.push(...item.attachments.map(a => a.url).filter(Boolean));
       }
+      // 兼容旧数据：images + fileUrl
       if (item.images && item.images.length) {
         item.images.forEach(url => {
           if (url && !docPaths.includes(url)) docPaths.push(url);
@@ -419,15 +430,19 @@ function generateCaseNo() {
 function autoFillPollDates(consultStartStr) {
   if (!consultStartStr) return;
   const consultStart = new Date(consultStartStr);
+  // 公告方案征求意见期：7天（含首尾）
   const consultEnd = new Date(consultStart);
   consultEnd.setDate(consultEnd.getDate() + 6);
+  // 正式公告发布期：开始 = 征求意见结束 + 3天，间隔15天（含首尾）
   const announceStart = new Date(consultEnd);
   announceStart.setDate(announceStart.getDate() + 3);
   const announceEnd = new Date(announceStart);
   announceEnd.setDate(announceEnd.getDate() + 14);
+  // 业主清册公示期：开始同正式公告发布期，7天（含首尾）
   const rollStart = new Date(announceStart);
   const rollEnd = new Date(announceStart);
   rollEnd.setDate(rollEnd.getDate() + 6);
+  // 投票日期：开始 = 正式公告开始 + 16天，间隔10天（含首尾）
   const voteStart = new Date(announceStart);
   voteStart.setDate(voteStart.getDate() + 16);
   const voteEnd = new Date(voteStart);
@@ -466,6 +481,7 @@ async function saveCurrentModule() {
     if (!appData.config.settings) appData.config.settings = {};
     appData.config.settings.defaultTheme = document.getElementById('cfgTheme').value;
     updateFavicon();
+    // 同步站点 Logo 配置到 localStorage，供所有子页面（life.html / admin-life.html）读取
     var logoCfg = {
       type: c.logo ? "image" : "emoji",
       value: c.logo || "&#127968;",
@@ -508,6 +524,8 @@ async function saveItem(module, id) {
     item.publishDate = document.getElementById('edDate').value;
     item.description = document.getElementById('edDesc').value;
     item.category = '上级文件';
+
+    // 参照公告管理：使用 attachments 数组保存所有上传附件
     item.attachments = [];
     const uploadedPaths = getMultiUploadedPaths('docFile');
     uploadedPaths.filter(path => !path.startsWith('blob:')).forEach(path => {
@@ -517,8 +535,12 @@ async function saveItem(module, id) {
         type: /\.pdf$/i.test(path) ? 'pdf' : 'image'
       });
     });
+
+    // 兼容旧字段：自动同步 fileUrl 和 images
     const pdfAttachments = item.attachments.filter(a => a.type === 'pdf');
     const imageAttachments = item.attachments.filter(a => a.type === 'image');
+
+    // fileUrl：优先使用手动输入的值，否则取第一个PDF或第一个附件
     const manualFileUrl = document.getElementById('edFileUrl').value.trim();
     if (manualFileUrl) {
       item.fileUrl = manualFileUrl;
@@ -529,6 +551,8 @@ async function saveItem(module, id) {
     } else {
       item.fileUrl = '';
     }
+
+    // images：取所有图片附件
     item.images = imageAttachments.map(a => a.url);
   } else if (module === 'activities') {
     item.title = document.getElementById('edTitle').value;
@@ -541,15 +565,16 @@ async function saveItem(module, id) {
     const uploadedImages = getMultiUploadedPaths('actImages');
     let allImages = [...new Set(uploadedImages)].slice(0, 15);
     item.images = allImages;
+    // 检测并过滤掉失效的 blob 链接
     item.images = item.images.filter(url => !url.startsWith('blob:'));
     const uploadedVideos = getMultiUploadedVideos('actVideos');
     item.videos = uploadedVideos.map(v => v.path).filter(url => !url.startsWith('blob:'));
     const vlinkText = document.getElementById('edVideoLinks').value.trim();
     item.videoLinks = vlinkText ? vlinkText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
-    item.videoUrl = item.videos[0] || '';
+    item.videoUrl = item.videos[0] || '';  // 本地视频URL，不再混用外部链接
     const extText = document.getElementById('edExternalLinks').value.trim();
     item.externalLinks = extText ? extText.split(/\n/).map(s => s.trim()).filter(s => s) : [];
-    item.externalLink = item.externalLinks[0] || '';
+    item.externalLink = item.externalLinks[0] || '';  // 兼容旧字段
     item.content = document.getElementById('edContent').value;
   } else if (module === 'polls') {
     const validation = validatePollCompliance();
@@ -563,6 +588,7 @@ async function saveItem(module, id) {
     item.title = document.getElementById('edTitle').value;
     item.category = document.getElementById('edCategory').value || 'general';
     item.legalBasis = document.getElementById('edLegalBasis').value;
+    // item.ruleId 字段未在表单中配置，暂不保存
     item.startDate = document.getElementById('edStart').value;
     item.endDate = document.getElementById('edEnd').value;
     item.status = document.getElementById('edStatus').value;
@@ -573,18 +599,25 @@ async function saveItem(module, id) {
     item.ruleFiles = getMultiUploadedPaths('pollRuleFiles');
     item.rollFiles = getMultiUploadedPaths('pollRollFiles');
     item.meetingFiles = getMultiUploadedPaths('pollMeetingFiles');
+    
+    // pollNotifyFiles 上传组件未在表单中配置，使用已有数据或空数组
     item.notifyFiles = item.notifyFiles || [];
+    
     item.rollPublish = {
       start: document.getElementById('edRollStart').value,
       end: document.getElementById('edRollEnd').value
+      // file 字段未在表单中配置，暂不保存
     };
+    
     const isMajor = item.category === 'major';
     item.threshold = isMajor 
       ? { type: 'double_two_thirds', desc: '双2/3（人数+面积各过2/3）', residentPct: 66.67, areaPct: 66.67 }
       : { type: 'double_half', desc: '双过半（人数+面积各过半）', residentPct: 50, areaPct: 50 };
+    
     const edTargetVal = document.getElementById('edTarget').value.trim();
     const edCurrentVal = document.getElementById('edCurrent').value.trim();
     const oldProgress = item.progress || {};
+    // 保存清册同步数据
     if (window._rollSyncData) {
       item.rollStats = {
         totalCount: window._rollSyncData.count,
@@ -599,6 +632,7 @@ async function saveItem(module, id) {
       current: edCurrentVal !== '' ? parseInt(edCurrentVal) : (oldProgress.current !== undefined ? oldProgress.current : 0),
       unit: '户'
     };
+    // 只更新用户可编辑的结果字段，保留 calculatePollResults 生成的计票数据
     item.results = item.results || {};
     item.results.isPublished = document.getElementById('edPublishResult').checked;
     const originalSummary = item.results.summary || '';
@@ -613,6 +647,7 @@ async function saveItem(module, id) {
     item.type = item.type || 'opinion';
     item.createdBy = item.createdBy || currentAdmin && currentAdmin.name;
     item.createdAt = item.createdAt || new Date().toISOString();
+    
     item.votes = item.votes || [];
     item.notifyRecords = item.notifyRecords || [];
     item.objections = item.objections || [];
@@ -620,6 +655,7 @@ async function saveItem(module, id) {
     item.participatingArea = item.participatingArea || 0;
     item.agreeCount = item.agreeCount || 0;
     item.agreeArea = item.agreeArea || 0;
+    
     if(item.mode === 'local') {
       item.questions = collectPollQuestions();
     } else {
@@ -649,6 +685,7 @@ async function saveItem(module, id) {
   const detail = (isNew ? '新增' : '更新') + getModuleName(module) + '《' + (item.title || item.name || '') + '》';
   closeModal(); showLoading(true);
   try {
+    // 自动计票（在保存之前，确保计票结果一并持久化）
     if (module === 'polls') {
       const hasWorker = !!getWorkerBase();
       if (hasWorker) {
@@ -694,6 +731,10 @@ async function deleteItem(module, id) {
   }
 }
 
+
+
+/* ===== 管理员注册与审批 ===== */
+
 function getAllAdminAccounts() {
   var registered = ((appData.config && appData.config.adminUsers) || [])
     .filter(function(a) { return a.status === 'approved'; })
@@ -804,6 +845,8 @@ async function toggleAdminDelete(adminId) {
   }
 }
 
+/* ===== 管理员管理页面（仅总维护人员） ===== */
+
 function renderAdminManage() {
   var adminUsers = (appData.config && appData.config.adminUsers) || [];
   var pending = adminUsers.filter(function(a) { return a.status === 'pending'; });
@@ -848,6 +891,8 @@ function renderAdminManage() {
   html += '</div>';
   return html;
 }
+
+/* ===== 开发者工具页面（仅总维护人员） ===== */
 
 function renderDevTools() {
   var switches = (appData.config && appData.config.moduleSwitches) || {};
@@ -863,7 +908,7 @@ function renderDevTools() {
     { key: 'audit', label: '审计日志', desc: '操作记录与审计追踪', sensitive: true },
     { key: 'settings', label: '系统设置', desc: '高级系统选项', sensitive: true }
   ];
-  var html = '<div style="margin-bottom:12px;"><button class="btn" onclick="navigateTo(\'dashboard\')">⬅️ 返回仪表盘</button><button class="btn" onclick="logout()" style="background:var(--danger);color:#fff;margin-left:8px;">🚪 退出登录</button></div>';
+  var html = '<div style="margin-bottom:12px;"><button class="btn" onclick="navigateTo(\'dashboard\')">⬅️ 返回仪表盘</button><button class="btn" onclick="logout()" style="background:var(--danger);color:#fff;">🚪 退出登录</button></div>';
   html += '<div class="card"><div class="card-header"><h3>🛠️ 开发者工具 - 模块开关</h3></div>';
   modules.forEach(function(m) {
     var enabled = switches[m.key] !== false;
@@ -886,201 +931,7 @@ function renderDevTools() {
     '<button class="btn btn-primary" onclick="saveModuleSwitches()">💾 保存配置</button>' +
     '<button class="btn" onclick="resetModuleSwitches()">🔄 恢复默认</button>' +
     '</div>';
-  html += '<p style="font-size:12px;color:var(--text-secondary);margin-top:12px;">💡 提示：修改保存后立即生效，前台导航同步隐藏/显示。</p>';
-  html += '</div>';
-  return html;
-}
-function getAllAdminAccounts() {
-  var registered = ((appData.config && appData.config.adminUsers) || [])
-    .filter(function(a) { return a.status === 'approved'; })
-    .map(function(a) { return { id: a.id, name: a.name, role: 'admin', password: a.password, canDelete: a.canDelete !== false }; });
-  return ADMIN_ACCOUNTS.concat(registered);
-}
-
-function renderLoginRoles() {
-  var select = document.getElementById('loginRole');
-  if (!select) return;
-  var accounts = getAllAdminAccounts();
-  var html = '<option value="">— 请选择 —</option>';
-  accounts.forEach(function(a) {
-    html += '<option value="' + a.id + '">' + escapeHtml(a.name) + '</option>';
-  });
-  select.innerHTML = html;
-}
-
-async function submitAdminRegister() {
-  var name = document.getElementById('regName').value.trim();
-  var id = document.getElementById('regId').value.trim();
-  var pwd = document.getElementById('regPassword').value;
-  var confirmPwd = document.getElementById('regConfirmPassword').value;
-  var err = document.getElementById('regError');
-
-  err.style.display = 'none';
-  if (!name || !id || !pwd) { err.textContent = '请填写所有必填项'; err.style.display = 'block'; return; }
-  if (pwd !== confirmPwd) { err.textContent = '两次密码不一致'; err.style.display = 'block'; return; }
-  if (pwd.length < 6) { err.textContent = '密码需6位以上'; err.style.display = 'block'; return; }
-  if (ADMIN_ACCOUNTS.find(function(a) { return a.id === id; }) || ((appData.config && appData.config.adminUsers) || []).find(function(a) { return a.id === id; })) {
-    err.textContent = '该账号ID已存在'; err.style.display = 'block'; return;
-  }
-
-  var newAdmin = {
-    id: id, name: name, password: pwd, status: 'pending', canDelete: true,
-    registeredAt: new Date().toISOString()
-  };
-  if (!appData.config) appData.config = {};
-  if (!appData.config.adminUsers) appData.config.adminUsers = [];
-  appData.config.adminUsers.push(newAdmin);
-
-  showLoading(true);
-  try {
-    await saveDataFile('config', appData.config, '提交管理员注册申请：' + name, 'admin-register');
-    showToast('注册申请已提交，等待总维护人员审批', 'success');
-    document.getElementById('regName').value = '';
-    document.getElementById('regId').value = '';
-    document.getElementById('regPassword').value = '';
-    document.getElementById('regConfirmPassword').value = '';
-  } catch(e) {
-    showToast('提交失败：' + e.message, 'error');
-  } finally {
-    showLoading(false);
-  }
-}
-
-async function approveAdmin(adminId) {
-  var admin = ((appData.config && appData.config.adminUsers) || []).find(function(a) { return a.id === adminId; });
-  if (!admin) return;
-  admin.status = 'approved';
-  admin.approvedAt = new Date().toISOString();
-  admin.approvedBy = currentAdmin.id;
-  showLoading(true);
-  try {
-    await saveDataFile('config', appData.config, '审批通过管理员：' + admin.name, 'admin-approve');
-    showToast('已批准 ' + admin.name, 'success');
-    navigateTo('admin-manage');
-  } catch(e) {
-    showToast('保存失败：' + e.message, 'error');
-  } finally {
-    showLoading(false);
-  }
-}
-
-async function rejectAdmin(adminId) {
-  var reason = prompt('请输入拒绝原因（可选）：');
-  if (reason === null) return;
-  var admin = ((appData.config && appData.config.adminUsers) || []).find(function(a) { return a.id === adminId; });
-  if (!admin) return;
-  admin.status = 'rejected';
-  admin.rejectedAt = new Date().toISOString();
-  admin.rejectedReason = reason || '';
-  showLoading(true);
-  try {
-    await saveDataFile('config', appData.config, '拒绝管理员申请：' + admin.name, 'admin-reject');
-    showToast('已拒绝 ' + admin.name, 'success');
-    navigateTo('admin-manage');
-  } catch(e) {
-    showToast('保存失败：' + e.message, 'error');
-  } finally {
-    showLoading(false);
-  }
-}
-
-async function toggleAdminDelete(adminId) {
-  var admin = ((appData.config && appData.config.adminUsers) || []).find(function(a) { return a.id === adminId; });
-  if (!admin) return;
-  admin.canDelete = !admin.canDelete;
-  showLoading(true);
-  try {
-    await saveDataFile('config', appData.config, '修改管理员删除权限：' + admin.name, 'admin-perm');
-    showToast(admin.name + ' 的删除权限已' + (admin.canDelete ? '开启' : '关闭'), 'success');
-    navigateTo('admin-manage');
-  } catch(e) {
-    showToast('保存失败：' + e.message, 'error');
-  } finally {
-    showLoading(false);
-  }
-}
-
-function renderAdminManage() {
-  var adminUsers = (appData.config && appData.config.adminUsers) || [];
-  var pending = adminUsers.filter(function(a) { return a.status === 'pending'; });
-  var approved = adminUsers.filter(function(a) { return a.status === 'approved'; });
-  var rejected = adminUsers.filter(function(a) { return a.status === 'rejected'; });
-
-  var html = '<div class="card"><div class="card-header"><h3>👤 管理员审批</h3></div>';
-
-  if (pending.length === 0) {
-    html += '<p style="color:var(--text-secondary);font-size:14px;">暂无待审批的申请</p>';
-  } else {
-    html += '<p style="font-weight:600;margin-bottom:10px;">⏳ 待审批（' + pending.length + '）</p>';
-    pending.forEach(function(a) {
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#fff8e1;border-radius:6px;margin-bottom:8px;">' +
-        '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 申请时间: ' + (a.registeredAt || '').split('T')[0] + '</div></div>' +
-        '<div style="display:flex;gap:6px;">' +
-        '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;" onclick="approveAdmin(' + "'" + a.id + "'" + ')">✅ 同意</button>' +
-        '<button class="btn" style="padding:4px 12px;font-size:12px;background:var(--danger);color:#fff;" onclick="rejectAdmin(' + "'" + a.id + "'" + ')">❌ 拒绝</button>' +
-        '</div></div>';
-    });
-  }
-
-  if (approved.length > 0) {
-    html += '<p style="font-weight:600;margin:16px 0 10px;">✅ 已启用（' + approved.length + '）</p>';
-    approved.forEach(function(a) {
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#e8f5e9;border-radius:6px;margin-bottom:8px;">' +
-        '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 审批时间: ' + (a.approvedAt || '').split('T')[0] + '</div></div>' +
-        '<div style="display:flex;align-items:center;gap:8px;">' +
-        '<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">' +
-        '<input type="checkbox" ' + (a.canDelete !== false ? 'checked' : '') + ' onchange="toggleAdminDelete(' + "'" + a.id + "'" + ')">允许删除</label>' +
-        '</div></div>';
-    });
-  }
-
-  if (rejected.length > 0) {
-    html += '<p style="font-weight:600;margin:16px 0 10px;">❌ 已拒绝（' + rejected.length + '）</p>';
-    rejected.forEach(function(a) {
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#ffebee;border-radius:6px;margin-bottom:8px;">' +
-        '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 拒绝时间: ' + (a.rejectedAt || '').split('T')[0] + (a.rejectedReason ? ' · 原因: ' + escapeHtml(a.rejectedReason) : '') + '</div></div></div>';
-    });
-  }
-  html += '</div>';
-  return html;
-}
-
-function renderDevTools() {
-  var switches = (appData.config && appData.config.moduleSwitches) || {};
-  var modules = [
-    { key: 'announcements', label: '公告模块', desc: '前台公告导航与后台公告管理' },
-    { key: 'documents', label: '文件模块', desc: '前台文件导航与后台文件管理' },
-    { key: 'activities', label: '动态模块', desc: '前台动态导航与后台动态管理' },
-    { key: 'polls', label: '投票管理', desc: '民意调查与投票' },
-    { key: 'workorders', label: '工单管理', desc: '维修工单处理跟踪' },
-    { key: 'complaints', label: '投诉管理', desc: '投诉建议收集处理' },
-    { key: 'audit', label: '审计日志', desc: '操作记录与审计追踪', sensitive: true },
-    { key: 'settings', label: '系统设置', desc: '高级系统选项', sensitive: true }
-  ];
-  var html = '<div style="margin-bottom:12px;"><button class="btn" onclick="navigateTo(\'dashboard\')">⬅️ 返回仪表盘</button><button class="btn" onclick="logout()" style="background:var(--danger);color:#fff;margin-left:8px;">🚪 退出登录</button></div>';
-  html += '<div class="card"><div class="card-header"><h3>🛠️ 开发者工具 - 模块开关</h3></div>';
-  modules.forEach(function(m) {
-    var enabled = switches[m.key] !== false;
-    var bg = enabled ? 'var(--primary)' : '#ccc';
-    var transform = enabled ? 'translateX(20px)' : 'translateX(0)';
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#fafafa;border-radius:8px;margin-bottom:10px;">' +
-      '<div>' +
-        '<div style="font-weight:600;font-size:14px;">' + m.label + (m.sensitive ? ' <span style="background:#ffebee;color:#c62828;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px;">敏感</span>' : '') + '</div>' +
-        '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + m.desc + '</div>' +
-      '</div>' +
-      '<label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;">' +
-        '<input type="checkbox" id="sw-' + m.key + '" style="opacity:0;width:0;height:0;" ' + (enabled ? 'checked' : '') + ' onchange="toggleModuleSwitch(' + "'" + m.key + "'" + ')">' +
-        '<span id="sw-span-' + m.key + '" style="position:absolute;top:0;left:0;right:0;bottom:0;background:' + bg + ';border-radius:24px;transition:.3s;">' +
-          '<span style="position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;transform:' + transform + ';"></span>' +
-        '</span>' +
-      '</label>' +
-    '</div>';
-  });
-  html += '<div style="margin-top:16px;display:flex;gap:10px;">' +
-    '<button class="btn btn-primary" onclick="saveModuleSwitches()">💾 保存配置</button>' +
-    '<button class="btn" onclick="resetModuleSwitches()">🔄 恢复默认</button>' +
-    '</div>';
-  html += '<p style="font-size:12px;color:var(--text-secondary);margin-top:12px;">💡 提示：修改保存后立即生效，前台导航同步隐藏/显示。</p>';
+  html += '<p style="font-size:12px;color:var(--text-secondary);margin-top:12px;">💡 提示：修改保存后立即生效。敏感模块建议保持开启。</p>';
   html += '</div>';
   return html;
 }
@@ -1101,7 +952,6 @@ async function saveModuleSwitches() {
   showLoading(true);
   try {
     await saveDataFile('config', appData.config, '更新模块开关配置', 'update');
-    // FIX: 同步写入 localStorage，确保前台页面能即时读取到开关状态
     try {
       localStorage.setItem('adminData', JSON.stringify(appData));
       localStorage.setItem('adminData_config', JSON.stringify({ config: { moduleSwitches: appData.config.moduleSwitches } }));
