@@ -822,3 +822,123 @@ async function toggleAdminDelete(adminId) {
     showLoading(false);
   }
 }
+
+
+/* ===== 管理员管理（仅总维护人员可见） ===== */
+
+function renderAdminManage() {
+  const adminUsers = (appData.config && appData.config.adminUsers) || [];
+  const pending = adminUsers.filter(a => a.status === 'pending');
+  const approved = adminUsers.filter(a => a.status === 'approved');
+  const rejected = adminUsers.filter(a => a.status === 'rejected');
+
+  let html = '<div class="card"><div class="card-header"><h3>👤 管理员审批</h3></div>';
+
+  if (pending.length === 0) {
+    html += '<p style="color:var(--text-secondary);font-size:14px;">暂无待审批的申请</p>';
+  } else {
+    html += '<p style="font-weight:600;margin-bottom:10px;">⏳ 待审批（' + pending.length + '）</p>';
+    pending.forEach(a => {
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#fff8e1;border-radius:6px;margin-bottom:8px;">' +
+        '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 申请时间: ' + (a.registeredAt || '').split('T')[0] + '</div></div>' +
+        '<div style="display:flex;gap:6px;">' +
+        '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;" onclick="approveAdmin('' + a.id + '')">✅ 同意</button>' +
+        '<button class="btn" style="padding:4px 12px;font-size:12px;background:var(--danger);color:#fff;" onclick="rejectAdmin('' + a.id + '')">❌ 拒绝</button>' +
+        '</div></div>';
+    });
+  }
+
+  if (approved.length > 0) {
+    html += '<p style="font-weight:600;margin:16px 0 10px;">✅ 已启用（' + approved.length + '）</p>';
+    approved.forEach(a => {
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#e8f5e9;border-radius:6px;margin-bottom:8px;">' +
+        '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 审批时间: ' + (a.approvedAt || '').split('T')[0] + '</div></div>' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+        '<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">' +
+        '<input type="checkbox" ' + (a.canDelete !== false ? 'checked' : '') + ' onchange="toggleAdminDelete('' + a.id + '')">允许删除</label>' +
+        '</div></div>';
+    });
+  }
+
+  if (rejected.length > 0) {
+    html += '<p style="font-weight:600;margin:16px 0 10px;">❌ 已拒绝（' + rejected.length + '）</p>';
+    rejected.forEach(a => {
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#ffebee;border-radius:6px;margin-bottom:8px;">' +
+        '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 拒绝时间: ' + (a.rejectedAt || '').split('T')[0] + (a.rejectedReason ? ' · 原因: ' + escapeHtml(a.rejectedReason) : '') + '</div></div></div>';
+    });
+  }
+  html += '</div>';
+  return html;
+}
+
+/* ===== 开发者工具（仅总维护人员可见） ===== */
+
+function renderDevTools() {
+  const switches = (appData.config && appData.config.moduleSwitches) || {};
+  const modules = [
+    { key: 'audit', label: '审计日志', desc: '操作记录与审计追踪', sensitive: true },
+    { key: 'workorders', label: '工单管理', desc: '维修工单处理跟踪' },
+    { key: 'complaints', label: '投诉管理', desc: '投诉建议收集处理' },
+    { key: 'polls', label: '投票管理', desc: '民意调查与投票' },
+    { key: 'settings', label: '系统设置', desc: '高级系统选项', sensitive: true }
+  ];
+  let html = '<div class="card"><div class="card-header"><h3>🛠️ 开发者工具 - 模块开关</h3></div>';
+  modules.forEach(m => {
+    const enabled = switches[m.key] !== false;
+    const bg = enabled ? 'var(--primary)' : '#ccc';
+    const transform = enabled ? 'translateX(20px)' : 'translateX(0)';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#fafafa;border-radius:8px;margin-bottom:10px;">' +
+      '<div>' +
+        '<div style="font-weight:600;font-size:14px;">' + m.label + (m.sensitive ? ' <span style="background:#ffebee;color:#c62828;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px;">敏感</span>' : '') + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + m.desc + '</div>' +
+      '</div>' +
+      '<label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;">' +
+        '<input type="checkbox" id="sw-' + m.key + '" style="opacity:0;width:0;height:0;" ' + (enabled ? 'checked' : '') + ' onchange="toggleModuleSwitch('' + m.key + '')">' +
+        '<span id="sw-span-' + m.key + '" style="position:absolute;top:0;left:0;right:0;bottom:0;background:' + bg + ';border-radius:24px;transition:.3s;">' +
+          '<span style="position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;transform:' + transform + ';"></span>' +
+        '</span>' +
+      '</label>' +
+    '</div>';
+  });
+  html += '<div style="margin-top:16px;display:flex;gap:10px;">' +
+    '<button class="btn btn-primary" onclick="saveModuleSwitches()">💾 保存配置</button>' +
+    '<button class="btn" onclick="resetModuleSwitches()">🔄 恢复默认</button>' +
+    '</div>';
+  html += '<p style="font-size:12px;color:var(--text-secondary);margin-top:12px;">💡 提示：修改保存后立即生效。敏感模块建议保持开启。</p>';
+  html += '</div>';
+  return html;
+}
+
+function toggleModuleSwitch(key) {
+  if (!appData.config) appData.config = {};
+  if (!appData.config.moduleSwitches) appData.config.moduleSwitches = {};
+  const cb = document.getElementById('sw-' + key);
+  appData.config.moduleSwitches[key] = cb.checked;
+  // 更新视觉状态
+  const span = document.getElementById('sw-span-' + key);
+  if (span) {
+    span.style.background = cb.checked ? 'var(--primary)' : '#ccc';
+    span.querySelector('span').style.transform = cb.checked ? 'translateX(20px)' : 'translateX(0)';
+  }
+}
+
+async function saveModuleSwitches() {
+  showLoading(true);
+  try {
+    await saveDataFile('config', appData.config, '更新模块开关配置', 'update');
+    showToast('配置已保存并生效', 'success');
+  } catch(e) {
+    showToast('保存失败：' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+function resetModuleSwitches() {
+  if (confirm('确定恢复默认配置吗？所有模块将恢复为开启状态。')) {
+    if (!appData.config) appData.config = {};
+    appData.config.moduleSwitches = {};
+    navigateTo('dev-tools');
+    showToast('已恢复默认配置，请点击保存', 'info');
+  }
+}
