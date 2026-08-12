@@ -139,11 +139,11 @@ function renderSidebar() {
     { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', roles: ['super','property','committee','community'] }
   ];
   let html = '';
+  const switches = (appData.config && appData.config.moduleSwitches) || {};
   if (isSuper) {
     items.push({ id: 'admin-manage', label: '管理员管理', icon: '👤', perm: 'all', roles: ['super'] });
     items.push({ id: 'dev-tools', label: '开发者工具', icon: '🛠️', perm: 'all', roles: ['super'] });
   }
-  const switches = (appData.config && appData.config.moduleSwitches) || {};
   items.forEach(item => {
     if (switches[item.id] === false) return;
     const hasPerm = isSuper || perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0;
@@ -892,7 +892,7 @@ function renderDevTools() {
     { key: 'polls', label: '投票管理', desc: '民意调查与投票' },
     { key: 'settings', label: '系统设置', desc: '高级系统选项', sensitive: true }
   ];
-  var html = '<div style="margin-bottom:12px;"><button class="btn" onclick="navigateTo(' + "'dashboard'" + ')">⬅️ 返回仪表盘</button></div>';
+  var html = '<div style="margin-bottom:12px;"><button class="btn" onclick="history.back()">⬅️ 返回仪表盘</button></div>';
   html += '<div class="card"><div class="card-header"><h3>🛠️ 开发者工具 - 模块开关</h3></div>';
   modules.forEach(function(m) {
     var enabled = switches[m.key] !== false;
@@ -936,6 +936,8 @@ async function saveModuleSwitches() {
   showLoading(true);
   try {
     await saveDataFile('config', appData.config, '更新模块开关配置', 'update');
+    try { localStorage.setItem('adminData_config', JSON.stringify(appData.config)); } catch(e) {}
+    renderSidebar();
     showToast('配置已保存并生效', 'success');
   } catch(e) {
     showToast('保存失败：' + e.message, 'error');

@@ -1,13 +1,24 @@
 /* frontend-nav-filter.js - 前台导航栏模块开关过滤 */
 (function(){
-  function applyFilter(){
-    var cfg = null;
+  function getModuleSwitches(){
+    // 1. 尝试从 localStorage 读取
     try {
       var raw = localStorage.getItem('adminData_config');
-      if (raw) cfg = JSON.parse(raw);
+      if (raw) {
+        var cfg = JSON.parse(raw);
+        if (cfg && cfg.moduleSwitches) return cfg.moduleSwitches;
+      }
     } catch(e) {}
-    if (!cfg || !cfg.moduleSwitches) return;
-    var switches = cfg.moduleSwitches;
+    // 2. 尝试从内存中的 appData 读取（如果前台也加载了 admin-data.js）
+    if (typeof appData !== 'undefined' && appData.config && appData.config.moduleSwitches) {
+      return appData.config.moduleSwitches;
+    }
+    return null;
+  }
+
+  function applyFilter(){
+    var switches = getModuleSwitches();
+    if (!switches) return;
     var map = {
       'polls': ['[data-page="polls"]'],
       'workorders': ['[data-page="workorders"]'],
@@ -22,6 +33,7 @@
       }
     });
   }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', applyFilter);
   } else {
