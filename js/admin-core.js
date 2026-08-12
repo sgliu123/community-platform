@@ -100,6 +100,7 @@ function showAdminLayout() {
   const roleMap = { super: '总维护人员', admin: '管理员' };
   document.getElementById('adminRole').textContent = roleMap[currentAdmin.role] || currentAdmin.role;
   renderSidebar();
+  applyModuleSwitches();
   const hash = location.hash;
   const match = hash.match(/module=([^&]+)/);
   const targetModule = match ? match[1] : 'dashboard';
@@ -139,24 +140,30 @@ function renderSidebar() {
     { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', roles: ['super','property','committee','community'] }
   ];
   let html = '';
-  const switches = (appData.config && appData.config.moduleSwitches) || {};
-  if (isSuper) {
-    items.push({ id: 'admin-manage', label: '管理员管理', icon: '👤', perm: 'all', roles: ['super'] });
-    items.push({ id: 'dev-tools', label: '开发者工具', icon: '🛠️', perm: 'all', roles: ['super'] });
-  }
   items.forEach(item => {
-    if (switches[item.id] === false) return;
     const hasPerm = isSuper || perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0;
     const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
     if (!hasPerm || !hasRole) return;
     if (item.external) {
       html += `<div class="nav-item" data-module="${item.id}" onclick="window.open('${item.external}','_blank')">`;
     } else {
-      html += `<div class="nav-item ${item.id === currentModule ? 'active' : ''}" data-module="${item.id}" onclick="navigateTo('${item.id}')">`;
+      html += `<div class="nav-item ${item.id==='dashboard'?'active':''}" data-module="${item.id}" onclick="navigateTo('${item.id}')">`;
     }
     html += '<span class="icon">' + item.icon + '</span><span>' + item.label + '</span></div>';
   });
   document.getElementById('sidebarNav').innerHTML = html;
+}
+
+function applyModuleSwitches() {
+  var switches = (appData.config && appData.config.moduleSwitches) || {};
+  document.querySelectorAll('.nav-item').forEach(function(el) {
+    var mod = el.dataset.module;
+    if (mod && switches[mod] === false) {
+      el.style.display = 'none';
+    } else {
+      el.style.display = '';
+    }
+  });
 }
 
 function navigateTo(module) {
@@ -169,6 +176,7 @@ function navigateTo(module) {
     if (pt) pt.textContent = titles[module] || module;
     var sb = document.getElementById('saveBtn');
     if (sb) sb.style.display = ['dashboard','audit','settings','admin-manage','dev-tools'].indexOf(module) >= 0 ? 'none' : 'inline-block';
+    applyModuleSwitches();
     const renderers = {
       dashboard: renderDashboard, config: renderConfig, announcements: renderAnnouncementsAdmin,
       documents: renderDocumentsAdmin, activities: renderActivitiesAdmin, polls: renderPollsAdmin,
@@ -892,7 +900,7 @@ function renderDevTools() {
     { key: 'polls', label: '投票管理', desc: '民意调查与投票' },
     { key: 'settings', label: '系统设置', desc: '高级系统选项', sensitive: true }
   ];
-  var html = '<div style="margin-bottom:12px;"><button class="btn" onclick="history.back()">⬅️ 返回仪表盘</button></div>';
+  var html = '<div style="margin-bottom:12px;"><button class="btn" onclick="navigateTo(' + "'dashboard'" + ')">⬅️ 返回仪表盘</button></div>';
   html += '<div class="card"><div class="card-header"><h3>🛠️ 开发者工具 - 模块开关</h3></div>';
   modules.forEach(function(m) {
     var enabled = switches[m.key] !== false;
@@ -936,8 +944,8 @@ async function saveModuleSwitches() {
   showLoading(true);
   try {
     await saveDataFile('config', appData.config, '更新模块开关配置', 'update');
-    try { localStorage.setItem('adminData_config', JSON.stringify(appData.config)); } catch(e) {}
-    renderSidebar();
+    localStorage.setItem('adminData_config', JSON.stringify(appData.config));
+    applyModuleSwitches();
     showToast('配置已保存并生效', 'success');
   } catch(e) {
     showToast('保存失败：' + e.message, 'error');
