@@ -3,7 +3,6 @@
 function renderSettings() {
   const isSuper = currentAdmin && currentAdmin.role === 'super';
   const roleLabel = isSuper ? '总维护人员' : '管理员';
-  const adminUsers = (appData.config && appData.config.adminUsers) || [];
 
   let html = '<div class="card"><div class="card-header"><h3>👤 当前身份</h3></div>' +
     '<div class="form-group"><label>身份名称</label><input type="text" value="' + escapeHtml(currentAdmin && currentAdmin.name || '') + '" disabled style="background:#f5f5f5;"></div>' +
@@ -11,7 +10,7 @@ function renderSettings() {
     '<div class="form-group"><label>管理员ID</label><input type="text" value="' + escapeHtml(currentAdmin && currentAdmin.id || '') + '" disabled style="background:#f5f5f5;"></div>' +
     '<div class="form-group"><label>删除权限</label><input type="text" value="' + (currentAdmin && currentAdmin.canDelete !== false ? '✅ 已开启' : '❌ 已关闭') + '" disabled style="background:#f5f5f5;"></div></div>';
 
-  // 修改密码
+  // 修改密码（所有管理员）
   html += '<div class="card"><div class="card-header"><h3>🔐 修改我的密码</h3></div>' +
     '<div class="form-group"><label>当前密码</label><input type="password" id="oldPassword" placeholder="输入当前密码"></div>' +
     '<div class="form-group"><label>新密码（6位以上）</label><input type="password" id="newPassword" placeholder="输入新密码"></div>' +
@@ -28,50 +27,6 @@ function renderSettings() {
       '<div class="form-group"><label>确认密码</label><input type="password" id="regConfirmPassword" placeholder="再次输入密码"></div>' +
       '<button class="btn btn-primary" onclick="submitAdminRegister()">提交注册申请</button>' +
       '<p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">提交后需总维护人员审批通过方可登录。</p></div>';
-  }
-
-  // 管理员审批（super可见）
-  if (isSuper) {
-    const pending = adminUsers.filter(a => a.status === 'pending');
-    const approved = adminUsers.filter(a => a.status === 'approved');
-    const rejected = adminUsers.filter(a => a.status === 'rejected');
-
-    html += '<div class="card"><div class="card-header"><h3>👥 管理员审批</h3></div>';
-
-    if (pending.length === 0) {
-      html += '<p style="color:var(--text-secondary);font-size:14px;">暂无待审批的申请</p>';
-    } else {
-      html += '<p style="font-weight:600;margin-bottom:10px;">⏳ 待审批（' + pending.length + '）</p>';
-      pending.forEach(a => {
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#fff8e1;border-radius:6px;margin-bottom:8px;">' +
-          '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 申请时间: ' + (a.registeredAt || '').split('T')[0] + '</div></div>' +
-          '<div style="display:flex;gap:6px;">' +
-          '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;" onclick="approveAdmin('' + a.id + '')">✅ 同意</button>' +
-          '<button class="btn" style="padding:4px 12px;font-size:12px;background:var(--danger);color:#fff;" onclick="rejectAdmin('' + a.id + '')">❌ 拒绝</button>' +
-          '</div></div>';
-      });
-    }
-
-    if (approved.length > 0) {
-      html += '<p style="font-weight:600;margin:16px 0 10px;">✅ 已启用（' + approved.length + '）</p>';
-      approved.forEach(a => {
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#e8f5e9;border-radius:6px;margin-bottom:8px;">' +
-          '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 审批时间: ' + (a.approvedAt || '').split('T')[0] + '</div></div>' +
-          '<div style="display:flex;align-items:center;gap:8px;">' +
-          '<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">' +
-          '<input type="checkbox" ' + (a.canDelete !== false ? 'checked' : '') + ' onchange="toggleAdminDelete('' + a.id + '')">允许删除</label>' +
-          '</div></div>';
-      });
-    }
-
-    if (rejected.length > 0) {
-      html += '<p style="font-weight:600;margin:16px 0 10px;">❌ 已拒绝（' + rejected.length + '）</p>';
-      rejected.forEach(a => {
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#ffebee;border-radius:6px;margin-bottom:8px;">' +
-          '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 拒绝时间: ' + (a.rejectedAt || '').split('T')[0] + (a.rejectedReason ? ' · 原因: ' + escapeHtml(a.rejectedReason) : '') + '</div></div></div>';
-      });
-    }
-    html += '</div>';
   }
 
   // Worker配置
@@ -119,7 +74,6 @@ async function changePassword() {
   account.password = newPwd;
 
   if (currentAdmin && currentAdmin.isRegistered) {
-    // 注册管理员的密码已在 appData.config.adminUsers 中修改，只需保存config
     showLoading(true);
     try {
       await saveDataFile('config', appData.config, '管理员 ' + account.name + ' 修改密码', 'password-change');
@@ -130,7 +84,6 @@ async function changePassword() {
       showLoading(false);
     }
   } else {
-    // 总维护人员密码存在代码中，无法持久化到Worker，只能提示
     showToast('密码已更新（代码中），请手动修改 admin-data.js 中的默认密码以永久保存', 'warning');
   }
 }
