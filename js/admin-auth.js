@@ -134,61 +134,143 @@
   function fallbackRenderAdmin(role, name) {
     debugLog('Fallback', '开始兜底渲染');
     const nav = $('sidebarNav');
-    const content = $('contentArea');
-    const pageTitle = $('pageTitle');
     if (!nav) { debugLog('Fallback', '找不到 sidebarNav', true); return; }
 
-    const modules = [
-      { id: 'dashboard', icon: '📊', title: '仪表盘' },
-      { id: 'config', icon: '⚙️', title: '小区配置' },
-      { id: 'announcements', icon: '📢', title: '公告管理' },
-      { id: 'documents', icon: '📄', title: '文档管理' },
-      { id: 'activities', icon: '🎉', title: '活动管理' },
-      { id: 'residents', icon: '👥', title: '业主管理' },
-      { id: 'audit', icon: '🔍', title: '审计日志' },
-      { id: 'workorders', icon: '🔧', title: '工单管理' },
-      { id: 'complaints', icon: '💬', title: '投诉建议' },
-      { id: 'polls', icon: '📊', title: '投票管理' },
-      { id: 'settings', icon: '🔒', title: '系统设置' }
-    ];
+    // 如果 renderSidebar 已可用，直接调用它
+    if (typeof window.renderSidebar === 'function') {
+      debugLog('Fallback', '检测到 renderSidebar，优先调用');
+      try { window.renderSidebar(); return; } catch(e) { debugLog('Fallback', 'renderSidebar 报错: ' + e.message, true); }
+    }
 
+    const content = $('contentArea');
+    const pageTitle = $('pageTitle');
     const perms = getAuthPermissions();
     const config = getModuleConfig();
 
+    // 模块定义（与 admin-core.js 的 renderSidebar 保持一致）
+    const modules = [
+      { id: 'dashboard', label: '仪表盘', icon: '📊', perm: 'view', roles: ['super','property','committee','community'] },
+      { id: 'config', label: '社区配置', icon: '⚙️', perm: 'all', roles: ['super'] },
+      { id: 'announcements', label: '公告管理', icon: '📢', perm: 'announcements', roles: ['super','property','community'] },
+      { id: 'documents', label: '文件管理', icon: '📄', perm: 'documents', roles: ['super','property'] },
+      { id: 'activities', label: '动态管理', icon: '🎉', perm: 'activities', roles: ['super','community'] },
+      { id: 'polls', label: '投票管理', icon: '🗳️', perm: 'polls', roles: ['super','committee'] },
+      { id: 'residents', label: '业主管理', icon: '👥', perm: 'residents', roles: ['super','property','committee'] },
+      { id: 'workorders', label: '工单管理', icon: '🔧', perm: 'workorders', roles: ['super','property'] },
+      { id: 'complaints', label: '投诉建议', icon: '📝', perm: 'complaints', roles: ['super','committee','community'] },
+      { id: 'life', label: '生活服务', icon: '🍽️', perm: 'all', roles: ['super','property','committee','community'], external: 'admin-life.html' },
+      { id: 'trade', label: '交易管理', icon: '🛒', perm: 'all', roles: ['super','property','committee','community'], external: 'trade-admin.html' },
+      { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', roles: ['super','property','committee','community'] }
+    ];
+    const isSuper = role === 'admin-super' || role === 'super';
+    if (isSuper) {
+      modules.push({ id: 'admin-manage', label: '管理员管理', icon: '👤', perm: 'all', roles: ['super'] });
+      modules.push({ id: 'dev-tools', label: '开发者工具', icon: '🛠️', perm: 'all', roles: ['super'] });
+    }
+
+    // 正确的渲染函数名映射（与 admin-core.js 的 navigateTo 一致）
+    const rendererMap = {
+      dashboard: 'renderDashboard',
+      config: 'renderConfig',
+      announcements: 'renderAnnouncementsAdmin',
+      documents: 'renderDocumentsAdmin',
+      activities: 'renderActivitiesAdmin',
+      polls: 'renderPollsAdmin',
+      residents: 'renderResidentsAdmin',
+      workorders: 'renderWorkordersAdmin',
+      complaints: 'renderComplaintsAdmin',
+      audit: 'renderAuditLog',
+      settings: 'renderSettings',
+      'admin-manage': 'renderAdminManage',
+      'dev-tools': 'renderDevTools'
+    };
+
     nav.innerHTML = '';
-    modules.forEach(mod => {
-      if (config.modules && config.modules[mod.id] && config.modules[mod.id].visible === false) return;
+    modules.forEach(function(mod) {
+      // 权限检查（非 super）
+      if (!isSuper) {
+        const hasRole = !mod.roles || mod.roles.indexOf(role) >= 0;
+        if (!hasRole) return;
+        if (config.modules && config.modules[mod.id] && config.modules[mod.id].visible === false) return;
+      }
       const a = document.createElement('a');
-      a.href = 'javascript:void(0)';
+      a.className = 'nav-item';
       a.setAttribute('data-module', mod.id);
-      a.innerHTML = mod.icon + ' ' + mod.title;
+      a.href = 'javascript:void(0)';
+      // 与 renderSidebar 一致的内联样式
+      a.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;margin:4px 10px;border-radius:6px;cursor:pointer;font-size:14px;color:inherit;text-decoration:none;transition:all 0.2s;border-left:3px solid transparent;background:transparent;font-weight:400;';
+      a.innerHTML = '<span style="font-size:17px;width:22px;text-align:center;flex-shrink:0;">' + mod.icon + '</span><span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + mod.label + '</span>';
+      if (mod.external) a.innerHTML += '<span style="font-size:10px;opacity:0.5;flex-shrink:0;">↗</span>';
       a.onclick = function() {
-        if (pageTitle) pageTitle.textContent = mod.title;
-        nav.querySelectorAll('a').forEach(x => x.classList.remove('active'));
+        // 更新 active 样式
+        nav.querySelectorAll('a').forEach(function(x) {
+          x.classList.remove('active');
+          x.style.borderLeftColor = 'transparent';
+          x.style.background = 'transparent';
+          x.style.fontWeight = '400';
+        });
         a.classList.add('active');
-        if (content) {
-          const fnName = 'render' + mod.id.charAt(0).toUpperCase() + mod.id.slice(1) + 'Page';
-          if (typeof window[fnName] === 'function') {
-            debugLog('Fallback', '调用 ' + fnName);
-            try { window[fnName](); } catch(e) { debugLog('Fallback', fnName + ' 报错', true); }
-          } else {
-            content.innerHTML = '<div style="padding:40px;text-align:center;"><h2>' + mod.icon + ' ' + mod.title + '</h2><p style="color:#666;">模块渲染函数 <code>' + fnName + '</code> 未定义</p><p style="color:#999;font-size:12px;">请确认 js/admin-pages/' + mod.id + '.js 已正确加载</p></div>';
-          }
+        a.style.borderLeftColor = '#fff';
+        a.style.background = 'rgba(255,255,255,0.15)';
+        a.style.fontWeight = '600';
+        if (pageTitle) pageTitle.textContent = mod.label;
+        if (mod.external) {
+          window.open(mod.external, '_blank');
+          return;
+        }
+        // 优先使用 navigateTo（admin-core.js）
+        if (typeof window.navigateTo === 'function') {
+          try { window.navigateTo(mod.id); } catch(e) {}
+          return;
+        }
+        // 兜底：直接调用渲染函数
+        const fnName = rendererMap[mod.id];
+        if (fnName && typeof window[fnName] === 'function') {
+          debugLog('Fallback', '调用 ' + fnName);
+          try { window[fnName](); } catch(e) { debugLog('Fallback', fnName + ' 报错', true); }
+        } else if (content) {
+          content.innerHTML = '<div style="padding:40px;text-align:center;"><h2>' + mod.icon + ' ' + mod.label + '</h2><p style="color:#666;">模块渲染函数 <code>' + (fnName || mod.id) + '</code> 未定义</p><p style="color:#999;font-size:12px;">请确认对应 js 文件已正确加载</p></div>';
         }
       };
       nav.appendChild(a);
     });
 
-    if (perms.canToggleModules) {
-      const devA = document.createElement('a');
-      devA.href = 'javascript:void(0)';
-      devA.setAttribute('data-module', 'dev-modules');
-      devA.innerHTML = '🔧 开发者工具';
-      devA.onclick = function() {
-        if (pageTitle) pageTitle.textContent = '开发者工具';
-        if (typeof window.renderDevModulesPage === 'function') window.renderDevModulesPage();
-        else if (content) content.innerHTML = '<div style="padding:40px;text-align:center;"><h2>🔧 开发者工具</h2><p>renderDevModulesPage 未定义</p></div>';
-      };
+    // 默认点击第一个
+    const first = nav.querySelector('a');
+    if (first) {
+      setTimeout(function() { first.click(); }, 50);
+    }
+    debugLog('Fallback', '兜底渲染完成: ' + nav.children.length + ' 项');
+
+    // 强制确保后台布局可见
+    const adminLayout2 = $('adminLayout');
+    if (adminLayout2) {
+      adminLayout2.style.display = 'flex';
+      adminLayout2.style.visibility = 'visible';
+      adminLayout2.style.opacity = '1';
+      debugLog('Fallback', '已强制 adminLayout 可见');
+    }
+    const sidebar = $('sidebar');
+    if (sidebar) { sidebar.style.display = ''; sidebar.style.visibility = 'visible'; }
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) { mainContent.style.display = ''; mainContent.style.visibility = 'visible'; }
+    if (content) { content.style.display = ''; content.style.visibility = 'visible'; content.style.minHeight = '200px'; }
+
+    // 轮询：一旦 renderSidebar 可用，自动重新渲染为正确菜单
+    if (!window._sidebarCheckInterval) {
+      var checkCount = 0;
+      window._sidebarCheckInterval = setInterval(function() {
+        checkCount++;
+        if (typeof window.renderSidebar === 'function') {
+          clearInterval(window._sidebarCheckInterval);
+          window._sidebarCheckInterval = null;
+          debugLog('Fallback', '检测到 renderSidebar 已加载，自动重新渲染菜单');
+          try { window.renderSidebar(); } catch(e) { debugLog('Fallback', '重新渲染失败: ' + e.message, true); }
+        }
+        if (checkCount > 30) { clearInterval(window._sidebarCheckInterval); window._sidebarCheckInterval = null; }
+      }, 200);
+    }
+  };
       nav.appendChild(devA);
     }
 
@@ -267,7 +349,16 @@
       applyModuleFilters();
       injectDevToolsEntry();
 
-      setTimeout(() => {
+            // 设置 currentAdmin，供 admin-core.js 使用
+      window.currentAdmin = {
+        id: data.role || 'admin-super',
+        name: data.name || '管理员',
+        role: (data.role === 'admin-super') ? 'super' : (data.role || 'admin'),
+        permissions: data.permissions ? Object.keys(data.permissions).filter(function(k){ return data.permissions[k]; }) : []
+      };
+      window.adminSession = { adminId: window.currentAdmin.id, loginTime: new Date().toISOString() };
+      debugLog('Login', 'currentAdmin 已设置: ' + JSON.stringify(window.currentAdmin));
+setTimeout(() => {
         debugLog('Login', '执行初始化...');
         try {
           if (typeof window.initAdminApp === 'function') { window.initAdminApp(); debugLog('Login', 'initAdminApp 完成'); }
@@ -430,7 +521,16 @@
         await loadModuleConfig();
         applyModuleFilters();
         injectDevToolsEntry();
-        setTimeout(() => {
+                // 设置 currentAdmin，供 admin-core.js 使用
+        window.currentAdmin = {
+          id: data.role || 'admin-super',
+          name: name || '管理员',
+          role: (data.role === 'admin-super') ? 'super' : (data.role || 'admin'),
+          permissions: data.permissions ? Object.keys(data.permissions).filter(function(k){ return data.permissions[k]; }) : []
+        };
+        window.adminSession = { adminId: window.currentAdmin.id, loginTime: new Date().toISOString() };
+        debugLog('Boot', 'currentAdmin 已设置: ' + JSON.stringify(window.currentAdmin));
+setTimeout(() => {
           try {
             if (typeof window.initAdminApp === 'function') window.initAdminApp();
             else if (typeof window.renderNav === 'function') window.renderNav();
