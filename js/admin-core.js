@@ -842,8 +842,8 @@ function renderAdminManage() {
       html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#fff8e1;border-radius:6px;margin-bottom:8px;">' +
         '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 申请时间: ' + (a.registeredAt || '').split('T')[0] + '</div></div>' +
         '<div style="display:flex;gap:6px;">' +
-        '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;" onclick="approveAdmin('' + a.id + '')">✅ 同意</button>' +
-        '<button class="btn" style="padding:4px 12px;font-size:12px;background:var(--danger);color:#fff;" onclick="rejectAdmin('' + a.id + '')">❌ 拒绝</button>' +
+        '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;" onclick="approveAdmin('" + a.id + "')">✅ 同意</button>' +
+        '<button class="btn" style="padding:4px 12px;font-size:12px;background:var(--danger);color:#fff;" onclick="rejectAdmin('" + a.id + "')">❌ 拒绝</button>' +
         '</div></div>';
     });
   }
@@ -855,7 +855,7 @@ function renderAdminManage() {
         '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 审批时间: ' + (a.approvedAt || '').split('T')[0] + '</div></div>' +
         '<div style="display:flex;align-items:center;gap:8px;">' +
         '<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">' +
-        '<input type="checkbox" ' + (a.canDelete !== false ? 'checked' : '') + ' onchange="toggleAdminDelete('' + a.id + '')">允许删除</label>' +
+        '<input type="checkbox" ' + (a.canDelete !== false ? 'checked' : '') + ' onchange="toggleAdminDelete('" + a.id + "')">允许删除</label>' +
         '</div></div>';
     });
   }
