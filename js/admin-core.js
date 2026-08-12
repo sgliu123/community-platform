@@ -100,7 +100,6 @@ function showAdminLayout() {
   const roleMap = { super: '总维护人员', admin: '管理员' };
   document.getElementById('adminRole').textContent = roleMap[currentAdmin.role] || currentAdmin.role;
   renderSidebar();
-  applyModuleSwitches();
   const hash = location.hash;
   const match = hash.match(/module=([^&]+)/);
   const targetModule = match ? match[1] : 'dashboard';
@@ -154,18 +153,6 @@ function renderSidebar() {
   document.getElementById('sidebarNav').innerHTML = html;
 }
 
-function applyModuleSwitches() {
-  var switches = (appData.config && appData.config.moduleSwitches) || {};
-  document.querySelectorAll('.nav-item').forEach(function(el) {
-    var mod = el.dataset.module;
-    if (mod && switches[mod] === false) {
-      el.style.display = 'none';
-    } else {
-      el.style.display = '';
-    }
-  });
-}
-
 function navigateTo(module) {
   try {
     currentModule = module;
@@ -176,7 +163,6 @@ function navigateTo(module) {
     if (pt) pt.textContent = titles[module] || module;
     var sb = document.getElementById('saveBtn');
     if (sb) sb.style.display = ['dashboard','audit','settings','admin-manage','dev-tools'].indexOf(module) >= 0 ? 'none' : 'inline-block';
-    applyModuleSwitches();
     const renderers = {
       dashboard: renderDashboard, config: renderConfig, announcements: renderAnnouncementsAdmin,
       documents: renderDocumentsAdmin, activities: renderActivitiesAdmin, polls: renderPollsAdmin,
@@ -944,8 +930,6 @@ async function saveModuleSwitches() {
   showLoading(true);
   try {
     await saveDataFile('config', appData.config, '更新模块开关配置', 'update');
-    localStorage.setItem('adminData_config', JSON.stringify(appData.config));
-    applyModuleSwitches();
     showToast('配置已保存并生效', 'success');
   } catch(e) {
     showToast('保存失败：' + e.message, 'error');
@@ -962,3 +946,32 @@ function resetModuleSwitches() {
     showToast('已恢复默认配置，请点击保存', 'info');
   }
 }
+
+
+/* ===== 模块开关前端补丁 ===== */
+(function(){
+  function applySwitches(){
+    var sw = (appData && appData.config && appData.config.moduleSwitches) || {};
+    document.querySelectorAll('.nav-item').forEach(function(el){
+      var m = el.dataset.module;
+      if(m && sw[m] === false) el.style.display = 'none';
+      else el.style.display = '';
+    });
+  }
+  var _origNavigateTo = navigateTo;
+  navigateTo = function(module){
+    _origNavigateTo(module);
+    applySwitches();
+  };
+  var _origShowAdminLayout = showAdminLayout;
+  showAdminLayout = function(){
+    _origShowAdminLayout();
+    applySwitches();
+  };
+  var _origSaveModuleSwitches = saveModuleSwitches;
+  saveModuleSwitches = async function(){
+    await _origSaveModuleSwitches();
+    localStorage.setItem('adminData_config', JSON.stringify(appData.config));
+    applySwitches();
+  };
+})();
