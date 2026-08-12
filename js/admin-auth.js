@@ -270,20 +270,9 @@
       setTimeout(() => {
         debugLog('Login', '执行初始化...');
         try {
-          // 优先调用 admin-core.js 的 renderSidebar
-          if (typeof window.renderSidebar === 'function') {
-            debugLog('Login', '调用 renderSidebar()');
-            window.renderSidebar();
-          } else if (typeof window.initAdminApp === 'function') {
-            debugLog('Login', '调用 initAdminApp()');
-            window.initAdminApp();
-          } else if (typeof window.renderNav === 'function') {
-            debugLog('Login', '调用 renderNav()');
-            window.renderNav();
-          } else {
-            debugLog('Login', '无初始化函数，启用兜底', true);
-            fallbackRenderAdmin(data.role, data.name);
-          }
+          if (typeof window.initAdminApp === 'function') { window.initAdminApp(); debugLog('Login', 'initAdminApp 完成'); }
+          else if (typeof window.renderNav === 'function') { window.renderNav(); debugLog('Login', 'renderNav 完成'); }
+          else { debugLog('Login', '无初始化函数，启用兜底', true); fallbackRenderAdmin(data.role, data.name); }
           document.dispatchEvent(new Event('auth:ready'));
           debugLog('Login', 'auth:ready 已派发');
         } catch (e) {
@@ -443,20 +432,9 @@
         injectDevToolsEntry();
         setTimeout(() => {
           try {
-            // 优先调用 admin-core.js 的初始化
-            if (typeof window.renderSidebar === 'function') {
-              debugLog('Boot', '调用 renderSidebar()');
-              window.renderSidebar();
-            } else if (typeof window.initAdminApp === 'function') {
-              debugLog('Boot', '调用 initAdminApp()');
-              window.initAdminApp();
-            } else if (typeof window.renderNav === 'function') {
-              debugLog('Boot', '调用 renderNav()');
-              window.renderNav();
-            } else {
-              debugLog('Boot', '无初始化函数，启用兜底');
-              fallbackRenderAdmin(data.role, name);
-            }
+            if (typeof window.initAdminApp === 'function') window.initAdminApp();
+            else if (typeof window.renderNav === 'function') window.renderNav();
+            else fallbackRenderAdmin(data.role, name);
             document.dispatchEvent(new Event('auth:ready'));
           } catch (e) {
             debugLog('Boot', '初始化报错: ' + e.message, true);
