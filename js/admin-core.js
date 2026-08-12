@@ -858,8 +858,6 @@ function renderDevTools() {
     { key: 'polls', label: '投票管理', desc: '民意调查与投票' },
     { key: 'workorders', label: '工单管理', desc: '维修工单处理跟踪' },
     { key: 'complaints', label: '投诉管理', desc: '投诉建议收集处理' },
-    { key: 'life', label: '生活服务', desc: '前台生活服务导航与后台生活管理' },
-    { key: 'trade', label: '交易管理', desc: '前台交易导航与后台交易管理' },
     { key: 'audit', label: '审计日志', desc: '操作记录与审计追踪', sensitive: true },
     { key: 'settings', label: '系统设置', desc: '高级系统选项', sensitive: true }
   ];

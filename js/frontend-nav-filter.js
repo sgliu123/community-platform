@@ -35,9 +35,7 @@
       'workorders': ['[data-page="workorders"]', 'a[href*="workorders"]', '.nav-workorders'],
       'complaints': ['[data-page="complaints"]', 'a[href*="complaints"]', '.nav-complaints'],
       'activities': ['[data-page="activities"]', 'a[href*="activities"]', '.nav-activities'],
-      'documents': ['[data-page="documents"]', 'a[href*="documents"]', '.nav-documents'],
-      'life': ['[data-page="life"]', 'a[href*="life"]', '.nav-life'],
-      'trade': ['[data-page="trade"]', 'a[href*="trade"]', '.nav-trade']
+      'documents': ['[data-page="documents"]', 'a[href*="documents"]', '.nav-documents']
     };
     Object.keys(switches).forEach(function(key){
       if (switches[key] === false) {
