@@ -144,18 +144,19 @@ function renderSidebar() {
   }
   const switches = (appData.config && appData.config.moduleSwitches) || {};
   let html = '';
-  items.forEach(item => {
+  items.forEach(function(item) {
     const hasPerm = isSuper || perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0;
     const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
     if (!hasPerm || !hasRole) return;
     if (switches[item.id] === false) return;
     var isActive = item.id === currentModule;
-    if (item.external) {
-      html += '<div class="nav-item' + (isActive ? ' active' : '') + '" data-module="' + item.id + '" onclick="window.open(\'' + item.external + '\','\'_blank\')">';
-    } else {
-      html += '<div class="nav-item' + (isActive ? ' active' : '') + '" data-module="' + item.id + '" onclick="navigateTo(\'' + item.id + '\')">';
-    }
-    html += '<span class="icon">' + item.icon + '</span><span>' + item.label + '</span></div>';
+    var cls = 'nav-item' + (isActive ? ' active' : '');
+    var clickAction = item.external ? 'window.open(\'' + item.external + '\',\'_blank\')' : 'navigateTo(\'' + item.id + '\')';
+    html += '<a class="' + cls + '" data-module="' + item.id + '" onclick="' + clickAction + '" style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:4px 10px;border-radius:6px;cursor:pointer;font-size:14px;color:inherit;text-decoration:none;transition:all 0.2s;border-left:3px solid ' + (isActive ? '#fff' : 'transparent') + ';background:' + (isActive ? 'rgba(255,255,255,0.15)' : 'transparent') + ';font-weight:' + (isActive ? '600' : '400') + ';">';
+    html += '<span style="font-size:17px;width:22px;text-align:center;flex-shrink:0;">' + item.icon + '</span>';
+    html += '<span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(item.label) + '</span>';
+    if (item.external) html += '<span style="font-size:10px;opacity:0.5;flex-shrink:0;">↗</span>';
+    html += '</a>';
   });
   var navEl = document.getElementById('sidebarNav');
   if (navEl) navEl.innerHTML = html;
