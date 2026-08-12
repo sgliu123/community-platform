@@ -1,9 +1,7 @@
-/* frontend-nav-filter.js - 前台导航栏与首页卡片模块开关过滤 */
+/* frontend-nav-filter.js - 前台导航栏模块开关过滤 */
 (function(){
-  var MODULE_KEYS = ['announcements','documents','activities','polls','workorders','complaints','life','trade'];
-  var HIDDEN_ATTR = 'data-nav-hidden';
-
   function getModuleSwitches() {
+    var cfg = null;
     var keys = ['adminData_config', 'config', 'app_config', 'community_config'];
     for (var i = 0; i < keys.length; i++) {
       try {
@@ -28,74 +26,33 @@
     return null;
   }
 
-  function hideElement(el) {
-    if (el.getAttribute(HIDDEN_ATTR) === '1') return;
-    el.setAttribute(HIDDEN_ATTR, '1');
-    el.style.display = 'none';
-  }
-
-  function applyFilter(){
+  function applyNavFilter(){
     var switches = getModuleSwitches();
     if (!switches) return;
-
-    MODULE_KEYS.forEach(function(key){
-      if (switches[key] !== false) return;
-
-      // 1. 顶部导航
-      var navSelectors = ['[data-page="' + key + '"]', 'a[href*="' + key + '"]', '.nav-' + key];
-      navSelectors.forEach(function(sel){
-        document.querySelectorAll(sel).forEach(hideElement);
-      });
-
-      // 2. 首页卡片 — 通过 onclick 匹配 navigate('xxx')
-      var patterns = ["navigate('" + key + "')", 'navigate("' + key + '")'];
-      document.querySelectorAll('[onclick], [data-page]').forEach(function(el) {
-        if (el.getAttribute(HIDDEN_ATTR) === '1') return;
-        var onclickStr = el.getAttribute('onclick') || '';
-        var dataPage = el.getAttribute('data-page') || '';
-        var shouldHide = dataPage === key;
-        if (!shouldHide) {
-          for (var p = 0; p < patterns.length; p++) {
-            if (onclickStr.indexOf(patterns[p]) !== -1) { shouldHide = true; break; }
-          }
-        }
-        if (shouldHide) {
-          var card = el.closest('.card, .grid-item, .feature-card, .quick-card, .nav-card');
-          hideElement(card && card !== el ? card : el);
-        }
-      });
+    var map = {
+      'announcements': ['[data-page="announcements"]', 'a[href*="announcements"]', '.nav-announcements'],
+      'polls': ['[data-page="polls"]', 'a[href*="polls"]', '.nav-polls'],
+      'workorders': ['[data-page="workorders"]', 'a[href*="workorders"]', '.nav-workorders'],
+      'complaints': ['[data-page="complaints"]', 'a[href*="complaints"]', '.nav-complaints'],
+      'activities': ['[data-page="activities"]', 'a[href*="activities"]', '.nav-activities'],
+      'documents': ['[data-page="documents"]', 'a[href*="documents"]', '.nav-documents'],
+      'life': ['[data-page="life"]', 'a[href*="life"]', '.nav-life'],
+      'trade': ['[data-page="trade"]', 'a[href*="trade"]', '.nav-trade']
+    };
+    Object.keys(switches).forEach(function(key){
+      if (switches[key] === false) {
+        var selectors = map[key] || ['[data-page="'+key+'"]'];
+        selectors.forEach(function(sel){
+          document.querySelectorAll(sel).forEach(function(el){ 
+            el.style.display = 'none'; 
+          });
+        });
+      }
     });
   }
 
-  // 拦截 navigate，阻止进入已关闭模块
-  function interceptNavigate() {
-    if (typeof window.navigate !== 'function') return;
-    var orig = window.navigate;
-    window.navigate = function(page) {
-      var switches = getModuleSwitches();
-      if (switches && switches[page] === false) {
-        console.log('[模块开关] ' + page + ' 已关闭');
-        return;
-      }
-      var ret = orig.apply(this, arguments);
-      // SPA 切换后延迟过滤一次
-      setTimeout(applyFilter, 50);
-      return ret;
-    };
-  }
-
-  // 轻量 MutationObserver：只监听 #main 的子树变化
-  function observeMain() {
-    var main = document.getElementById('main');
-    if (!main) return;
-    var observer = new MutationObserver(function() { applyFilter(); });
-    observer.observe(main, { childList: true, subtree: true });
-  }
-
   function init() {
-    applyFilter();
-    interceptNavigate();
-    observeMain();
+    applyNavFilter();
   }
 
   if (document.readyState === 'loading') {
@@ -103,14 +60,17 @@
   } else {
     init();
   }
+  setTimeout(applyNavFilter, 100);
+  setTimeout(applyNavFilter, 500);
+  setTimeout(applyNavFilter, 1000);
+  setTimeout(applyNavFilter, 2000);
 
-  // 兜底：页面加载过程中多次执行，确保 SPA 初始渲染完成
-  [0, 50, 100, 200, 500].forEach(function(t){ setTimeout(applyFilter, t); });
+  // FIX: 增加轮询，确保后台修改后前台能即时响应
+  setInterval(applyNavFilter, 3000);
 
-  // 监听其他标签页修改 localStorage
   window.addEventListener('storage', function(e) {
     if (e.key && (e.key.indexOf('config') >= 0 || e.key.indexOf('adminData') >= 0)) {
-      applyFilter();
+      applyNavFilter();
     }
   });
 })();
