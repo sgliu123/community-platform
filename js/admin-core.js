@@ -138,27 +138,25 @@ function renderSidebar() {
     { id: 'trade', label: '交易管理', icon: '🛒', perm: 'all', roles: ['super','property','committee','community'], external: 'trade-admin.html' },
     { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', roles: ['super','property','committee','community'] }
   ];
+  let html = '';
   if (isSuper) {
     items.push({ id: 'admin-manage', label: '管理员管理', icon: '👤', perm: 'all', roles: ['super'] });
     items.push({ id: 'dev-tools', label: '开发者工具', icon: '🛠️', perm: 'all', roles: ['super'] });
   }
   const switches = (appData.config && appData.config.moduleSwitches) || {};
-  let html = '';
   items.forEach(item => {
+    if (switches[item.id] === false) return;
     const hasPerm = isSuper || perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0;
     const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
     if (!hasPerm || !hasRole) return;
-    if (switches[item.id] === false) return;
-    var isActive = item.id === currentModule;
     if (item.external) {
-      html += '<div class="nav-item' + (isActive ? ' active' : '') + '" data-module="' + item.id + '" onclick="window.open(\'' + item.external + '\','_blank')">';
+      html += `<div class="nav-item" data-module="${item.id}" onclick="window.open('${item.external}','_blank')">`;
     } else {
-      html += '<div class="nav-item' + (isActive ? ' active' : '') + '" data-module="' + item.id + '" onclick="navigateTo(\'' + item.id + '\')">';
+      html += `<div class="nav-item ${item.id === currentModule ? 'active' : ''}" data-module="${item.id}" onclick="navigateTo('${item.id}')">`;
     }
     html += '<span class="icon">' + item.icon + '</span><span>' + item.label + '</span></div>';
   });
-  var navEl = document.getElementById('sidebarNav');
-  if (navEl) navEl.innerHTML = html;
+  document.getElementById('sidebarNav').innerHTML = html;
 }
 
 function navigateTo(module) {
@@ -174,8 +172,8 @@ function navigateTo(module) {
     const renderers = {
       dashboard: renderDashboard, config: renderConfig, announcements: renderAnnouncementsAdmin,
       documents: renderDocumentsAdmin, activities: renderActivitiesAdmin, polls: renderPollsAdmin,
-      residents: renderResidentsAdmin, workorders: renderWorkordersAdmin,
-      complaints: renderComplaintsAdmin, audit: renderAuditLog,
+      workorders: renderWorkordersAdmin,
+      complaints: renderComplaintsAdmin,
       settings: renderSettings,
       'admin-manage': renderAdminManage,
       'dev-tools': renderDevTools
@@ -894,7 +892,7 @@ function renderDevTools() {
     { key: 'polls', label: '投票管理', desc: '民意调查与投票' },
     { key: 'settings', label: '系统设置', desc: '高级系统选项', sensitive: true }
   ];
-  var html = '<div style="margin-bottom:12px;"><button class="btn" onclick="navigateTo(\'dashboard\')">⬅️ 返回仪表盘</button></div>';
+  var html = '<div style="margin-bottom:12px;"><button class="btn" onclick="navigateTo(' + "'dashboard'" + ')">⬅️ 返回仪表盘</button></div>';
   html += '<div class="card"><div class="card-header"><h3>🛠️ 开发者工具 - 模块开关</h3></div>';
   modules.forEach(function(m) {
     var enabled = switches[m.key] !== false;

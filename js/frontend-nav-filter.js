@@ -1,6 +1,6 @@
 /* frontend-nav-filter.js - 前台导航栏模块开关过滤 */
 (function(){
-  function applyNavFilter(){
+  function applyFilter(){
     var cfg = null;
     try {
       var raw = localStorage.getItem('adminData_config');
@@ -8,7 +8,6 @@
     } catch(e) {}
     if (!cfg || !cfg.moduleSwitches) return;
     var switches = cfg.moduleSwitches;
-    // 前台导航选择器映射（根据 data-page 属性匹配）
     var map = {
       'polls': ['[data-page="polls"]'],
       'workorders': ['[data-page="workorders"]'],
@@ -24,10 +23,10 @@
     });
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', applyNavFilter);
+    document.addEventListener('DOMContentLoaded', applyFilter);
   } else {
-    applyNavFilter();
+    applyFilter();
   }
-  setTimeout(applyNavFilter, 500);
-  setTimeout(applyNavFilter, 1500);
+  setTimeout(applyFilter, 500);
+  setTimeout(applyFilter, 1500);
 })();
