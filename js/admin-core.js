@@ -125,8 +125,6 @@ function renderSidebar() {
   const perms = currentAdmin.permissions || [];
   const isSuper = currentAdmin.role === 'super';
   const items = [
-    { id: 'dashboard', label: '仪表盘', icon: '📊', perm: 'view', roles: ['super','property','committee','community'] },
-    { id: 'config', label: '社区配置', icon: '⚙️', perm: 'all', roles: ['super'] },
     { id: 'announcements', label: '公告管理', icon: '📢', perm: 'announcements', roles: ['super','property','community'] },
     { id: 'documents', label: '文件管理', icon: '📄', perm: 'documents', roles: ['super','property'] },
     { id: 'activities', label: '动态管理', icon: '🎉', perm: 'activities', roles: ['super','community'] },
