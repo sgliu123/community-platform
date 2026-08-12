@@ -6,7 +6,7 @@
 <title>管理后台</title>
 <link rel="stylesheet" href="css/admin.css">
   <link rel="icon" id="faviconLink" type="image/png" href="">
-</head>
+<style>#ui-debug-panel,#debug-panel,#console-panel,#log-panel,.ui-debug-panel,.debug-panel,.console-panel,.log-panel,[id*="DebugPanel"],[id*="LogPanel"],[id*="ConsolePanel"]{display:none!important;visibility:hidden!important;height:0!important;}</style></head>
 <body>
 
 <div class="login-page" id="loginPage" style="display:none;">
@@ -103,5 +103,5 @@
 <script src="js/admin-core.js"></script>
 <script src="js/admin-app.js"></script>
 <script src="js/admin-auth.js"></script>
-</body>
+<script>(function(){function clean(){var s=["#ui-debug-panel","#debug-panel","#console-panel","#log-panel",".ui-debug-panel",".debug-panel",".console-panel",".log-panel"];s.forEach(function(sel){document.querySelectorAll(sel).forEach(function(el){el.remove();});});}clean();setTimeout(clean,300);setTimeout(clean,1000);})();</script></body>
 </html>
