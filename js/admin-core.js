@@ -103,7 +103,7 @@ function showAdminLayout() {
   const hash = location.hash;
   const match = hash.match(/module=([^&]+)/);
   const targetModule = match ? match[1] : 'dashboard';
-  const validModules = ['dashboard','config','announcements','documents','activities','polls','residents','audit','workorders','complaints','settings'];
+  const validModules = ['dashboard','config','announcements','documents','activities','polls','residents','audit','workorders','complaints','settings','admin-manage','dev-tools'];
   if (validModules.includes(targetModule)) {
     navigateTo(targetModule);
   } else {
@@ -136,13 +136,17 @@ function renderSidebar() {
     { id: 'complaints', label: '投诉建议', icon: '📝', perm: 'complaints', roles: ['super','committee','community'] },
     { id: 'life', label: '生活服务', icon: '🍽️', perm: 'all', roles: ['super','property','committee','community'], external: 'admin-life.html' },
     { id: 'trade', label: '交易管理', icon: '🛒', perm: 'all', roles: ['super','property','committee','community'], external: 'trade-admin.html' },
-    { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', roles: ['super','property','committee','community'] }
+    { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', roles: ['super','property','committee','community'] },
+    { id: 'admin-manage', label: '管理员管理', icon: '👤', perm: 'all', roles: ['super'] },
+    { id: 'dev-tools', label: '开发者工具', icon: '🛠️', perm: 'all', roles: ['super'] }
   ];
+  const switches = (appData.config && appData.config.moduleSwitches) || {};
   let html = '';
   items.forEach(item => {
     const hasPerm = isSuper || perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0;
     const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
     if (!hasPerm || !hasRole) return;
+    if (switches[item.id] === false) return;
     if (item.external) {
       html += `<div class="nav-item" data-module="${item.id}" onclick="window.open('${item.external}','_blank')">`;
     } else {
@@ -158,17 +162,19 @@ function navigateTo(module) {
     currentModule = module;
     location.hash = 'module=' + module;
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === module));
-    const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', objections: '异议管理', audit: '操作日志', workorders: '工单管理', complaints: '投诉建议', life: '生活服务', settings: '系统设置' };
+    const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', objections: '异议管理', audit: '操作日志', workorders: '工单管理', complaints: '投诉建议', life: '生活服务', settings: '系统设置', 'admin-manage': '管理员管理', 'dev-tools': '开发者工具' };
     var pt = document.getElementById('pageTitle');
     if (pt) pt.textContent = titles[module] || module;
     var sb = document.getElementById('saveBtn');
-    if (sb) sb.style.display = ['dashboard','audit','settings'].indexOf(module) >= 0 ? 'none' : 'inline-block';
+    if (sb) sb.style.display = ['dashboard','audit','settings','admin-manage','dev-tools'].indexOf(module) >= 0 ? 'none' : 'inline-block';
     const renderers = {
       dashboard: renderDashboard, config: renderConfig, announcements: renderAnnouncementsAdmin,
       documents: renderDocumentsAdmin, activities: renderActivitiesAdmin, polls: renderPollsAdmin,
       workorders: renderWorkordersAdmin,
       complaints: renderComplaintsAdmin,
-      settings: renderSettings
+      settings: renderSettings,
+      'admin-manage': renderAdminManage,
+      'dev-tools': renderDevTools
     };
     const fn = renderers[module] || renderDashboard;
     var ca = document.getElementById('contentArea');
