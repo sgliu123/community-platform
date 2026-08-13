@@ -154,6 +154,30 @@
               debugLog('Fallback', '调用 renderDashboard()');
               try { window.renderDashboard(); } catch(e) {}
             }
+            // 检测内容区是否为空，如果为空则强制渲染仪表盘
+            setTimeout(function() {
+              var ca = document.getElementById('contentArea');
+              var pt = document.getElementById('pageTitle');
+              if (ca) {
+                var html = ca.innerHTML.trim();
+                debugLog('Fallback', 'contentArea 内容长度: ' + html.length);
+                if (html.length < 50) {
+                  debugLog('Fallback', 'contentArea 为空，强制渲染仪表盘');
+                  if (typeof window.renderDashboard === 'function') {
+                    try {
+                      var dashboardHtml = window.renderDashboard();
+                      if (dashboardHtml && typeof dashboardHtml === 'string') {
+                        ca.innerHTML = dashboardHtml;
+                        debugLog('Fallback', '仪表盘已强制渲染');
+                      }
+                    } catch(e) { debugLog('Fallback', '强制渲染报错: ' + e.message, true); }
+                  } else {
+                    ca.innerHTML = '<div style="padding:40px;text-align:center;"><h2>📊 仪表盘</h2><p>renderDashboard 未定义</p></div>';
+                  }
+                }
+              }
+              if (pt && !pt.textContent.trim()) pt.textContent = '仪表盘';
+            }, 300);
           }, 100);
           return;
         }
