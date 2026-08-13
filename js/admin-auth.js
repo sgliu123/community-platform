@@ -144,7 +144,17 @@
         // 检查菜单是否渲染成功（至少5项）
         const navCheck = $('sidebarNav');
         if (navCheck && navCheck.children.length >= 5) {
-          debugLog('Fallback', 'renderSidebar 渲染成功，跳过兜底');
+          debugLog('Fallback', 'renderSidebar 渲染成功');
+          // 菜单渲染成功，但还需要显示默认页面内容
+          setTimeout(function() {
+            if (typeof window.navigateTo === 'function') {
+              debugLog('Fallback', '调用 navigateTo(dashboard)');
+              try { window.navigateTo('dashboard'); } catch(e) {}
+            } else if (typeof window.renderDashboard === 'function') {
+              debugLog('Fallback', '调用 renderDashboard()');
+              try { window.renderDashboard(); } catch(e) {}
+            }
+          }, 100);
           return;
         }
         debugLog('Fallback', 'renderSidebar 渲染结果为空（' + (navCheck ? navCheck.children.length : 0) + '项），继续兜底');
@@ -157,6 +167,7 @@
     const pageTitle = $('pageTitle');
     const perms = getAuthPermissions();
     const config = getModuleConfig();
+    const isSuper = role === 'admin-super' || role === 'super';
 
     // 模块定义（与 admin-core.js 的 renderSidebar 保持一致）
     const modules = [
@@ -173,7 +184,6 @@
       { id: 'trade', label: '交易管理', icon: '🛒', perm: 'all', roles: ['super','property','committee','community'], external: 'trade-admin.html' },
       { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', roles: ['super','property','committee','community'] }
     ];
-    const isSuper = role === 'admin-super' || role === 'super';
     if (isSuper) {
       modules.push({ id: 'admin-manage', label: '管理员管理', icon: '👤', perm: 'all', roles: ['super'] });
       modules.push({ id: 'dev-tools', label: '开发者工具', icon: '🛠️', perm: 'all', roles: ['super'] });

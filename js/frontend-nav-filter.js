@@ -54,7 +54,7 @@
     });
 
     // 首页卡片/按钮：多种方式匹配模块
-    var cardSelectors = ['.card', '.grid-item', '.feature-card', '.quick-card', '.nav-card', '.home-card', '.module-card', '.service-card', '.icon-card', '.func-card', '.menu-card'];
+    var cardSelectors = ['.card', '.grid-item', '.feature-card', '.quick-card', '.nav-card', '.home-card', '.module-card', '.service-card', '.icon-card', '.func-card', '.menu-card', 'main > div', '.service-grid > div', '.quick-links > div', '.home-modules > div', '.module-list > div', '.grid > div', '.flex > div'];
     var allCards = [];
     cardSelectors.forEach(function(sel) {
       var found = document.querySelectorAll(sel);
@@ -67,6 +67,9 @@
 
     allCards.forEach(function(card) {
       var page = null;
+      var cardText = card.textContent ? card.textContent.substring(0, 20) : '无文本';
+      var cardClass = card.className || '无class';
+      console.log('[模块开关] 检查卡片: class=' + cardClass + ', text=' + cardText);
       // 方式1: 卡片自身有 data-page
       if (card.dataset && card.dataset.page) page = card.dataset.page;
       // 方式2: 子元素有 data-page
@@ -130,6 +133,37 @@
         console.log('[模块开关] 隐藏卡片: ' + page + ' (匹配方式: 自动推断)');
       }
     });
+
+    // 暴力兜底：遍历 main 下的所有 div，根据文本内容判断
+    var mainEl = document.querySelector('main');
+    if (mainEl) {
+      var allDivs = mainEl.querySelectorAll(':scope > div, :scope > div > div');
+      console.log('[模块开关] 暴力兜底找到 ' + allDivs.length + ' 个div');
+      allDivs.forEach(function(div) {
+        if (div.style.display === 'none') return;
+        var text = div.textContent || '';
+        var textMap = {
+          '公告栏': 'announcements', '公告': 'announcements',
+          '上级文件': 'documents', '文件': 'documents',
+          '社区动态': 'activities', '动态': 'activities',
+          '投票征集': 'polls', '投票': 'polls',
+          '我要报修': 'workorders', '报修': 'workorders',
+          '投诉建议': 'complaints', '投诉': 'complaints', '反馈': 'complaints',
+          '生活服务': 'life', '生活': 'life',
+          '房屋租售': 'trade', '租售': 'trade', '交易': 'trade', '房屋': 'trade',
+          '我的报修': 'workorders',
+          '我的反馈': 'complaints'
+        };
+        var matchedPage = null;
+        for (var key in textMap) {
+          if (text.indexOf(key) >= 0) { matchedPage = textMap[key]; break; }
+        }
+        if (matchedPage && switches[matchedPage] === false) {
+          div.style.display = 'none';
+          console.log('[模块开关] 暴力兜底隐藏: ' + matchedPage + ', text=' + text.substring(0, 15));
+        }
+      });
+    }
 
     // 兜底：遍历所有可能包含模块链接的元素
     var allClickable = document.querySelectorAll('a, button, [onclick], [data-page]');
