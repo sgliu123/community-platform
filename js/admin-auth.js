@@ -136,10 +136,21 @@
     const nav = $('sidebarNav');
     if (!nav) { debugLog('Fallback', '找不到 sidebarNav', true); return; }
 
-    // 如果 renderSidebar 已可用，直接调用它
+    // 如果 renderSidebar 已可用，尝试调用它
     if (typeof window.renderSidebar === 'function') {
-      debugLog('Fallback', '检测到 renderSidebar，优先调用');
-      try { window.renderSidebar(); return; } catch(e) { debugLog('Fallback', 'renderSidebar 报错: ' + e.message, true); }
+      debugLog('Fallback', '检测到 renderSidebar，尝试调用');
+      try { 
+        window.renderSidebar(); 
+        // 检查菜单是否渲染成功（至少5项）
+        const navCheck = $('sidebarNav');
+        if (navCheck && navCheck.children.length >= 5) {
+          debugLog('Fallback', 'renderSidebar 渲染成功，跳过兜底');
+          return;
+        }
+        debugLog('Fallback', 'renderSidebar 渲染结果为空（' + (navCheck ? navCheck.children.length : 0) + '项），继续兜底');
+      } catch(e) { 
+        debugLog('Fallback', 'renderSidebar 报错: ' + e.message, true); 
+      }
     }
 
     const content = $('contentArea');
