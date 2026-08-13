@@ -124,43 +124,6 @@ function renderSidebar() {
   if (!currentAdmin) return;
   const perms = currentAdmin.permissions || [];
   const isSuper = currentAdmin.role === 'super';
-  console.log('[renderSidebar] isSuper=' + isSuper + ', role=' + currentAdmin.role + ', perms=' + JSON.stringify(perms));
-
-  // Super 用户直接渲染全部菜单，不受任何过滤/开关影响
-  if (isSuper) {
-    const allItems = [
-      { id: 'dashboard', label: '仪表盘', icon: '📊', external: null },
-      { id: 'config', label: '社区配置', icon: '⚙️', external: null },
-      { id: 'announcements', label: '公告管理', icon: '📢', external: null },
-      { id: 'documents', label: '文件管理', icon: '📄', external: null },
-      { id: 'activities', label: '动态管理', icon: '🎉', external: null },
-      { id: 'polls', label: '投票管理', icon: '🗳️', external: null },
-      { id: 'residents', label: '业主管理', icon: '👥', external: null },
-      { id: 'workorders', label: '工单管理', icon: '🔧', external: null },
-      { id: 'complaints', label: '投诉建议', icon: '📝', external: null },
-      { id: 'life', label: '生活服务', icon: '🍽️', external: 'admin-life.html' },
-      { id: 'trade', label: '交易管理', icon: '🛒', external: 'trade-admin.html' },
-      { id: 'settings', label: '系统设置', icon: '🔐', external: null },
-      { id: 'admin-manage', label: '管理员管理', icon: '👤', external: null },
-      { id: 'dev-tools', label: '开发者工具', icon: '🛠️', external: null }
-    ];
-    let html = '';
-    allItems.forEach(function(item) {
-      var isActive = item.id === currentModule;
-      var cls = 'nav-item' + (isActive ? ' active' : '');
-      var clickAction = item.external ? 'window.open(\'' + item.external + '\',\'_blank\')' : 'navigateTo(\'' + item.id + '\')';
-      html += '<a class="' + cls + '" data-module="' + item.id + '" onclick="' + clickAction + '" style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:4px 10px;border-radius:6px;cursor:pointer;font-size:14px;color:inherit;text-decoration:none;transition:all 0.2s;border-left:3px solid ' + (isActive ? '#fff' : 'transparent') + ';background:' + (isActive ? 'rgba(255,255,255,0.15)' : 'transparent') + ';font-weight:' + (isActive ? '600' : '400') + ';">';
-      html += '<span style="font-size:17px;width:22px;text-align:center;flex-shrink:0;">' + item.icon + '</span>';
-      html += '<span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(item.label) + '</span>';
-      if (item.external) html += '<span style="font-size:10px;opacity:0.5;flex-shrink:0;">↗</span>';
-      html += '</a>';
-    });
-    var navEl = document.getElementById('sidebarNav');
-    if (navEl) { navEl.innerHTML = html; console.log('[renderSidebar] Super用户已渲染 ' + allItems.length + ' 个菜单项'); }
-    return;
-  }
-
-  // 非 Super 用户走原有逻辑（保留权限+开关过滤）
   const items = [
     { id: 'dashboard', label: '仪表盘', icon: '📊', perm: 'view', roles: ['super','property','committee','community'] },
     { id: 'config', label: '社区配置', icon: '⚙️', perm: 'all', roles: ['super'] },
@@ -185,7 +148,7 @@ function renderSidebar() {
     const hasPerm = isSuper || perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0;
     const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
     if (!hasPerm || !hasRole) return;
-    if (switches[item.id] === false && !isSuper) return;
+    if (switches[item.id] === false) return;
     var isActive = item.id === currentModule;
     var cls = 'nav-item' + (isActive ? ' active' : '');
     var clickAction = item.external ? 'window.open(\'' + item.external + '\',\'_blank\')' : 'navigateTo(\'' + item.id + '\')';
@@ -197,6 +160,39 @@ function renderSidebar() {
   });
   var navEl = document.getElementById('sidebarNav');
   if (navEl) navEl.innerHTML = html;
+}
+
+function renderDashboard() {
+  var announcements = (appData.announcements || []).slice(0, 5);
+  var docs = (appData.documents || []).slice(0, 5);
+  var activities = (appData.activities || []).slice(0, 5);
+  var polls = (appData.polls || []).filter(function(p) { return p.status === '进行中'; });
+  var residents = appData.residents || [];
+  var activeResidents = residents.filter(function(r) { return r.status === 'active'; });
+  var testResidents = residents.filter(function(r) { return r.isTest; });
+
+  var html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;">';
+  html += '<div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><div style="font-size:12px;color:#666;margin-bottom:8px;">公告总数</div><div style="font-size:28px;font-weight:700;color:#2e7d32;">' + (appData.announcements || []).length + '</div></div>';
+  html += '<div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><div style="font-size:12px;color:#666;margin-bottom:8px;">上级文件</div><div style="font-size:28px;font-weight:700;color:#2e7d32;">' + (appData.documents || []).length + '</div></div>';
+  html += '<div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><div style="font-size:12px;color:#666;margin-bottom:8px;">社区动态</div><div style="font-size:28px;font-weight:700;color:#2e7d32;">' + (appData.activities || []).length + '</div></div>';
+  html += '<div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><div style="font-size:12px;color:#666;margin-bottom:8px;">进行中投票</div><div style="font-size:28px;font-weight:700;color:#2e7d32;">' + polls.length + '</div></div>';
+  html += '</div>';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;">';
+  html += '<div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><div style="font-size:12px;color:#666;margin-bottom:8px;">正式业主</div><div style="font-size:28px;font-weight:700;color:#2e7d32;">' + activeResidents.length + '</div></div>';
+  html += '<div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><div style="font-size:12px;color:#666;margin-bottom:8px;">测试数据</div><div style="font-size:28px;font-weight:700;color:#f9a825;">' + testResidents.length + '</div></div>';
+  html += '</div>';
+
+  html += '<div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">';
+  html += '<h3 style="margin:0 0 16px 0;font-size:16px;">🚀 快捷入口</h3>';
+  html += '<div style="display:flex;gap:12px;flex-wrap:wrap;">';
+  html += '<button class="btn btn-primary" onclick="openEditModal('announcements')">➕ 发布公告</button>';
+  html += '<button class="btn btn-primary" onclick="openEditModal('activities')">➕ 发布动态</button>';
+  html += '<button class="btn btn-primary" onclick="openEditModal('polls')">➕ 发起投票</button>';
+  html += '<button class="btn btn-primary" onclick="openEditModal('residents')">➕ 添加业主</button>';
+  html += '</div></div>';
+
+  return html;
 }
 
 function navigateTo(module) {
