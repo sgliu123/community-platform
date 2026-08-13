@@ -551,7 +551,7 @@ setTimeout(() => {
             else fallbackRenderAdmin(data.role, name);
             document.dispatchEvent(new Event('auth:ready'));
           } catch (e) {
-            debugLog('Boot', '初始化报错: ' + e.message, true);
+            debugLog('Boot', '初始化 报错: ' + e.message, true);
           }
         }, 50);
       } else {
