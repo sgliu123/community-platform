@@ -255,10 +255,10 @@
     }
   }, 250);
 
-  // storage 同步
+  // storage 同步（跨标签页）
   window.addEventListener('storage', function(e) {
-    if (e.key && (e.key.indexOf('config') >= 0 || e.key.indexOf('adminData') >= 0)) {
-      console.log('[模块开关] 配置变更，重新过滤');
+    if (e.key && (e.key.indexOf('config') >= 0 || e.key.indexOf('adminData') >= 0 || e.key === '_moduleSwitch_trigger')) {
+      console.log('[模块开关] 检测到配置变更，重新过滤');
       applyNavFilter();
     }
   });
