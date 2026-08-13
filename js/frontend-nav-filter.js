@@ -1,8 +1,7 @@
 /* frontend-nav-filter.js - 前台导航栏与首页卡片模块开关过滤 */
 (function(){
-  var _lastSwitches = null;
-  var _initTimer = null;
   var _checkCount = 0;
+  var _initTimer = null;
 
   function getModuleSwitches() {
     var keys = ['adminData_config', 'config', 'app_config', 'community_config'];
@@ -29,71 +28,99 @@
     return null;
   }
 
-  // 文本到模块的映射
+  // 文本到模块的精确映射
   var textToModule = {
-    '公告栏': 'announcements', '公告管理': 'announcements', '最新公告': 'announcements',
-    '上级文件': 'documents', '文件管理': 'documents', '社区文件': 'documents',
-    '社区动态': 'activities', '动态管理': 'activities', '最新动态': 'activities',
-    '投票征集': 'polls', '投票管理': 'polls', '民意调查': 'polls',
-    '我要报修': 'workorders', '工单管理': 'workorders', '报修服务': 'workorders',
-    '投诉建议': 'complaints', '投诉管理': 'complaints', '反馈': 'complaints',
-    '生活服务': 'life', '生活': 'life', '便民生活': 'life',
-    '房屋租售': 'trade', '租售': 'trade', '交易管理': 'trade', '房屋租售和物品交易': 'trade',
-    '我的报修': 'workorders', '我的反馈': 'complaints'
+    '公告栏': 'announcements',
+    '上级文件': 'documents',
+    '社区动态': 'activities',
+    '投票征集': 'polls',
+    '我要报修': 'workorders',
+    '投诉建议': 'complaints',
+    '生活服务': 'life',
+    '房屋租售和物品交易': 'trade',
+    '我的报修': 'workorders',
+    '我的反馈': 'complaints'
   };
 
-  // 链接/路由到模块的映射
-  var routeToModule = {
-    'announcements': 'announcements', 'documents': 'documents', 'activities': 'activities',
-    'polls': 'polls', 'workorders': 'workorders', 'complaints': 'complaints',
-    'life': 'life', 'trade': 'trade'
-  };
-
-  function inferModuleFromElement(el) {
-    // 方式1: 自身或子元素的 data-page
-    var page = el.dataset ? el.dataset.page : null;
-    if (!page) {
-      var child = el.querySelector('[data-page]');
-      if (child) page = child.dataset.page;
-    }
-    if (page && routeToModule[page]) return routeToModule[page];
-
-    // 方式2: 检查所有子链接的 href
-    var links = el.querySelectorAll('a[href]');
-    for (var li = 0; li < links.length; li++) {
-      var href = links[li].getAttribute('href') || '';
-      for (var rkey in routeToModule) {
-        if (href.indexOf(rkey) >= 0 || href.indexOf('#' + rkey) >= 0 || href.indexOf('page=' + rkey) >= 0) {
-          return routeToModule[rkey];
-        }
+  // 根据元素文本推断模块，返回 {module, matchedText}
+  function inferModuleFromText(el) {
+    var text = (el.textContent || '').replace(/\s+/g, '');
+    for (var key in textToModule) {
+      if (text.indexOf(key) >= 0) {
+        return { module: textToModule[key], text: key };
       }
-      // 检查 life.html / trade.html
-      if (href.indexOf('life.html') >= 0) return 'life';
-      if (href.indexOf('trade.html') >= 0) return 'trade';
     }
+    return null;
+  }
 
-    // 方式3: 检查 onclick
+  // 根据 data-page / href / onclick 推断模块
+  function inferModuleFromAttrs(el) {
+    // data-page
+    if (el.dataset && el.dataset.page) {
+      var p = el.dataset.page;
+      if (p === 'announcements' || p === 'documents' || p === 'activities' ||
+          p === 'polls' || p === 'workorders' || p === 'complaints' ||
+          p === 'life' || p === 'trade') {
+        return { module: p };
+      }
+    }
+    // 子元素 data-page
+    var child = el.querySelector('[data-page]');
+    if (child && child.dataset.page) {
+      var cp = child.dataset.page;
+      if (cp === 'announcements' || cp === 'documents' || cp === 'activities' ||
+          cp === 'polls' || cp === 'workorders' || cp === 'complaints' ||
+          cp === 'life' || cp === 'trade') {
+        return { module: cp };
+      }
+    }
+    // onclick navigate
     var clickable = el.querySelector('[onclick]') || el;
     var onclickStr = clickable.getAttribute('onclick') || '';
     var match = onclickStr.match(/navigate(?:To)?\s*\(\s*['"](\w+)['"]\s*\)/);
-    if (match && routeToModule[match[1]]) return routeToModule[match[1]];
-
-    // 方式4: 文本内容匹配
-    var text = (el.textContent || '').replace(/\s+/g, '');
-    for (var tkey in textToModule) {
-      if (text.indexOf(tkey) >= 0) return textToModule[tkey];
-    }
-
-    // 方式5: 检查图片 alt/title
-    var imgs = el.querySelectorAll('img[alt], img[title]');
-    for (var ii = 0; ii < imgs.length; ii++) {
-      var imgText = (imgs[ii].getAttribute('alt') || '') + (imgs[ii].getAttribute('title') || '');
-      for (var tkey2 in textToModule) {
-        if (imgText.indexOf(tkey2) >= 0) return textToModule[tkey2];
+    if (match) {
+      var mp = match[1];
+      if (mp === 'announcements' || mp === 'documents' || mp === 'activities' ||
+          mp === 'polls' || mp === 'workorders' || mp === 'complaints' ||
+          mp === 'life' || mp === 'trade') {
+        return { module: mp };
       }
     }
-
+    // href
+    var links = el.querySelectorAll('a[href]');
+    for (var li = 0; li < links.length; li++) {
+      var href = links[li].getAttribute('href') || '';
+      if (href.indexOf('life.html') >= 0) return { module: 'life' };
+      if (href.indexOf('trade.html') >= 0) return { module: 'trade' };
+      var hm = href.match(/[#?]page=(\w+)/);
+      if (hm) {
+        var hp = hm[1];
+        if (hp === 'announcements' || hp === 'documents' || hp === 'activities' ||
+            hp === 'polls' || hp === 'workorders' || hp === 'complaints' ||
+            hp === 'life' || hp === 'trade') {
+          return { module: hp };
+        }
+      }
+    }
     return null;
+  }
+
+  // 判断一个元素是否是"叶子卡片"（有明确边界、可独立隐藏的单元）
+  function isLeafCard(el) {
+    // 有边框、阴影、圆角、背景色等卡片特征
+    var style = window.getComputedStyle(el);
+    var hasCardStyle = style.borderRadius !== '0px' || 
+                       parseFloat(style.padding) > 0 ||
+                       style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.backgroundColor !== 'transparent';
+
+    // 或者是 a 标签直接作为卡片
+    if (el.tagName === 'A') return true;
+
+    // 或者包含图标+文字的典型卡片结构
+    var hasIcon = el.querySelector('img, svg, .icon, i') !== null;
+    var hasText = (el.textContent || '').trim().length > 0;
+
+    return hasCardStyle || (hasIcon && hasText && el.children.length <= 5);
   }
 
   function applyNavFilter(){
@@ -104,106 +131,137 @@
     }
     console.log('[模块开关] 应用过滤，配置:', JSON.stringify(switches));
 
-    // 顶部导航栏过滤（保留首页）
-    var navMap = {
-      'announcements': ['[data-page="announcements"]'],
-      'polls': ['[data-page="polls"]'],
-      'workorders': ['[data-page="workorders"]'],
-      'complaints': ['[data-page="complaints"]'],
-      'activities': ['[data-page="activities"]'],
-      'documents': ['[data-page="documents"]']
-    };
-    Object.keys(switches).forEach(function(key){
-      if (switches[key] === false) {
-        var navSelectors = navMap[key] || ['[data-page="'+key+'"]'];
-        navSelectors.forEach(function(sel){
-          var els = document.querySelectorAll(sel);
-          for (var j = 0; j < els.length; j++) {
-            els[j].style.display = 'none';
-          }
-        });
+    // === 1. 顶部导航栏过滤 ===
+    var navItems = document.querySelectorAll('#headerNav a, #headerNav [data-page]');
+    navItems.forEach(function(el) {
+      var page = el.dataset ? el.dataset.page : null;
+      if (!page) {
+        var oc = el.getAttribute('onclick') || '';
+        var m = oc.match(/navigate\s*\(\s*['"](\w+)['"]\s*\)/);
+        if (m) page = m[1];
+      }
+      if (page && switches[page] === false) {
+        el.style.display = 'none';
+        console.log('[模块开关] 隐藏导航: ' + page);
+      } else if (page && switches[page] !== false) {
+        el.style.display = '';
       }
     });
 
-    // ===== 首页卡片过滤（核心改进） =====
-    // 策略：扫描 main 区域的所有可见块级元素
+    // === 2. 首页卡片过滤（核心）===
     var mainEl = document.querySelector('main');
     if (!mainEl) {
       console.log('[模块开关] 未找到 main 元素');
       return;
     }
 
-    // 收集所有候选卡片元素
-    var candidates = [];
+    var hiddenCount = 0;
+    var processed = new Set(); // 避免重复处理
 
-    // 1. 常见卡片类名
+    // 策略 A：先尝试精确匹配常见的卡片选择器
     var cardSelectors = [
-      '.card', '.grid-item', '.feature-card', '.quick-card', '.nav-card', 
-      '.home-card', '.module-card', '.service-card', '.icon-card', '.func-card', 
-      '.menu-card', '.service-grid > div', '.quick-links > div', 
-      '.home-modules > div', '.module-list > div', '.grid > div', '.flex > div',
-      '.stat-card', '.info-card', '.dashboard-card', '.entry-card',
-      'main > div > div', 'main > section > div'
+      '.card', '.grid-item', '.feature-card', '.quick-card', '.nav-card',
+      '.home-card', '.module-card', '.service-card', '.icon-card', '.func-card',
+      '.menu-card', '.stat-card', '.info-card', '.dashboard-card', '.entry-card'
     ];
+
     cardSelectors.forEach(function(sel) {
       try {
-        var found = document.querySelectorAll(sel);
-        for (var i = 0; i < found.length; i++) {
-          if (candidates.indexOf(found[i]) === -1) candidates.push(found[i]);
-        }
+        var cards = mainEl.querySelectorAll(sel);
+        cards.forEach(function(card) {
+          if (processed.has(card)) return;
+          processed.add(card);
+
+          var attrResult = inferModuleFromAttrs(card);
+          if (attrResult && switches[attrResult.module] === false) {
+            card.style.display = 'none';
+            hiddenCount++;
+            console.log('[模块开关] 隐藏卡片(A): ' + attrResult.module + ', selector=' + sel);
+            return;
+          }
+
+          var textResult = inferModuleFromText(card);
+          if (textResult && switches[textResult.module] === false) {
+            card.style.display = 'none';
+            hiddenCount++;
+            console.log('[模块开关] 隐藏卡片(A-text): ' + textResult.module + ', text=' + textResult.text);
+          }
+        });
       } catch(e) {}
     });
 
-    // 2. main 下的直接子 div（可能是卡片容器）
-    var mainChildren = mainEl.querySelectorAll(':scope > div');
-    mainChildren.forEach(function(child) {
-      if (candidates.indexOf(child) === -1) candidates.push(child);
-      // 再深入一层
-      var grandChildren = child.querySelectorAll(':scope > div');
-      grandChildren.forEach(function(gc) {
-        if (candidates.indexOf(gc) === -1) candidates.push(gc);
+    // 策略 B：扫描 main 下的所有直接子元素（可能是卡片容器）
+    var directChildren = mainEl.querySelectorAll(':scope > div, :scope > section');
+    directChildren.forEach(function(container) {
+      // 如果容器本身是一个卡片（有图标+文字）
+      var containerResult = inferModuleFromAttrs(container) || inferModuleFromText(container);
+      if (containerResult && switches[containerResult.module] === false) {
+        if (!processed.has(container)) {
+          container.style.display = 'none';
+          processed.add(container);
+          hiddenCount++;
+          console.log('[模块开关] 隐藏容器(B): ' + containerResult.module);
+        }
+        return;
+      }
+
+      // 扫描容器内的子元素（真正的卡片）
+      var subCards = container.querySelectorAll(':scope > div, :scope > a, :scope > button');
+      subCards.forEach(function(card) {
+        if (processed.has(card)) return;
+
+        var result = inferModuleFromAttrs(card) || inferModuleFromText(card);
+        if (result && switches[result.module] === false) {
+          card.style.display = 'none';
+          processed.add(card);
+          hiddenCount++;
+          console.log('[模块开关] 隐藏子卡片(B): ' + result.module + ', text=' + (card.textContent||'').substring(0,15));
+        }
       });
     });
 
-    console.log('[模块开关] 扫描到 ' + candidates.length + ' 个候选元素');
+    // 策略 C：兜底 - 扫描 main 内所有包含模块文本的 div，但只隐藏叶子节点
+    var allDivs = mainEl.querySelectorAll('div, a, button');
+    allDivs.forEach(function(el) {
+      if (processed.has(el)) return;
+      if (el.style.display === 'none') return;
 
-    var hiddenCount = 0;
-    candidates.forEach(function(card) {
-      if (card.style.display === 'none') return;
+      var result = inferModuleFromAttrs(el) || inferModuleFromText(el);
+      if (result && switches[result.module] === false) {
+        // 关键修复：只隐藏叶子卡片，不隐藏父容器
+        // 找到包含该文本的最小独立单元
+        var target = el;
 
-      var page = inferModuleFromElement(card);
-      if (page && switches[page] === false) {
-        card.style.display = 'none';
+        // 如果当前元素是 main 的直接子元素，或者包含很多子元素，可能是容器
+        // 尝试向下找到更精确的目标
+        if (target.children.length > 2) {
+          var children = target.querySelectorAll(':scope > div, :scope > a');
+          for (var ci = 0; ci < children.length; ci++) {
+            var childResult = inferModuleFromText(children[ci]);
+            if (childResult && childResult.module === result.module) {
+              target = children[ci];
+              break;
+            }
+          }
+        }
+
+        // 确保不隐藏包含多个不同模块的容器
+        var siblingModules = [];
+        if (target.parentElement) {
+          var siblings = target.parentElement.querySelectorAll(':scope > div, :scope > a');
+          siblings.forEach(function(sib) {
+            var sibResult = inferModuleFromText(sib);
+            if (sibResult && sibResult.module !== result.module) {
+              siblingModules.push(sibResult.module);
+            }
+          });
+        }
+
+        // 如果父元素包含多个不同模块，说明父元素是容器，只隐藏当前 target
+        target.style.display = 'none';
+        processed.add(target);
         hiddenCount++;
-        console.log('[模块开关] 隐藏卡片: ' + page + ', 文本: ' + (card.textContent || '').substring(0, 20));
-      }
-    });
-
-    // 3. 暴力兜底：扫描 main 下所有包含特定文本的 div
-    var allDivs = mainEl.querySelectorAll('div');
-    allDivs.forEach(function(div) {
-      if (div.style.display === 'none') return;
-      // 只处理包含文本的直接文本节点或子元素
-      var text = (div.textContent || '').replace(/\s+/g, '');
-      var matchedPage = null;
-      for (var tkey in textToModule) {
-        if (text.indexOf(tkey) >= 0) { 
-          matchedPage = textToModule[tkey]; 
-          break; 
-        }
-      }
-      if (matchedPage && switches[matchedPage] === false) {
-        // 找到最外层包含该文本的容器（避免只隐藏文字而留下空壳）
-        var container = div;
-        while (container.parentElement && container.parentElement !== mainEl && 
-               container.parentElement.children.length <= 4) {
-          container = container.parentElement;
-        }
-        if (container.style.display !== 'none') {
-          container.style.display = 'none';
-          hiddenCount++;
-          console.log('[模块开关] 兜底隐藏: ' + matchedPage);
-        }
+        console.log('[模块开关] 隐藏卡片(C): ' + result.module + ', tag=' + target.tagName + ', text=' + (target.textContent||'').substring(0,15));
       }
     });
 
@@ -218,7 +276,6 @@
       var switches = getModuleSwitches();
       if (switches && switches[page] === false) {
         console.log('[模块开关] ' + page + ' 已关闭，禁止跳转');
-        // 显示提示
         if (typeof showToast === 'function') {
           showToast('该模块已关闭', 'info');
         }
@@ -234,46 +291,42 @@
     interceptNavigate();
   }
 
-  // DOM 加载完成后初始化
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
 
-  // 延迟多次执行，确保动态内容加载后被过滤
+  // 延迟多次执行
   _initTimer = setInterval(function() {
     _checkCount++;
     applyNavFilter();
     if (_checkCount >= 10) {
       clearInterval(_initTimer);
-      console.log('[模块开关] 初始化完成，停止轮询');
+      console.log('[模块开关] 初始化完成');
     }
   }, 300);
 
-  // storage 事件跨标签页同步
+  // storage 事件
   window.addEventListener('storage', function(e) {
     if (e.key && (e.key.indexOf('config') >= 0 || e.key.indexOf('adminData') >= 0)) {
-      console.log('[模块开关] 检测到配置变更，重新过滤');
+      console.log('[模块开关] 配置变更，重新过滤');
       applyNavFilter();
     }
   });
 
-  // MutationObserver：监听 DOM 变化
+  // MutationObserver
   var _observer = new MutationObserver(function(mutations) {
-    var hasNewNodes = false;
-    mutations.forEach(function(mutation) {
-      if (mutation.addedNodes.length > 0) hasNewNodes = true;
+    var hasNew = false;
+    mutations.forEach(function(m) {
+      if (m.addedNodes.length > 0) hasNew = true;
     });
-    if (hasNewNodes) {
-      // 延迟执行，避免频繁触发
+    if (hasNew) {
       clearTimeout(window._filterDebounceTimer);
       window._filterDebounceTimer = setTimeout(function() {
-        console.log('[模块开关] DOM 变化，重新过滤');
         applyNavFilter();
-      }, 100);
+      }, 150);
     }
   });
   _observer.observe(document.body, { childList: true, subtree: true });
-  console.log('[模块开关] MutationObserver 已启动');
 })();
