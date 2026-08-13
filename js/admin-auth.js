@@ -63,6 +63,11 @@
     sessionStorage.setItem(CONFIG.NAME_KEY, name);
     sessionStorage.setItem(CONFIG.EXPIRE_KEY, String(Date.now() + 8 * 60 * 60 * 1000));
     sessionStorage.setItem(CONFIG.PERMISSIONS_KEY, JSON.stringify(permissions || {}));
+    // 同步兼容 admin-core.js 的旧 session 格式，避免两套系统冲突
+    sessionStorage.setItem('adminSession', JSON.stringify({
+      adminId: role,
+      loginTime: new Date().toISOString()
+    }));
   }
 
   function clearAuth() {
@@ -154,30 +159,6 @@
               debugLog('Fallback', '调用 renderDashboard()');
               try { window.renderDashboard(); } catch(e) {}
             }
-            // 检测内容区是否为空，如果为空则强制渲染仪表盘
-            setTimeout(function() {
-              var ca = document.getElementById('contentArea');
-              var pt = document.getElementById('pageTitle');
-              if (ca) {
-                var html = ca.innerHTML.trim();
-                debugLog('Fallback', 'contentArea 内容长度: ' + html.length);
-                if (html.length < 50) {
-                  debugLog('Fallback', 'contentArea 为空，强制渲染仪表盘');
-                  if (typeof window.renderDashboard === 'function') {
-                    try {
-                      var dashboardHtml = window.renderDashboard();
-                      if (dashboardHtml && typeof dashboardHtml === 'string') {
-                        ca.innerHTML = dashboardHtml;
-                        debugLog('Fallback', '仪表盘已强制渲染');
-                      }
-                    } catch(e) { debugLog('Fallback', '强制渲染报错: ' + e.message, true); }
-                  } else {
-                    ca.innerHTML = '<div style="padding:40px;text-align:center;"><h2>📊 仪表盘</h2><p>renderDashboard 未定义</p></div>';
-                  }
-                }
-              }
-              if (pt && !pt.textContent.trim()) pt.textContent = '仪表盘';
-            }, 300);
           }, 100);
           return;
         }
@@ -293,6 +274,7 @@
       adminLayout2.style.display = 'flex';
       adminLayout2.style.visibility = 'visible';
       adminLayout2.style.opacity = '1';
+      adminLayout2.classList.add('active');
       debugLog('Fallback', '已强制 adminLayout 可见');
     }
     const sidebar = $('sidebar');
@@ -351,7 +333,11 @@
       debugLog('Login', 'DOM: loginPage=' + !!loginPage + ' tokenPage=' + !!tokenPage + ' adminLayout=' + !!adminLayout);
       if (loginPage) { loginPage.style.display = 'none'; debugLog('Login', '隐藏 loginPage'); }
       if (tokenPage) { tokenPage.style.display = 'none'; debugLog('Login', '隐藏 tokenPage'); }
-      if (adminLayout) { adminLayout.style.display = ''; debugLog('Login', '显示 adminLayout'); }
+      if (adminLayout) {
+        adminLayout.style.display = 'flex';
+        adminLayout.classList.add('active');
+        debugLog('Login', '显示 adminLayout');
+      }
 
       const roleEl = $('adminRole');
       const infoEl = $('adminInfo');
@@ -375,9 +361,19 @@
 setTimeout(() => {
         debugLog('Login', '执行初始化...');
         try {
-          if (typeof window.initAdminApp === 'function') { window.initAdminApp(); debugLog('Login', 'initAdminApp 完成'); }
-          else if (typeof window.renderNav === 'function') { window.renderNav(); debugLog('Login', 'renderNav 完成'); }
-          else { debugLog('Login', '无初始化函数，启用兜底', true); fallbackRenderAdmin(data.role, data.name); }
+          if (typeof window.showAdminLayout === 'function') {
+            window.showAdminLayout();
+            debugLog('Login', 'showAdminLayout 完成');
+          } else if (typeof window.initAdminApp === 'function') {
+            window.initAdminApp();
+            debugLog('Login', 'initAdminApp 完成');
+          } else if (typeof window.renderNav === 'function') {
+            window.renderNav();
+            debugLog('Login', 'renderNav 完成');
+          } else {
+            debugLog('Login', '无初始化函数，启用兜底', true);
+            fallbackRenderAdmin(data.role, data.name);
+          }
           document.dispatchEvent(new Event('auth:ready'));
           debugLog('Login', 'auth:ready 已派发');
         } catch (e) {
@@ -546,12 +542,18 @@ setTimeout(() => {
         debugLog('Boot', 'currentAdmin 已设置: ' + JSON.stringify(window.currentAdmin));
 setTimeout(() => {
           try {
-            if (typeof window.initAdminApp === 'function') window.initAdminApp();
-            else if (typeof window.renderNav === 'function') window.renderNav();
-            else fallbackRenderAdmin(data.role, name);
+            if (typeof window.showAdminLayout === 'function') {
+              window.showAdminLayout();
+            } else if (typeof window.initAdminApp === 'function') {
+              window.initAdminApp();
+            } else if (typeof window.renderNav === 'function') {
+              window.renderNav();
+            } else {
+              fallbackRenderAdmin(data.role, name);
+            }
             document.dispatchEvent(new Event('auth:ready'));
           } catch (e) {
-            debugLog('Boot', '初始化 报错: ' + e.message, true);
+            debugLog('Boot', '初始化报错: ' + e.message, true);
           }
         }, 50);
       } else {
