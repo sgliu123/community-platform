@@ -53,24 +53,67 @@
       }
     });
 
-    // 首页卡片/按钮：通过 onclick 内容匹配 navigate('xxx')
-    var allEls = document.querySelectorAll('[onclick]');
-    for (var k = 0; k < allEls.length; k++) {
-      var el = allEls[k];
-      var onclickStr = el.getAttribute('onclick') || '';
-      var match = onclickStr.match(/navigate\s*\(\s*['"](\w+)['"]\s*\)/);
-      if (match) {
-        var page = match[1];
-        if (switches[page] === false) {
-          var card = el.closest('.card, .grid-item, .feature-card, .quick-card, .nav-card');
-          if (card && card !== el) {
-            card.style.display = 'none';
-          } else {
-            el.style.display = 'none';
-          }
+    // 首页卡片/按钮：多种方式匹配模块
+    var cardSelectors = ['.card', '.grid-item', '.feature-card', '.quick-card', '.nav-card', '.home-card', '.module-card', '.service-card'];
+    var allCards = [];
+    cardSelectors.forEach(function(sel) {
+      var found = document.querySelectorAll(sel);
+      for (var i = 0; i < found.length; i++) {
+        if (allCards.indexOf(found[i]) === -1) allCards.push(found[i]);
+      }
+    });
+
+    allCards.forEach(function(card) {
+      var page = null;
+      // 方式1: 卡片自身有 data-page
+      if (card.dataset && card.dataset.page) page = card.dataset.page;
+      // 方式2: 子元素有 data-page
+      if (!page) {
+        var childWithPage = card.querySelector('[data-page]');
+        if (childWithPage) page = childWithPage.dataset.page;
+      }
+      // 方式3: onclick 匹配 navigate('xxx')
+      if (!page) {
+        var elWithClick = card.querySelector('[onclick]') || card;
+        var onclickStr = elWithClick.getAttribute('onclick') || '';
+        var match = onclickStr.match(/navigate\s*\(\s*['"](\w+)['"]\s*\)/);
+        if (match) page = match[1];
+      }
+      // 方式4: href 匹配 #page=xxx
+      if (!page) {
+        var link = card.querySelector('a[href*="#"]');
+        if (link) {
+          var hrefMatch = link.getAttribute('href').match(/#page=(\w+)/);
+          if (hrefMatch) page = hrefMatch[1];
         }
       }
-    }
+      // 方式5: 文本内容匹配（公告栏->announcements 等）
+      if (!page) {
+        var text = card.textContent || '';
+        var textMap = {
+          '公告': 'announcements',
+          '文件': 'documents',
+          '动态': 'activities',
+          '投票': 'polls',
+          '工单': 'workorders',
+          '报修': 'workorders',
+          '投诉': 'complaints',
+          '反馈': 'complaints',
+          '生活': 'life',
+          '交易': 'trade',
+          '房屋': 'trade',
+          '租售': 'trade'
+        };
+        for (var key in textMap) {
+          if (text.indexOf(key) >= 0) { page = textMap[key]; break; }
+        }
+      }
+      // 执行隐藏
+      if (page && switches[page] === false) {
+        card.style.display = 'none';
+        console.log('[模块开关] 隐藏卡片: ' + page);
+      }
+    });
   }
 
   // 拦截 navigate 函数
