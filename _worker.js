@@ -1,9 +1,10 @@
 // ==========================================
-// Pages _worker.js (community.firstblade.site)
-// 适配现有绑定：R2 bucket "community-uploads" (binding: UPLOADS)
-// 新增：认证网关 + 开发者权限 + 模块开关
-// 保留：upload/batch-upload/read/write/delete/image
+// Cloudflare Pages _worker.js (社区数字化平台)
+// 部署方式：放在仓库根目录，Cloudflare Pages 自动识别
+// 绑定要求：R2 bucket "community-uploads" (binding: UPLOADS)
 // ==========================================
+
+const API_BASE = ''; // 同域相对路径，前端无需写死域名
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -120,6 +121,12 @@ export default {
     const path = url.pathname;
 
     try {
+      // ===== 静态文件直出（HTML/CSS/JS/图片等）=====
+      // Cloudflare Pages 会自动处理，这里只拦截 /api/* 请求
+      if (!path.startsWith('/api/')) {
+        return env.ASSETS ? await env.ASSETS.fetch(request) : fetch(request);
+      }
+
       // ===== 认证接口 =====
       if (path === '/api/auth/login' && request.method === 'POST') {
         return await handleLogin(request, env);
@@ -131,7 +138,7 @@ export default {
         return jsonResponse({ success: true });
       }
 
-      // ===== 数据接口（通用 CRUD）=====
+      // ===== 数据接口（通用 CRUD，读写 R2）=====
       if (path.startsWith('/api/data/')) {
         return await handleData(request, env, path);
       }
@@ -227,7 +234,7 @@ async function handleData(request, env, path) {
 
     if (request.method === 'POST') {
       const body = await request.json();
-      const content = JSON.stringify(body.data || body);
+      const content = JSON.stringify(body.data || body, null, 2);
       await env.UPLOADS.put(filePath, content, {
         httpMetadata: {
           contentType: 'application/json',
@@ -294,7 +301,7 @@ async function handleUpload(request, env) {
   const key = `${folder}/${timestamp}_${random}_${safeName}`;
 
   const isImage = file.type.startsWith('image/');
-  const cacheControl = isImage 
+  const cacheControl = isImage
     ? 'public, max-age=31536000, immutable, stale-while-revalidate=86400'
     : 'public, max-age=86400';
 
@@ -311,7 +318,7 @@ async function handleUpload(request, env) {
     }
   });
 
-  const publicUrl = `https://community.firstblade.site/api/image/${encodeURIComponent(key)}`;
+  const publicUrl = `${API_BASE}/api/image/${encodeURIComponent(key)}`;
 
   return jsonResponse({
     success: true,
@@ -350,7 +357,7 @@ async function handleBatchUpload(request, env) {
 
       const key = `${folder}/${timestamp}_${random}_${safeName}`;
       const isImage = file.type.startsWith('image/');
-      const cacheControl = isImage 
+      const cacheControl = isImage
         ? 'public, max-age=31536000, immutable, stale-while-revalidate=86400'
         : 'public, max-age=86400';
 
@@ -366,7 +373,7 @@ async function handleBatchUpload(request, env) {
         }
       });
 
-      const publicUrl = `https://community.firstblade.site/api/image/${encodeURIComponent(key)}`;
+      const publicUrl = `${API_BASE}/api/image/${encodeURIComponent(key)}`;
 
       results.push({
         url: publicUrl,
@@ -407,8 +414,8 @@ async function handleRead(request, env) {
 
   const text = await object.text();
   return new Response(text, {
-    headers: { 
-      ...CORS_HEADERS, 
+    headers: {
+      ...CORS_HEADERS,
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache'
     }
@@ -444,10 +451,10 @@ async function handleWrite(request, env) {
     }
   });
 
-  return jsonResponse({ 
-    success: true, 
+  return jsonResponse({
+    success: true,
     path: filePath,
-    message: message 
+    message: message
   });
 }
 
@@ -457,10 +464,10 @@ async function handleDelete(request, env) {
 
   await env.UPLOADS.delete(filePath);
 
-  return jsonResponse({ 
-    success: true, 
+  return jsonResponse({
+    success: true,
     path: filePath,
-    deleted: true 
+    deleted: true
   });
 }
 
@@ -471,9 +478,9 @@ async function handleImage(request, env) {
   const object = await env.UPLOADS.get(key);
 
   if (!object) {
-    return new Response('Image Not Found', { 
-      status: 404, 
-      headers: CORS_HEADERS 
+    return new Response('Image Not Found', {
+      status: 404,
+      headers: CORS_HEADERS
     });
   }
 
