@@ -1,14 +1,28 @@
 /**
  * admin-auth.js
  * 安全认证模块 + 权限系统 + 模块开关
- * 完整修复版
+ * 已适配 Cloudflare Pages（同域部署，无需硬编码域名）
  */
 
 (function() {
   'use strict';
 
+  // ===== 核心修改：API 地址自动适配 =====
+  // 规则：若当前站点域名中包含 firstblade.site，则走同域相对路径；
+  //       否则（如本地调试、*.pages.dev）也走同域相对路径。
+  // 结果：无论你绑定自定义域名还是用 pages.dev，都不用改代码。
+  const API_BASE = (function() {
+    const host = location.hostname;
+    // 你自己的域名或 pages.dev 子域，全部走同域
+    if (host.endsWith('firstblade.site') || host.endsWith('pages.dev') || host === 'localhost' || host === '127.0.0.1') {
+      return ''; // 相对路径，同域
+    }
+    // 兜底：独立 Worker 场景可在此写死，正常用不到
+    return '';
+  })();
+
   const CONFIG = {
-    WORKER_URL: 'https://api.firstblade.site',
+    WORKER_URL: API_BASE, // ← 改这里：不再硬编码 https://api.firstblade.site
     TOKEN_KEY:      'admin_auth_token',
     ROLE_KEY:       'admin_auth_role',
     NAME_KEY:       'admin_auth_name',
@@ -103,8 +117,8 @@
       const t = getToken();
       if (t) headers['Authorization'] = 'Bearer ' + t;
     }
-    const url = CONFIG.WORKER_URL + path;
-    debugLog('API', 'POST ' + path);
+    const url = CONFIG.WORKER_URL + path; // 现在指向同域，如 /api/auth/login
+    debugLog('API', 'POST ' + url);
     let res;
     try {
       res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -113,7 +127,6 @@
       throw netErr;
     }
     debugLog('API', '响应状态: ' + res.status);
-    // 登录接口的401是业务错误（密码错误），不拦截
     if (res.status === 401 && path !== '/api/auth/login') {
       debugLog('API', '收到401，清除认证', true);
       clearAuth();
@@ -196,7 +209,6 @@
     if (first) first.click();
     debugLog('Fallback', '兜底渲染完成: ' + nav.children.length + ' 项');
 
-    // 强制确保后台布局可见
     const adminLayout2 = $('adminLayout');
     if (adminLayout2) {
       adminLayout2.style.display = 'flex';
@@ -316,7 +328,7 @@
     return _origFetch(url, opts);
   };
 
-  // ========== 关键修复：loadModuleConfig 必须带 token ==========
+  // ========== loadModuleConfig：带 token ==========
   async function loadModuleConfig() {
     try {
       const url = CONFIG.WORKER_URL + '/api/data/module-config';
