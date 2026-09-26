@@ -815,143 +815,117 @@ function renderLoginRoles() {
   select.innerHTML = html;
 }
 
-async function submitAdminRegister() {
-  var name = document.getElementById('regName').value.trim();
-  var id = document.getElementById('regId').value.trim();
-  var pwd = document.getElementById('regPassword').value;
-  var confirmPwd = document.getElementById('regConfirmPassword').value;
-  var err = document.getElementById('regError');
 
-  err.style.display = 'none';
-  if (!name || !id || !pwd) { err.textContent = '请填写所有必填项'; err.style.display = 'block'; return; }
-  if (pwd !== confirmPwd) { err.textContent = '两次密码不一致'; err.style.display = 'block'; return; }
-  if (pwd.length < 6) { err.textContent = '密码需6位以上'; err.style.display = 'block'; return; }
-  if (ADMIN_ACCOUNTS.find(function(a) { return a.id === id; }) || ((appData.config && appData.config.adminUsers) || []).find(function(a) { return a.id === id; })) {
-    err.textContent = '该账号ID已存在'; err.style.display = 'block'; return;
-  }
 
-  var newAdmin = {
-    id: id, name: name, password: pwd, status: 'pending', canDelete: true,
-    registeredAt: new Date().toISOString()
-  };
-  if (!appData.config) appData.config = {};
-  if (!appData.config.adminUsers) appData.config.adminUsers = [];
-  appData.config.adminUsers.push(newAdmin);
 
-  showLoading(true);
-  try {
-    await saveDataFile('config', appData.config, '提交管理员注册申请：' + name, 'admin-register');
-    showToast('注册申请已提交，等待总维护人员审批', 'success');
-    document.getElementById('regName').value = '';
-    document.getElementById('regId').value = '';
-    document.getElementById('regPassword').value = '';
-    document.getElementById('regConfirmPassword').value = '';
-  } catch(e) {
-    showToast('提交失败：' + e.message, 'error');
-  } finally {
-    showLoading(false);
-  }
-}
 
-async function approveAdmin(adminId) {
-  var admin = ((appData.config && appData.config.adminUsers) || []).find(function(a) { return a.id === adminId; });
-  if (!admin) return;
-  admin.status = 'approved';
-  admin.approvedAt = new Date().toISOString();
-  admin.approvedBy = currentAdmin.id;
-  showLoading(true);
-  try {
-    await saveDataFile('config', appData.config, '审批通过管理员：' + admin.name, 'admin-approve');
-    showToast('已批准 ' + admin.name, 'success');
-    navigateTo('admin-manage');
-  } catch(e) {
-    showToast('保存失败：' + e.message, 'error');
-  } finally {
-    showLoading(false);
-  }
-}
-
-async function rejectAdmin(adminId) {
-  var reason = prompt('请输入拒绝原因（可选）：');
-  if (reason === null) return;
-  var admin = ((appData.config && appData.config.adminUsers) || []).find(function(a) { return a.id === adminId; });
-  if (!admin) return;
-  admin.status = 'rejected';
-  admin.rejectedAt = new Date().toISOString();
-  admin.rejectedReason = reason || '';
-  showLoading(true);
-  try {
-    await saveDataFile('config', appData.config, '拒绝管理员申请：' + admin.name, 'admin-reject');
-    showToast('已拒绝 ' + admin.name, 'success');
-    navigateTo('admin-manage');
-  } catch(e) {
-    showToast('保存失败：' + e.message, 'error');
-  } finally {
-    showLoading(false);
-  }
-}
-
-async function toggleAdminDelete(adminId) {
-  var admin = ((appData.config && appData.config.adminUsers) || []).find(function(a) { return a.id === adminId; });
-  if (!admin) return;
-  admin.canDelete = !admin.canDelete;
-  showLoading(true);
-  try {
-    await saveDataFile('config', appData.config, '修改管理员删除权限：' + admin.name, 'admin-perm');
-    showToast(admin.name + ' 的删除权限已' + (admin.canDelete ? '开启' : '关闭'), 'success');
-    navigateTo('admin-manage');
-  } catch(e) {
-    showToast('保存失败：' + e.message, 'error');
-  } finally {
-    showLoading(false);
-  }
-}
-
-/* ===== 管理员管理页面（仅总维护人员） ===== */
+/* ===== 管理员管理页面（仅总维护人员） =====
+   数据来源：Worker /api/admin/accounts（R2 data/admin-accounts.json）
+   与登录页「申请管理员权限」、登录接口三线闭环 */
 
 function renderAdminManage() {
-  var adminUsers = (appData.config && appData.config.adminUsers) || [];
-  var pending = adminUsers.filter(function(a) { return a.status === 'pending'; });
-  var approved = adminUsers.filter(function(a) { return a.status === 'approved'; });
-  var rejected = adminUsers.filter(function(a) { return a.status === 'rejected'; });
+  setTimeout(loadAdminAccountsUI, 0);
+  return '<div class="card"><div class="card-header"><h3>👤 管理员管理（申请审批 · 账号开关）</h3></div>' +
+    '<div id="adminAccountsArea" style="padding:30px;text-align:center;color:var(--text-secondary);">⏳ 正在加载管理员账号...</div></div>';
+}
 
-  var html = '<div class="card"><div class="card-header"><h3>👤 管理员审批</h3></div>';
+async function loadAdminAccountsUI() {
+  var area = document.getElementById('adminAccountsArea');
+  if (!area) return;
+  try {
+    var res = await fetch('/api/admin/accounts', { headers: { 'Accept': 'application/json' } });
+    var data = await res.json();
+    if (!data.success) { area.innerHTML = '<span style="color:var(--danger);">加载失败：' + escapeHtml(data.error || ('HTTP ' + res.status)) + '</span>'; return; }
+    area.innerHTML = buildAccountsHtml(data.accounts || []);
+  } catch(e) {
+    area.innerHTML = '<span style="color:var(--danger);">加载失败：' + escapeHtml(e.message) + '</span>';
+  }
+}
 
-  if (pending.length === 0) {
-    html += '<p style="color:var(--text-secondary);font-size:14px;">暂无待审批的申请</p>';
+function buildAccountsHtml(accounts) {
+  var html = '';
+  var pending = accounts.filter(function(a){ return a.status === 'pending'; });
+  var approved = accounts.filter(function(a){ return a.status === 'approved'; });
+  var rejected = accounts.filter(function(a){ return a.status === 'rejected'; });
+
+  html += '<p style="font-weight:600;margin-bottom:10px;">⏳ 待审批（' + pending.length + '）</p>';
+  if (!pending.length) {
+    html += '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px;">暂无待审批的申请。新管理员请从登录页「申请管理员权限」入口提交。</p>';
   } else {
-    html += '<p style="font-weight:600;margin-bottom:10px;">⏳ 待审批（' + pending.length + '）</p>';
     pending.forEach(function(a) {
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#fff8e1;border-radius:6px;margin-bottom:8px;">' +
-        '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 申请时间: ' + (a.registeredAt || '').split('T')[0] + '</div></div>' +
-        '<div style="display:flex;gap:6px;">' +
-        '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;" onclick="approveAdmin(' + "'" + a.id + "'" + ')">✅ 同意</button>' +
-        '<button class="btn" style="padding:4px 12px;font-size:12px;background:var(--danger);color:#fff;" onclick="rejectAdmin(' + "'" + a.id + "'" + ')">❌ 拒绝</button>' +
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px;background:#fff8e1;border-radius:6px;margin-bottom:8px;">' +
+        '<div>' +
+          '<div style="font-weight:600;">' + escapeHtml(a.name) + ' <span style="font-size:12px;color:var(--primary);font-weight:500;">' + escapeHtml(a.roleName || '') + '</span></div>' +
+          '<div style="font-size:12px;color:var(--text-secondary);">' + (a.note ? '说明: ' + escapeHtml(a.note) + ' · ' : '') + '申请: ' + String(a.appliedAt || '').slice(0,10) + '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+          '<button class="btn btn-primary" style="padding:4px 14px;font-size:12px;" onclick="reviewAdminAccount(\'' + a.id + '\',\'approve\')">✅ 同意</button>' +
+          '<button class="btn" style="padding:4px 14px;font-size:12px;background:var(--danger);color:#fff;" onclick="reviewAdminAccount(\'' + a.id + '\',\'reject\')">❌ 拒绝</button>' +
         '</div></div>';
     });
   }
 
-  if (approved.length > 0) {
-    html += '<p style="font-weight:600;margin:16px 0 10px;">✅ 已启用（' + approved.length + '）</p>';
+  html += '<p style="font-weight:600;margin:16px 0 10px;">✅ 已启用账号（' + approved.length + '）</p>';
+  if (!approved.length) {
+    html += '<p style="color:var(--text-secondary);font-size:13px;">暂无已审批的个人账号（5 个内置身份由环境变量管理，不在此列表）。</p>';
+  } else {
     approved.forEach(function(a) {
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#e8f5e9;border-radius:6px;margin-bottom:8px;">' +
-        '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 审批时间: ' + (a.approvedAt || '').split('T')[0] + '</div></div>' +
-        '<div style="display:flex;align-items:center;gap:8px;">' +
-        '<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">' +
-        '<input type="checkbox" ' + (a.canDelete !== false ? 'checked' : '') + ' onchange="toggleAdminDelete(' + "'" + a.id + "'" + ')">允许删除</label>' +
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px;background:' + (a.disabled ? '#f5f5f5' : '#e8f5e9') + ';border-radius:6px;margin-bottom:8px;">' +
+        '<div>' +
+          '<div style="font-weight:600;' + (a.disabled ? 'color:#999;text-decoration:line-through;' : '') + '">' + escapeHtml(a.name) + ' <span style="font-size:12px;color:var(--primary);font-weight:500;">' + escapeHtml(a.roleName || '') + '</span>' + (a.disabled ? ' <span style="font-size:11px;color:#c62828;">（已停用）</span>' : '') + '</div>' +
+          '<div style="font-size:12px;color:var(--text-secondary);">审批: ' + String(a.reviewedAt || '').slice(0,10) + (a.reviewedBy ? ' · 操作: ' + escapeHtml(a.reviewedBy) : '') + '</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:14px;flex-shrink:0;">' +
+          '<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;" title="关闭后该账号无法登录">' +
+            '<input type="checkbox" ' + (!a.disabled ? 'checked' : '') + ' onchange="toggleAdminAccount(\'' + a.id + '\',{disabled:this.checked?false:true})">登录启用' +
+          '</label>' +
+          '<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">' +
+            '<input type="checkbox" ' + (a.canDelete !== false ? 'checked' : '') + ' onchange="toggleAdminAccount(\'' + a.id + '\',{canDelete:this.checked})">允许删除' +
+          '</label>' +
         '</div></div>';
     });
   }
 
-  if (rejected.length > 0) {
+  if (rejected.length) {
     html += '<p style="font-weight:600;margin:16px 0 10px;">❌ 已拒绝（' + rejected.length + '）</p>';
     rejected.forEach(function(a) {
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#ffebee;border-radius:6px;margin-bottom:8px;">' +
-        '<div><div style="font-weight:600;">' + escapeHtml(a.name) + '</div><div style="font-size:12px;color:var(--text-secondary);">ID: ' + escapeHtml(a.id) + ' · 拒绝时间: ' + (a.rejectedAt || '').split('T')[0] + (a.rejectedReason ? ' · 原因: ' + escapeHtml(a.rejectedReason) : '') + '</div></div></div>';
+      html += '<div style="padding:10px;background:#ffebee;border-radius:6px;margin-bottom:8px;">' +
+        '<div style="font-weight:600;">' + escapeHtml(a.name) + ' <span style="font-size:12px;color:var(--primary);font-weight:500;">' + escapeHtml(a.roleName || '') + '</span></div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);">拒绝: ' + String(a.reviewedAt || '').slice(0,10) + (a.rejectedReason ? ' · 原因: ' + escapeHtml(a.rejectedReason) : '') + '</div></div>';
     });
   }
-  html += '</div>';
   return html;
+}
+
+async function reviewAdminAccount(id, action) {
+  var reason = '';
+  if (action === 'reject') {
+    reason = prompt('拒绝原因（可选）：');
+    if (reason === null) return;
+  }
+  try {
+    var res = await fetch('/api/admin/accounts/review', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: id, action: action, reason: reason || '' })
+    });
+    var data = await res.json();
+    if (data.success) { showToast(action === 'approve' ? ('已批准 ' + (data.name || '')) : '已拒绝该申请', 'success'); loadAdminAccountsUI(); }
+    else showToast('操作失败：' + (data.error || ''), 'error');
+  } catch(e) { showToast('操作失败：' + e.message, 'error'); }
+}
+
+async function toggleAdminAccount(id, patch) {
+  try {
+    var body = { id: id };
+    Object.keys(patch || {}).forEach(function(k){ body[k] = patch[k]; });
+    var res = await fetch('/api/admin/accounts/toggle', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    var data = await res.json();
+    if (data.success) { showToast('账号设置已更新', 'success'); loadAdminAccountsUI(); }
+    else { showToast('操作失败：' + (data.error || ''), 'error'); loadAdminAccountsUI(); }
+  } catch(e) { showToast('操作失败：' + e.message, 'error'); loadAdminAccountsUI(); }
 }
 
 /* ===== 开发者工具页面（仅总维护人员） ===== */

@@ -300,6 +300,54 @@
     }
   }
 
+  // ========== 申请管理员权限（物业/业委会/社区 → 总维护人员审批） ==========
+  window.showApplyForm = function() {
+    const f = $('applyForm');
+    if (f) f.style.display = 'block';
+    const tip = $('loginTip');
+    if (tip) tip.style.display = 'none';
+  };
+  window.hideApplyForm = function() {
+    const f = $('applyForm');
+    if (f) f.style.display = 'none';
+    const tip = $('loginTip');
+    if (tip) tip.style.display = '';
+    const err = $('applyError');
+    if (err) err.textContent = '';
+  };
+
+  window.doAdminApply = async function() {
+    const role = $('applyRole').value;
+    const name = $('applyName').value.trim();
+    const pwd = $('applyPassword').value;
+    const pwd2 = $('applyPassword2').value;
+    const note = $('applyNote').value.trim();
+    const err = $('applyError');
+    if (err) err.textContent = '';
+    if (!role) { if (err) err.textContent = '请选择申请身份'; return; }
+    if (!name) { if (err) err.textContent = '请填写姓名'; return; }
+    if (!pwd || pwd.length < 6) { if (err) err.textContent = '密码需 6 位以上'; return; }
+    if (pwd !== pwd2) { if (err) err.textContent = '两次输入的密码不一致'; return; }
+
+    try {
+      debugLog('Apply', '提交管理员申请: ' + role + ' / ' + name);
+      const data = await apiPost('/api/auth/apply', { role, name, password: pwd, note }, false);
+      if (!data.success) { if (err) err.textContent = data.error || '提交失败'; return; }
+      // 清空并提示
+      $('applyRole').value = ''; $('applyName').value = ''; $('applyPassword').value = ''; $('applyPassword2').value = ''; $('applyNote').value = '';
+      hideApplyForm();
+      const loginErr = $('loginError');
+      if (loginErr) {
+        loginErr.style.color = '#2E8B57';
+        loginErr.textContent = '✅ 申请已提交，请等待总维护人员审批。审批通过后即可使用该身份密码登录。';
+        setTimeout(() => { loginErr.style.color = ''; loginErr.textContent = ''; }, 8000);
+      }
+    } catch (e) {
+      if (err) err.textContent = '提交失败：' + (e.message || '网络错误');
+      debugLog('Apply', '异常: ' + e.message, true);
+    }
+  };
+
   // ========== 登录 ==========
   window.doAdminLogin = async function() {
     ensureDebugPanel();
