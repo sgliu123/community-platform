@@ -427,7 +427,12 @@ function renderPolls() {
 
 /* ===== 公开反馈公示（无需登录） ===== */
 async function loadComplaintsFromWorker() {
-  const workerBase = localStorage.getItem('workerBase') || 'https://api.firstblade.site';
+  // 默认同域（Cloudflare Pages 一体化）；历史遗留域名自动纠正
+  const workerBase = (function(){
+    const v = localStorage.getItem('workerBase');
+    if (!v || v === 'off' || /firstblade\.site|workers\.dev/.test(v)) return '';
+    return v.replace(/\/+$/, '');
+  })();
   try {
     const d = new Date();
     const path = 'complaints/' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '.json';

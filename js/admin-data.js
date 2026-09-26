@@ -44,10 +44,18 @@ let appData = {config:{},announcements:[],documents:[],activities:[],polls:[],re
 // ===== Worker 网关配置（工单/投诉管理模块，不影响原有功能） =====
 
 
-const WORKER_BASE = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
+// 部署形态：Cloudflare Pages 一体化（前后端同域），默认走同域相对路径。
+// localStorage.workerBase 可覆盖：设为 'off' 进入开发模式（仅内存，不写云端）；
+// 历史遗留的 firstblade.site / workers.dev 域名一律视为未配置，自动回落到同域。
+const WORKER_BASE = (function(){
+  const v = localStorage.getItem('workerBase');
+  if (v === 'off') return null;
+  if (!v || /firstblade\.site|workers\.dev/.test(v)) return '';
+  return v;
+})();
 
 
-function getWorkerBase(){ return WORKER_BASE.replace(/\/$/,''); }
+function getWorkerBase(){ return WORKER_BASE === null ? null : WORKER_BASE.replace(/\/$/,''); }
 
 
 function getCurrentMonthPath(module){
@@ -58,7 +66,7 @@ function getCurrentMonthPath(module){
 
 async function workerRead(filePath){
   const base=getWorkerBase();
-  if(!base){
+  if(base === null){
     // 尝试多种可能的 key 格式（兼容有/无前导零的月份）
     const keysToTry = [];
     const key=filePath.replace(/\.json$/,'').replace(/\//g,'-');
@@ -105,7 +113,7 @@ async function workerRead(filePath){
 
 async function workerWrite(filePath,data,message){
   const base=getWorkerBase();
-  if(!base){
+  if(base === null){
     const key=filePath.replace(/\.json$/,'').replace(/\//g,'-');
     appData[key]=data;
     showToast('开发模式：数据仅保存在内存中','info');
@@ -121,7 +129,7 @@ async function workerWrite(filePath,data,message){
 
 async function workerUpload(file){
   const base=getWorkerBase();
-  if(!base){
+  if(base === null){
     return {url:URL.createObjectURL(file),name:file.name};
   }
   const fd=new FormData();fd.append('file',file);
@@ -167,7 +175,7 @@ async function loadAllData() {
     let workerData = null;
 
     // 1. 优先从 Worker 读取（已持久化的数据）
-    if (workerBase) {
+    if (workerBase !== null) {
       try {
         const r = await fetch(workerBase + '/api/read/' + encodeURIComponent('data/' + f + '.json') + '?t=' + Date.now());
         if (r.ok) {
@@ -341,7 +349,7 @@ async function saveDataFile(filename, data, detail, action) {
 
   // 优先使用 Worker 持久化（确保前端实时同步）
   const workerBase = getWorkerBase();
-  if (workerBase) {
+  if (workerBase !== null) {
     try {
       await workerWrite('data/' + filename + '.json', data, detail);
       showToast('✅ 已同步到云端，前端将自动更新', 'success');
@@ -401,7 +409,7 @@ async function appendAuditLog(action, target, targetId, detail) {
 
   // 优先使用 Worker 保存审计日志
   const workerBase = getWorkerBase();
-  if (workerBase) {
+  if (workerBase !== null) {
     try {
       await workerWrite('data/audit-log.json', log, '[' + (currentAdmin && currentAdmin.name || '') + '] 审计日志更新');
     } catch(e) { console.error('审计日志Worker保存失败', e); }

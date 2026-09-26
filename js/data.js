@@ -4,12 +4,20 @@ let appData = {};
 
 // ===== 实时数据加载：优先从 Worker 读取，回退静态 JSON =====
 async function loadModuleFromWorker(paths, moduleName) {
-  const workerBase = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
-  if (!workerBase) {
-    console.log('[Worker] 未配置 Worker 地址，跳过实时读取');
+  // 部署形态：Cloudflare Pages 一体化（前后端同域），默认走同域相对路径。
+  // localStorage.workerBase 可覆盖：'off' = 显式禁用实时读取；
+  // 历史遗留的 firstblade.site / workers.dev 域名一律视为未配置，自动回落到同域。
+  const workerBase = (function(){
+    const v = localStorage.getItem('workerBase');
+    if (v === 'off') return null;
+    if (!v || /firstblade\.site|workers\.dev/.test(v)) return '';
+    return v.replace(/\/+$/, '');
+  })();
+  if (workerBase === null) {
+    console.log('[Worker] 已显式禁用（off），跳过实时读取');
     return null;
   }
-  const base = workerBase.replace(/\/$/, '');
+  const base = workerBase;
   if (!Array.isArray(paths)) paths = [paths];
   for (const path of paths) {
     try {
@@ -52,15 +60,21 @@ function isRealtimePage(page) {
 
 
 // ===== Worker 网关配置（工单/投诉模块，不影响原有功能） =====
-const WORKER_BASE = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
-function getWorkerBase(){ return WORKER_BASE.replace(/\/$/,''); }
+// 与 js/admin-data.js 同一约定：默认同域（Pages 一体化）；'off' = 开发模式（禁用云端读写）
+const WORKER_BASE = (function(){
+  const v = localStorage.getItem('workerBase');
+  if (v === 'off') return null;
+  if (!v || /firstblade\.site|workers\.dev/.test(v)) return '';
+  return v;
+})();
+function getWorkerBase(){ return WORKER_BASE === null ? null : WORKER_BASE.replace(/\/$/,''); }
 function getCurrentMonthPath(module){
   const d=new Date();
   return module+'/'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'.json';
 }
 async function workerRead(filePath){
   const base=getWorkerBase();
-  if(!base) throw new Error('Worker地址未配置，请联系管理员');
+  if(base === null) throw new Error('云端读写已禁用（开发模式）');
   const res=await fetch(base+'/api/read/'+encodeURIComponent(filePath));
   if(!res.ok) throw new Error('读取失败');
   const t=await res.text();
@@ -68,7 +82,7 @@ async function workerRead(filePath){
 }
 async function workerWrite(filePath,data,message){
   const base=getWorkerBase();
-  if(!base) throw new Error('Worker地址未配置');
+  if(base === null) throw new Error('云端读写已禁用（开发模式）');
   const res=await fetch(base+'/api/write/'+encodeURIComponent(filePath),{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({content:JSON.stringify(data,null,2),message})
@@ -77,7 +91,7 @@ async function workerWrite(filePath,data,message){
 }
 async function workerUpload(file, retries=2){
   const base=getWorkerBase();
-  if(!base) throw new Error('Worker地址未配置，请联系管理员');
+  if(base === null) throw new Error('云端读写已禁用（开发模式）');
   const fd=new FormData(); fd.append('file',file);
   let lastErr;
   for(let i=0;i<=retries;i++){

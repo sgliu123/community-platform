@@ -76,7 +76,7 @@ async function uploadFileToRepo(file, folder) {
 
   // ===== 优先使用 Worker 上传（确保前端可实时访问）=====
   const workerBase = getWorkerBase();
-  if (workerBase) {
+  if (workerBase !== null) {
     try {
       const fd = new FormData();
       fd.append('file', file);

@@ -181,7 +181,12 @@ window.onerror = function(msg, url, line) {
 };
 
 /* ========== Worker 云端存储（与前台共用） ========== */
-var WORKER_BASE = (localStorage.getItem('workerBase') || 'https://community.firstblade.site').replace(/\/$/, '');
+// 默认同域（Cloudflare Pages 一体化）；历史遗留域名自动纠正
+var WORKER_BASE = (function(){
+  var v = localStorage.getItem('workerBase');
+  if (!v || v === 'off' || /firstblade\.site|workers\.dev/.test(v)) return '';
+  return v.replace(/\/+$/, '');
+})();
 function getCurrentMonthPath(module) {
   var d = new Date();
   return module + '/' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '.json';

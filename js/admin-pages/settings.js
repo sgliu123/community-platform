@@ -31,9 +31,9 @@ function renderSettings() {
 
   // Worker配置
   html += '<div class="card"><div class="card-header"><h3>🌐 Worker 网关地址</h3></div>' +
-    '<div class="form-group"><label>Worker API 地址（留空则使用内存模式）</label><input type="text" id="workerBaseInput" value="' + (localStorage.getItem('workerBase') || '') + '" placeholder="https://api.firstblade.site 或留空"></div>' +
+    '<div class="form-group"><label>Worker API 地址（留空 = 同域生产模式，推荐）</label><input type="text" id="workerBaseInput" value="' + (localStorage.getItem('workerBase') || '') + '" placeholder="留空即可（前后端同域）"></div>' +
     '<button class="btn btn-primary" onclick="saveWorkerBase()">保存地址</button>' +
-    '<p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">留空表示开发模式（数据仅保存在浏览器内存中，刷新后丢失）。</p></div>';
+    '<p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">默认留空：Cloudflare Pages 一体化部署，前后端同域。输入 <code>off</code> 进入开发模式（数据仅保存在浏览器内存中）。仅在需要连接其他 Worker 时才填写完整地址。</p></div>';
 
   // 锚定配置
   html += '<div class="card"><div class="card-header"><h3>🔗 证据锚定配置</h3></div>' +
