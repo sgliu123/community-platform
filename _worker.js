@@ -82,12 +82,29 @@ function getRoleDisplayName(role) {
 }
 
 function getRolePermissions(role) {
+  // 客户端侧边栏按 {view, announcements, documents, workorders, residents,
+  // polls, complaints, activities, all, canEditAll...} 匹配，务必同步返回
   const perms = {
-    'admin-super': { canToggleModules: true, canEditAll: true, canManageUsers: true },
-    'admin-dev':   { canToggleModules: true, canEditAll: false, canManageUsers: false },
-    'admin-property': { canToggleModules: false, canEditAll: false, canManageUsers: false },
-    'admin-committee': { canToggleModules: false, canEditAll: false, canManageUsers: false },
-    'admin-community': { canToggleModules: false, canEditAll: false, canManageUsers: false }
+    'admin-super': {
+      all: true, view: true,
+      canToggleModules: true, canEditAll: true, canManageUsers: true
+    },
+    'admin-dev': {
+      view: true,
+      canToggleModules: true, canEditAll: false, canManageUsers: false
+    },
+    'admin-property': {
+      view: true, announcements: true, documents: true, workorders: true, residents: true,
+      canToggleModules: false, canEditAll: false, canManageUsers: false
+    },
+    'admin-committee': {
+      view: true, polls: true, residents: true, complaints: true,
+      canToggleModules: false, canEditAll: false, canManageUsers: false
+    },
+    'admin-community': {
+      view: true, announcements: true, activities: true, complaints: true,
+      canToggleModules: false, canEditAll: false, canManageUsers: false
+    }
   };
   return perms[role] || {};
 }
@@ -105,8 +122,8 @@ function checkRateLimit(ip) {
   return true;
 }
 
-async function createToken(role, secret, extra = {}) {
-  const payload = JSON.stringify({ role, ...extra, iat: Date.now(), exp: Date.now() + 8 * 60 * 60 * 1000 });
+async function createToken(role, secret, extra = {}, ttlMs = 8 * 60 * 60 * 1000) {
+  const payload = JSON.stringify({ role, ...extra, iat: Date.now(), exp: Date.now() + ttlMs });
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     'raw', encoder.encode(secret),
@@ -241,12 +258,57 @@ async function handleLoginTargets(request, env) {
 }
 
 async function handleLogin(request, env) {
-  const { role, password, accountId } = await request.json();
-  if ((!role && !accountId) || !password) return jsonResponse({ success: false, error: '参数不完整' }, 400);
+  // 新协议：用户名（姓名或身份名）+ 密码；remember=true 时签发 30 天 token
+  const { username, password, remember, role, accountId } = await request.json();
+  const user = String(username || '').trim();
+  if ((!user && !role && !accountId) || !password) return jsonResponse({ success: false, error: '参数不完整' }, 400);
+  const ttl = remember ? 30 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
 
   const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
   if (!checkRateLimit(clientIP)) {
     return jsonResponse({ success: false, error: '尝试次数过多，请 15 分钟后再试' }, 429);
+  }
+
+  // A) 用户名登录：优先匹配个人账号姓名
+  if (user) {
+    const accounts = await readAdminAccounts(env);
+    const acc = accounts.find(a => a.name === user);
+    if (acc) {
+      const blocked = accountLoginError(acc);
+      if (blocked) return jsonResponse({ success: false, error: blocked }, 403);
+      const hash = await sha256Hex(password);
+      if (!acc.passHash || (acc.passHash !== hash && acc.passHash !== password)) {
+        return jsonResponse({ success: false, error: '密码错误' }, 401);
+      }
+      const token = await createToken(acc.role, env.JWT_SECRET, { sub: acc.name, accountId: acc.id }, ttl);
+      return jsonResponse({
+        success: true, token, role: acc.role,
+        name: acc.name || getRoleDisplayName(acc.role),
+        permissions: getRolePermissions(acc.role),
+        accountId: acc.id, modules: acc.modules || null, remember: !!remember
+      });
+    }
+    // B) 用户名匹配内置身份（显示名 或 短名 或 完整 id）
+    const ALIASES = {
+      '总维护人员': 'admin-super', 'super': 'admin-super', 'admin-super': 'admin-super',
+      '开发者': 'admin-dev', 'dev': 'admin-dev', 'admin-dev': 'admin-dev',
+      '物管人员': 'admin-property', '物管': 'admin-property', 'property': 'admin-property', 'admin-property': 'admin-property',
+      '业委会成员': 'admin-committee', '业委会': 'admin-committee', 'committee': 'admin-committee', 'admin-committee': 'admin-committee',
+      '社区人员': 'admin-community', '社区': 'admin-community', 'community': 'admin-community', 'admin-community': 'admin-community'
+    };
+    const roleId = ALIASES[user];
+    if (roleId) {
+      const correctPwd = env[getPasswordEnvKey(roleId)];
+      if (correctPwd && password === correctPwd) {
+        const token = await createToken(roleId, env.JWT_SECRET, {}, ttl);
+        return jsonResponse({
+          success: true, token, role: roleId, name: getRoleDisplayName(roleId),
+          permissions: getRolePermissions(roleId), remember: !!remember
+        });
+      }
+      return jsonResponse({ success: false, error: '密码错误' }, 401);
+    }
+    return jsonResponse({ success: false, error: '用户名不存在或未通过审批' }, 401);
   }
 
   // 0) 登录页直接点名个人账号（下拉中选择 "mr li（物管人员）"）
