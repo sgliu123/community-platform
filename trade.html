@@ -586,6 +586,7 @@ const TRADE_DATA_FILE = 'trade_posts.json';
 
 async function workerRead(filePath) {
   const res = await fetch(WORKER_BASE + '/api/read/' + encodeURIComponent(filePath));
+  if (res.status === 404) return []; // 文件尚未创建 = 暂无数据
   if (!res.ok) throw new Error('读取失败');
   const text = await res.text();
   return text ? JSON.parse(text) : [];

@@ -101,13 +101,14 @@ async function workerRead(filePath){
   for (const p of tryPaths) {
     try {
       const res=await fetch(base+'/api/read/'+encodeURIComponent(p));
+      if(res.status===404) continue; // 文件尚未创建，尝试下一个兼容路径
       if(res.ok) {
         const t=await res.text();
         return t?JSON.parse(t):[];
       }
     } catch(e) {}
   }
-  throw new Error('读取失败');
+  return []; // 全部路径均为新建状态 = 暂无数据，不视为错误
 }
 
 

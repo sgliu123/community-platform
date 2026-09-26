@@ -153,7 +153,13 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-const WORKER_BASE = (localStorage.getItem('workerBase') || '').replace(/\/$/,'');
+// 默认同域（Cloudflare Pages 一体化）；'off' = 禁用云端走本地存储；历史遗留域名自动纠正
+const WORKER_BASE = (function(){
+  const v = localStorage.getItem('workerBase');
+  if (v === 'off') return null;
+  if (!v || /firstblade\.site|workers\.dev/.test(v)) return '';
+  return v.replace(/\/+$/,'');
+})();
 function getWorkerBase(){ return WORKER_BASE; }
 
 let appData = { polls: [], residents: [] };
@@ -163,12 +169,13 @@ let pendingAnswers = null;
 
 async function workerRead(filePath){
   const base = getWorkerBase();
-  if(!base){
+  if(base === null){
     const saved = localStorage.getItem('adminData_' + filePath.replace(/^data\//,'').replace(/\.json$/,''));
     if(saved) return JSON.parse(saved);
     return [];
   }
   const res = await fetch(base + '/api/read/' + encodeURIComponent(filePath));
+  if(res.status === 404) return []; // 文件尚未创建 = 暂无数据
   if(!res.ok) throw new Error('读取失败');
   const t = await res.text();
   return t ? JSON.parse(t) : [];
@@ -176,7 +183,7 @@ async function workerRead(filePath){
 
 async function workerWrite(filePath, data, message){
   const base = getWorkerBase();
-  if(!base){
+  if(base === null){
     localStorage.setItem('adminData_' + filePath.replace(/^data\//,'').replace(/\.json$/,''), JSON.stringify(data));
     return;
   }

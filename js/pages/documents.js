@@ -16,19 +16,29 @@ function renderDocumentDetail(id) {
   if (allImages.length > 0) {
     h += renderPhotoGallery(allImages, '文件图片', 'var(--primary)');
   }
-  // 附件处理：同时支持 fileUrl 和 attachments 数组
+  // 附件处理：attachments 数组与 fileUrl 可能指向同一文件，按 URL 去重，避免同一附件渲染两遍
   let allAttachments = [];
+  const seenAttUrls = new Set();
+  function pushAtt(att) {
+    if (!att || !att.url || typeof att.url !== 'string') return;
+    if (seenAttUrls.has(att.url)) return;
+    seenAttUrls.add(att.url);
+    allAttachments.push(att);
+  }
   if (d.attachments && Array.isArray(d.attachments)) {
-    allAttachments = allAttachments.concat(d.attachments);
+    d.attachments.forEach(pushAtt);
   }
   if (d.fileUrl) {
-    allAttachments.push({ name: d.fileName || d.title || '附件文件', url: d.fileUrl });
+    pushAtt({ name: d.fileName || d.title || '附件文件', url: d.fileUrl });
   }
   if (allAttachments.length > 0) {
     h += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;">📎 附件</div>';
     allAttachments.forEach(att => {
       const url = att.url || '';
-      const name = att.name || '附件';
+      // 显示名兜底：后台上传时 name 可能是 URL 编码的存储 key，解码并只取文件名
+      let name = att.name || '附件';
+      try { name = decodeURIComponent(String(name)); } catch(e) {}
+      name = name.split('/').pop() || '附件';
       const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(url);
       const isPdf = /\.pdf$/i.test(url);
       if (isPdf) {
