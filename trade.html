@@ -1031,6 +1031,7 @@ function renderFormByType(){
   if(isEdit){ editPost = posts.find(p => p.id === postState.editId); }
   /* 供应=确定性信息；需求=弹性范围（价格区间、图片选填） */
   const isDemand = postState.role === 'demand';
+  const priceVal = isEdit && editPost ? escapeHtml(String(editPost.price || '')) : '';
   const priceMaxVal = isEdit && editPost && editPost.extraData ? escapeHtml(String(editPost.extraData.priceMax || '')) : '';
   function priceFieldHtml(label, phMin, phMax, errText){
     if(isDemand){
@@ -1076,7 +1077,6 @@ function renderFormByType(){
     h += `<input class="form-input" id="f_area" type="number" placeholder="如：89" value="${areaVal}">`;
     h += '</div>';
     h += '<div class="form-group">';
-    const priceVal = isEdit && editPost ? escapeHtml(String(editPost.price || '')) : '';
     h += priceFieldHtml(isDemand ? '期望租金/月 (元)' : '租金/月 (元)', '如：2500', '如：3500', '请填写租金');
     h += '</div>';
     h += '</div>';
@@ -1119,7 +1119,6 @@ function renderFormByType(){
     h += '</div>';
     h += '<div class="form-row">';
     h += '<div class="form-group">';
-    const priceVal = isEdit && editPost ? escapeHtml(String(editPost.price || '')) : '';
     h += priceFieldHtml(isDemand ? '期望总价 (万元)' : '总价 (万元)', '如：200', '如：350', '请填写总价');
     h += '</div>';
     h += '<div class="form-group">';
@@ -1171,7 +1170,6 @@ function renderFormByType(){
     h += `<input class="form-input" id="f_originalPrice" type="number" placeholder="如：2000" value="${originalPriceVal}">`;
     h += '</div>';
     h += '<div class="form-group">';
-    const priceVal = isEdit && editPost ? escapeHtml(String(editPost.price || '')) : '';
     h += priceFieldHtml(isDemand ? '期望价格 (元)' : '现价 (元)', '如：500', '如：1000', '请填写现价');
     h += '</div>';
     h += '</div>';
