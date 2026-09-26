@@ -425,10 +425,15 @@ async function loadData() {
     else if (data && Array.isArray(data.services)) appData.services = data.services;
   } catch(e) { console.log("[Life] services read fail", e); }
   try {
-    const b64 = document.getElementById("embedded-b64").textContent.trim();
-    const ed = JSON.parse(decodeURIComponent(escape(atob(b64))));
-    if (ed && Array.isArray(ed.services)) appData.services = ed.services;
-  } catch(e2) { console.error("[Life] embed parse fail", e2); }
+    const el = document.getElementById("embedded-b64");
+    if (el) {
+      const raw = el.textContent.trim();
+      let ed = null;
+      try { ed = JSON.parse(decodeURIComponent(atob(raw))); }
+      catch(_) { ed = JSON.parse(atob(raw)); }
+      if (ed && Array.isArray(ed.services)) appData.services = ed.services;
+    }
+  } catch(e2) { console.warn("[Life] 内嵌服务数据解析跳过", e2); }
   try {
     const cm = await workerRead("canteen-menu.json");
     if (cm && cm.menus) canteenData = cm;
@@ -732,7 +737,7 @@ function renderCanteenMenu(dateStr) {
   h += '<div class="card">';
   h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">';
   h += '<div style="font-size:18px;font-weight:600;">&#127860; ' + dateStr + ' 选餐</div>';
-  h += '<button class="poll-btn" ' + (getCartItemsCount(dateStr, currentMeal) > 0 ? "" : "disabled") + ' onclick="navigate(\'canteen/order\',\'' + dateStr + '\')">去下单 (' + getCartItemsCount(dateStr, currentMeal) + ')</button>';
+  h += '<button class="poll-btn" ' + (getCartItemsCount(dateStr, currentMeal) > 0 ? "" : "disabled") + ' onclick="navigate(\'canteen/order\',\'' + dateStr + '?meal=' + currentMeal + '\')">去下单 (' + getCartItemsCount(dateStr, currentMeal) + ')</button>';
   h += '</div>';
   h += '<div class="meal-tabs">';
   mealTypes.forEach(mt => {
@@ -778,7 +783,7 @@ function renderCanteenMenu(dateStr) {
   }
   h += '<div style="margin-top:20px;display:flex;justify-content:space-between;align-items:center;">';
   h += '<div style="font-size:16px;font-weight:600;">合计：&#165;' + getCartTotal(dateStr, currentMeal).toFixed(2) + '</div>';
-  h += '<button class="poll-btn" ' + (getCartItemsCount(dateStr, currentMeal) > 0 ? "" : "disabled") + ' onclick="navigate(\'canteen/order\',\'' + dateStr + '\')">去下单 &#10132;</button>';
+  h += '<button class="poll-btn" ' + (getCartItemsCount(dateStr, currentMeal) > 0 ? "" : "disabled") + ' onclick="navigate(\'canteen/order\',\'' + dateStr + '?meal=' + currentMeal + '\')">去下单 &#10132;</button>';
   h += '</div></div></div>';
   return h;
 }
@@ -815,7 +820,7 @@ function renderCanteenOrder() {
     });
   }
   if (!items.length) {
-    return '<div class="container"><div class="card"><div class="empty"><div class="empty-icon">&#128722;</div><div>购物车为空</div><button class="poll-btn" style="margin-top:16px;" onclick="navigate(\'canteen/menu\',\'' + dateStr + '\')">返回选餐</button></div></div></div>';
+    return '<div class="container"><div class="card"><div class="empty"><div class="empty-icon">&#128722;</div><div>购物车为空</div><button class="poll-btn" style="margin-top:16px;" onclick="navigate(\'canteen/menu\',\'' + dateStr + '?meal=' + mealType + '\')">返回选餐</button></div></div></div>';
   }
   if (!canOrder(dateStr, mealType)) {
     return '<div class="container"><div class="card"><div class="empty"><div class="empty-icon">&#9888;</div><div>该餐别已截止预订</div><div style="font-size:13px;margin-top:8px;">需提前12小时预订，已截止</div><button class="poll-btn" style="margin-top:16px;" onclick="navigate(\'canteen\')">返回食堂首页</button></div></div></div>';
@@ -848,7 +853,7 @@ function renderCanteenOrder() {
   h += '<div class="order-summary-row"><span>合计</span><span>&#165;' + total.toFixed(2) + '</span></div>';
   h += '</div>';
   h += '<div style="display:flex;gap:10px;">';
-  h += '<button class="poll-btn" style="background:#f0f2f5;color:var(--text);" onclick="navigate(\'canteen/menu\',\'' + dateStr + '\')">返回选餐</button>';
+  h += '<button class="poll-btn" style="background:#f0f2f5;color:var(--text);" onclick="navigate(\'canteen/menu\',\'' + dateStr + '?meal=' + mealType + '\')">返回选餐</button>';
   h += '<button class="poll-btn" onclick="doCanteenOrder(\'' + dateStr + '\',\'' + mealType + '\')">提交订单</button>';
   h += '</div></div></div>';
   return h;
