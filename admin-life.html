@@ -894,11 +894,30 @@ function renderPkgEditors() {
   }).join('');
 }
 
+/* 重渲染套餐编辑器前，先把各输入框当前值同步回数据模型，
+   否则上传/删除图片等触发整列表重绘时会丢失未保存的输入 */
+function syncPkgEditorsFromDOM() {
+  var editors = document.querySelectorAll('.pkg-editor');
+  editors.forEach(function(el, idx) {
+    if (!_pkgEditors[idx]) return;
+    var q = function(sel) { var n = el.querySelector(sel); return n ? n.value : null; };
+    _pkgEditors[idx].name = (q('.pkg-name') || '').trim();
+    var price = parseFloat(q('.pkg-price'));
+    _pkgEditors[idx].price = isNaN(price) ? 0 : price;
+    var stockRaw = q('.pkg-stock');
+    _pkgEditors[idx].stock = stockRaw === '-1' ? -1 : (parseInt(stockRaw) || 0);
+    _pkgEditors[idx].description = (q('.pkg-desc') || '').trim();
+    _pkgEditors[idx].tags = q('.pkg-tags') || '';
+  });
+}
+
 function addPkgEditor() {
+  syncPkgEditorsFromDOM();
   _pkgEditors.push({ id: 'pkg-' + Date.now() + '-' + Math.random().toString(36).substr(2,4), name: '', price: 0, stock: 0, description: '', image: '', tags: '' });
   renderPkgEditors();
 }
 function removePkgEditor(idx) {
+  syncPkgEditorsFromDOM();
   _pkgEditors.splice(idx, 1);
   renderPkgEditors();
 }
@@ -906,6 +925,7 @@ function removePkgEditor(idx) {
 async function handlePkgImage(input, idx) {
   var file = input.files[0];
   if (!file) return;
+  syncPkgEditorsFromDOM();
   try {
     var compressed = await compressImage(file, { maxWidth: 640, maxHeight: 640, quality: 0.25, maxSize: 30 * 1024 });
     var reader = new FileReader();
@@ -925,6 +945,7 @@ async function handlePkgImage(input, idx) {
   input.value = '';
 }
 function removePkgImage(idx) {
+  syncPkgEditorsFromDOM();
   _pkgEditors[idx].image = '';
   renderPkgEditors();
 }

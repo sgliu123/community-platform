@@ -633,9 +633,24 @@ async function _readArr(file){
   try{ const d = await workerRead(file); return Array.isArray(d) ? d : []; }
   catch(e){ return []; }
 }
-/* 新发布：进入本月待审文件（后台审核队列） */
+/* 新发布：进入本月待审文件（后台审核队列）。
+   防重复提交：同一业主 10 分钟内存在相同标题+价格的待审帖时拒绝写入。 */
 async function cloudAddPending(post){
   const pend = await _readArr(TRADE_PENDING_FILE);
+  const now = Date.now();
+  const dup = pend.find(p => {
+    if(!p || p.id === post.id) return false;
+    if((p.userId || '') !== (post.userId || '')) return false;
+    if((p.title || '').trim() !== (post.title || '').trim()) return false;
+    if(Number(p.price) !== Number(post.price)) return false;
+    const t = new Date(p.createTime || p.createdAt || 0).getTime();
+    return t && (now - t) < 10 * 60 * 1000;
+  });
+  if(dup){
+    const err = new Error('DUPLICATE_SUBMIT');
+    err.duplicateId = dup.id;
+    throw err;
+  }
   const i = pend.findIndex(p => p && p.id === post.id);
   if(i >= 0) pend[i] = post; else pend.unshift(post);
   await workerWrite(TRADE_PENDING_FILE, pend, '业主发布交易 ' + (post.title || post.id));
@@ -953,6 +968,10 @@ function onPublishClick(){
 }
 
 function goPublish(){
+  // 精简流程：身份默认供应方、分类默认当前浏览页；一步选完即可直接填写
+  if(!postState.role) postState.role = 'supply';
+  if(!postState.type) postState.type = CATEGORIES[currentType] ? currentType : 'rent';
+  postState.step = 1;
   location.hash = '#/trade/post';
   renderPostPage();
 }
@@ -975,29 +994,20 @@ function renderPostPage(){
   if(isEdit && step < 3){ postState.step = 3; renderPostPage(); return; }
   let h = '<div class="post-page fade-in">';
   h += '<div class="post-step-bar">';
-  h += `<div class="post-step ${step>=1?'active':''}"><div class="step-num">${isEdit?'✎':'1'}</div><span>${isEdit?'编辑模式':'选择身份'}</span></div>`;
+  h += `<div class="post-step ${step>=1?'active':''}"><div class="step-num">${isEdit?'✎':'1'}</div><span>${isEdit?'编辑模式':'身份与分类'}</span></div>`;
   h += `<div class="step-line"></div>`;
-  h += `<div class="post-step ${step>=2?'active':''}"><div class="step-num">${isEdit?'✎':'2'}</div><span>${isEdit?'编辑模式':'选择分类'}</span></div>`;
-  h += `<div class="step-line"></div>`;
-  h += `<div class="post-step ${step>=3?'active':''}"><div class="step-num">3</div><span>填写信息</span></div>`;
+  h += `<div class="post-step ${step>=3?'active':''}"><div class="step-num">2</div><span>填写信息</span></div>`;
   h += '</div>';
   if(step === 1 && !isEdit){
     h += '<div class="post-card">';
-    h += '<h3>请选择您的身份</h3>';
+    h += '<h3>请选择身份</h3>';
     h += '<div class="role-select-grid">';
     h += `<div class="role-select-item ${postState.role==='supply'?'selected':''}" onclick="selectRole('supply')">`;
     h += '<div class="role-icon">📤</div><div class="role-title">我是供应方</div><div class="role-desc">出租 / 出售 / 卖物品</div></div>';
     h += `<div class="role-select-item ${postState.role==='demand'?'selected':''}" onclick="selectRole('demand')">`;
     h += '<div class="role-icon">📥</div><div class="role-title">我是需求方</div><div class="role-desc">求租 / 求购 / 收物品</div></div>';
     h += '</div>';
-    h += '<div class="btn-row">';
-    h += '<button class="btn-prev" onclick="cancelPost()">取消</button>';
-    h += `<button class="btn-next" ${!postState.role?'disabled':''} onclick="nextStep()">下一步</button>`;
-    h += '</div></div>';
-  }
-  if(step === 2 && !isEdit){
-    h += '<div class="post-card">';
-    h += '<h3>请选择发布分类</h3>';
+    h += '<h3 style="margin-top:20px;">请选择分类</h3>';
     h += '<div class="cat-select-grid">';
     Object.entries(CATEGORIES).forEach(([k,v])=>{
       h += `<div class="cat-select-item ${postState.type===k?'selected':''}" onclick="selectType('${k}')">`;
@@ -1005,8 +1015,8 @@ function renderPostPage(){
     });
     h += '</div>';
     h += '<div class="btn-row">';
-    h += '<button class="btn-prev" onclick="prevStep()">上一步</button>';
-    h += `<button class="btn-next" ${!postState.type?'disabled':''} onclick="nextStep()">下一步</button>`;
+    h += '<button class="btn-prev" onclick="cancelPost()">取消</button>';
+    h += `<button class="btn-next" ${(!postState.role||!postState.type)?'disabled':''} onclick="enterFormStep()">开始填写</button>`;
     h += '</div></div>';
   }
   if(step === 3){ h += renderFormByType(); }
@@ -1018,8 +1028,9 @@ function renderPostPage(){
 
 function selectRole(role){ postState.role = role; renderPostPage(); }
 function selectType(type){ postState.type = type; renderPostPage(); }
-function prevStep(){ if(postState.step>1){ postState.step--; renderPostPage(); } }
-function nextStep(){ if(postState.step<3){ postState.step++; renderPostPage(); } }
+function prevStep(){ postState.step = 1; renderPostPage(); }
+function nextStep(){ enterFormStep(); }
+function enterFormStep(){ if(!postState.role || !postState.type) return; postState.step = 3; renderPostPage(); }
 function cancelPost(){
   const wasEdit = !!postState.editId;
   resetPostState();
@@ -1415,7 +1426,11 @@ async function submitPost(){
     const oldClick = btn.onclick;
     btn.onclick = function(){ closeMsgModal(); btn.onclick = oldClick; resetPostState(); location.hash = '#/trade/rent'; render(); };
   } catch(err) {
-    showMsg('保存失败', '网络异常或服务器错误，请稍后重试。');
+    if(err && err.message === 'DUPLICATE_SUBMIT'){
+      showMsg('请勿重复提交', '您在 10 分钟内已提交过相同标题和价格的信息，无需重复发布。可在「我的发布」中查看或编辑。');
+    } else {
+      showMsg('保存失败', '网络异常或服务器错误，请稍后重试。');
+    }
     console.error(err);
   } finally {
     isSubmitting = false;
@@ -1840,16 +1855,25 @@ async function addMessage(content, replyTo){
 }
 
 function openAppointmentModal(){
-  $('aptDate').value = ''; $('aptTime').value = ''; $('aptNote').value = '';
-  $('appointmentModal').classList.add('active');
+  const modal = $('appointmentModal');
+  if(!modal){ showMsg('提示', '预约组件未加载，请刷新页面重试'); return; }
+  try {
+    $('aptDate').value = ''; $('aptTime').value = ''; $('aptNote').value = '';
+    modal.classList.add('active');
+  } catch(e) {
+    console.error('打开预约弹窗失败', e);
+    showMsg('提示', '预约弹窗打开失败，请刷新页面重试');
+  }
 }
 function closeAppointmentModal(){ $('appointmentModal').classList.remove('active'); }
-function submitAppointment(){
+async function submitAppointment(){
   const date = $('aptDate').value; const time = $('aptTime').value; const note = $('aptNote').value.trim();
   if(!date){ showMsg('提示', '请选择预约日期'); return; }
   if(!time){ showMsg('提示', '请选择时间段'); return; }
   const content = `【预约】${date} ${time}${note ? ' | ' + note : ''}`;
-  addMessage(content); closeAppointmentModal();
+  closeAppointmentModal();
+  await addMessage(content);
+  showMsg('预约已发送', '您的预约请求已发送给发布者，请留意留言区的回复。');
 }
 
 /* ===================== 我的发布管理 ===================== */
