@@ -200,6 +200,7 @@ async function workerRead(filePath){
   const base=getWorkerBase();
   if(base === null) throw new Error("云端读写已禁用（开发模式）");
   const res=await fetch(base+"/api/read/"+encodeURIComponent(filePath)+"?_="+Date.now()+"&r="+Math.random().toString(36).substr(2,5), {cache:"no-store"});
+  if(res.status===404) return []; // 文件尚未创建 = 暂无数据
   if(!res.ok) throw new Error("读取失败");
   const t=await res.text();
   return t?JSON.parse(t):[];
@@ -398,7 +399,7 @@ function showToast(msg) {
 async function loadSiteConfig() {
   try {
     const base = getWorkerBase();
-    if (!base) { console.log("[Life] Worker 未配置，跳过云端拉取"); return; }
+    if (base === null) { console.log("[Life] 开发模式（off），跳过云端拉取"); return; }
     const res = await fetch(base + "/api/read/" + encodeURIComponent("data/config.json") + "?_=" + Date.now(), {cache:"no-store"});
     if (!res.ok) { console.log("[Life] config fetch failed", res.status); return; }
     const config = await res.json();

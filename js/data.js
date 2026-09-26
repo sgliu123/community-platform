@@ -76,6 +76,8 @@ async function workerRead(filePath){
   const base=getWorkerBase();
   if(base === null) throw new Error('云端读写已禁用（开发模式）');
   const res=await fetch(base+'/api/read/'+encodeURIComponent(filePath));
+  // 404 = 文件尚未创建（新月份首单/新模块首次使用），视为空数据，不算错误
+  if(res.status===404) return [];
   if(!res.ok) throw new Error('读取失败');
   const t=await res.text();
   return t?JSON.parse(t):[];
