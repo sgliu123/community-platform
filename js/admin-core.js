@@ -210,6 +210,8 @@ function renderSidebar() {
     const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
     if (!hasPerm || !hasRole) return;
     if (switches[item.id] === false && !isSuper) return;
+    // 账号级板块开关（总维护在「管理员管理」按个人账号设置）
+    if (window.canAccessModule && !window.canAccessModule(item.id)) return;
     var isActive = item.id === currentModule;
     var cls = 'nav-item' + (isActive ? ' active' : '');
     var clickAction = item.external ? 'window.open(\'' + item.external + '\',\'_blank\')' : 'navigateTo(\'' + item.id + '\')';
@@ -225,6 +227,11 @@ function renderSidebar() {
 
 function navigateTo(module) {
   try {
+    // 账号级板块开关：被关闭的板块禁止进入
+    if (window.canAccessModule && !window.canAccessModule(module)) {
+      if (typeof showToast === 'function') showToast('该板块已对你关闭，请联系总维护人员开通', 'error');
+      return;
+    }
     const externalLinks = { life: 'admin-life.html', trade: 'trade-admin.html' };
     if (externalLinks[module]) { window.open(externalLinks[module], '_blank'); return; }
     currentModule = module;
@@ -842,6 +849,23 @@ async function loadAdminAccountsUI() {
   }
 }
 
+// 账号级板块开关的可配置模块清单（与侧边栏 data-module 一致；总维护/开发者专属模块对个人账号恒不可见，无需列出）
+var ACCOUNT_MODULE_LIST = [
+  { id: 'dashboard', name: '仪表盘' },
+  { id: 'config', name: '社区配置' },
+  { id: 'announcements', name: '公告管理' },
+  { id: 'documents', name: '文件管理' },
+  { id: 'activities', name: '动态管理' },
+  { id: 'polls', name: '投票管理' },
+  { id: 'residents', name: '业主管理' },
+  { id: 'audit', name: '审批管理' },
+  { id: 'workorders', name: '工单管理' },
+  { id: 'complaints', name: '投诉建议' },
+  { id: 'settings', name: '系统设置' },
+  { id: 'life', name: '生活服务' },
+  { id: 'trade', name: '交易管理' }
+];
+
 function buildAccountsHtml(accounts) {
   var html = '';
   var pending = accounts.filter(function(a){ return a.status === 'pending'; });
@@ -870,7 +894,13 @@ function buildAccountsHtml(accounts) {
     html += '<p style="color:var(--text-secondary);font-size:13px;">暂无已审批的个人账号（5 个内置身份由环境变量管理，不在此列表）。</p>';
   } else {
     approved.forEach(function(a) {
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px;background:' + (a.disabled ? '#f5f5f5' : '#e8f5e9') + ';border-radius:6px;margin-bottom:8px;">' +
+      var modsGrid = ACCOUNT_MODULE_LIST.map(function(m) {
+        var checked = !(a.modules && a.modules[m.id] === false);
+        return '<label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;">' +
+          '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleAdminAccountModules(\'' + a.id + '\',\'' + m.id + '\',this.checked)">' + m.name + '</label>';
+      }).join('');
+      html += '<div style="padding:10px;background:' + (a.disabled ? '#f5f5f5' : '#e8f5e9') + ';border-radius:6px;margin-bottom:8px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
         '<div>' +
           '<div style="font-weight:600;' + (a.disabled ? 'color:#999;text-decoration:line-through;' : '') + '">' + escapeHtml(a.name) + ' <span style="font-size:12px;color:var(--primary);font-weight:500;">' + escapeHtml(a.roleName || '') + '</span>' + (a.disabled ? ' <span style="font-size:11px;color:#c62828;">（已停用）</span>' : '') + '</div>' +
           '<div style="font-size:12px;color:var(--text-secondary);">审批: ' + String(a.reviewedAt || '').slice(0,10) + (a.reviewedBy ? ' · 操作: ' + escapeHtml(a.reviewedBy) : '') + '</div>' +
@@ -882,7 +912,12 @@ function buildAccountsHtml(accounts) {
           '<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">' +
             '<input type="checkbox" ' + (a.canDelete !== false ? 'checked' : '') + ' onchange="toggleAdminAccount(\'' + a.id + '\',{canDelete:this.checked})">允许删除' +
           '</label>' +
-        '</div></div>';
+        '</div></div>' +
+        '<details style="margin-top:8px;">' +
+          '<summary style="font-size:12px;cursor:pointer;color:var(--primary);user-select:none;">📂 板块权限（点击展开，勾选 = 该账号可见）</summary>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:8px;padding:8px;background:rgba(255,255,255,0.6);border-radius:4px;">' + modsGrid + '</div>' +
+        '</details>' +
+      '</div>';
     });
   }
 
@@ -926,6 +961,13 @@ async function toggleAdminAccount(id, patch) {
     if (data.success) { showToast('账号设置已更新', 'success'); loadAdminAccountsUI(); }
     else { showToast('操作失败：' + (data.error || ''), 'error'); loadAdminAccountsUI(); }
   } catch(e) { showToast('操作失败：' + e.message, 'error'); loadAdminAccountsUI(); }
+}
+
+// 账号级板块开关：增量更新单个模块可见性
+async function toggleAdminAccountModules(id, moduleId, enabled) {
+  var patch = { modules: {} };
+  patch.modules[moduleId] = !!enabled;
+  await toggleAdminAccount(id, patch);
 }
 
 /* ===== 开发者工具页面（仅总维护人员） ===== */

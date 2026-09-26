@@ -262,7 +262,9 @@ async function handleLogin(request, env) {
       token,
       role,
       name: acc.name || getRoleDisplayName(role),
-      permissions: getRolePermissions(role)
+      permissions: getRolePermissions(role),
+      accountId: acc.id,
+      modules: acc.modules || null // 账号级板块开关（null = 默认全开）
     });
   }
 
@@ -274,6 +276,22 @@ async function handleVerify(request, env) {
   if (!auth.startsWith('Bearer ')) return jsonResponse({ valid: false });
   const payload = await verifyToken(auth.slice(7), env.JWT_SECRET);
   if (!payload) return jsonResponse({ valid: false });
+
+  // 个人账号：实时校验停用状态并回传最新板块开关
+  if (payload.accountId) {
+    const accounts = await readAdminAccounts(env);
+    const acc = accounts.find(a => a.id === payload.accountId);
+    if (!acc || acc.status !== 'approved' || acc.disabled === true) {
+      return jsonResponse({ valid: false, error: '账号已被停用或删除' });
+    }
+    return jsonResponse({
+      valid: true,
+      role: payload.role,
+      permissions: getRolePermissions(payload.role),
+      modules: acc.modules || null
+    });
+  }
+
   return jsonResponse({
     valid: true,
     role: payload.role,
@@ -633,7 +651,8 @@ async function handleListAccounts(request, env) {
       id: a.id, name: a.name, role: a.role, roleName: a.roleName || getRoleDisplayName(a.role),
       note: a.note || '', status: a.status, disabled: !!a.disabled, canDelete: a.canDelete !== false,
       appliedAt: a.appliedAt, reviewedAt: a.reviewedAt || '', reviewedBy: a.reviewedBy || '',
-      rejectedReason: a.rejectedReason || ''
+      rejectedReason: a.rejectedReason || '',
+      modules: a.modules || null
     }))
   });
 }
@@ -664,7 +683,7 @@ async function handleToggleAccount(request, env) {
   try { user = await requireAuth(request, env); } catch (e) { return jsonResponse({ success: false, error: e.message }, 401); }
   if (!requireSuper(user)) return jsonResponse({ success: false, error: '仅总维护人员可操作' }, 403);
 
-  const { id, disabled, canDelete } = await request.json();
+  const { id, disabled, canDelete, modules } = await request.json();
   const accounts = await readAdminAccounts(env);
   const acc = accounts.find(a => a.id === id);
   if (!acc) return jsonResponse({ success: false, error: '账号不存在' }, 404);
@@ -672,6 +691,11 @@ async function handleToggleAccount(request, env) {
 
   if (typeof disabled === 'boolean') acc.disabled = disabled;
   if (typeof canDelete === 'boolean') acc.canDelete = canDelete;
+  // 账号级板块开关：以对象形式增量合并（{ moduleId: true/false }）
+  if (modules && typeof modules === 'object' && !Array.isArray(modules)) {
+    if (!acc.modules) acc.modules = {};
+    for (const k of Object.keys(modules)) acc.modules[k] = !!modules[k];
+  }
   await writeAdminAccounts(env, accounts, user.sub || user.role);
-  return jsonResponse({ success: true, id: acc.id, disabled: acc.disabled, canDelete: acc.canDelete });
+  return jsonResponse({ success: true, id: acc.id, disabled: acc.disabled, canDelete: acc.canDelete, modules: acc.modules || null });
 }
