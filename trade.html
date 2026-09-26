@@ -576,7 +576,12 @@ const LS_SENSITIVE = 'trade_sensitive_words';
 const LS_LEGAL_ACCEPTED = 'trade_legal_accepted';
 
 /* ===================== Worker 云端存储 ===================== */
-const WORKER_BASE = (localStorage.getItem('workerBase') || 'https://community.firstblade.site').replace(/\/$/, '');
+// 默认同域（Cloudflare Pages 一体化）；历史遗留域名自动纠正
+const WORKER_BASE = (function(){
+  const v = localStorage.getItem('workerBase');
+  if (!v || v === 'off' || /firstblade\.site|workers\.dev/.test(v)) return '';
+  return v.replace(/\/+$/, '');
+})();
 const TRADE_DATA_FILE = 'trade_posts.json';
 
 async function workerRead(filePath) {

@@ -381,11 +381,17 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-const WORKER_BASE = localStorage.getItem('workerBase') || 'https://community.firstblade.site';
-function getWorkerBase() { return WORKER_BASE.replace(/\/$/, ''); }
+// 默认同域（Cloudflare Pages 一体化）；'off' = 禁用云端；历史遗留域名自动纠正
+const WORKER_BASE = (function(){
+  const v = localStorage.getItem('workerBase');
+  if (v === 'off') return null;
+  if (!v || /firstblade\.site|workers\.dev/.test(v)) return '';
+  return v;
+})();
+function getWorkerBase() { return WORKER_BASE === null ? null : WORKER_BASE.replace(/\/$/, ''); }
 async function workerRead(filePath) {
   const base = getWorkerBase();
-  if (!base) throw new Error('Worker地址未配置');
+  if (base === null) throw new Error('云端读写已禁用（开发模式）');
   const res = await fetch(base + '/api/read/' + encodeURIComponent(filePath) + '?_=' + Date.now() + '&r=' + Math.random().toString(36).substr(2,5), {cache: 'no-store'});
   if (!res.ok) throw new Error('读取失败');
   const t = await res.text();
@@ -393,7 +399,7 @@ async function workerRead(filePath) {
 }
 async function workerWrite(filePath, data, message) {
   const base = getWorkerBase();
-  if (!base) throw new Error('Worker地址未配置');
+  if (base === null) throw new Error('云端读写已禁用（开发模式）');
   const res = await fetch(base + '/api/write/' + encodeURIComponent(filePath), {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content: JSON.stringify(data, null, 2), message })
@@ -483,7 +489,7 @@ let _editImages = [];
 async function loadSiteConfig() {
   try {
     var base = getWorkerBase();
-    if (!base) { console.log("[AdminLife] Worker 未配置，跳过云端拉取"); return; }
+    if (base === null) { console.log("[AdminLife] 开发模式（off），跳过云端拉取"); return; }
     var res = await fetch(base + "/api/read/" + encodeURIComponent("data/config.json") + "?_=" + Date.now(), {cache:"no-store"});
     if (!res.ok) { console.log("[AdminLife] config fetch failed", res.status); return; }
     var config = await res.json();

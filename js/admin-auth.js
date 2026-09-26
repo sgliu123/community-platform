@@ -8,7 +8,8 @@
   'use strict';
 
   const CONFIG = {
-    WORKER_URL: 'https://api.firstblade.site',
+    // 同域相对路径：Cloudflare Pages 一体化部署，前后端同一域名，无需配置域名
+    WORKER_URL: '',
     TOKEN_KEY:      'admin_auth_token',
     ROLE_KEY:       'admin_auth_role',
     NAME_KEY:       'admin_auth_name',
