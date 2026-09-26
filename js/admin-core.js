@@ -227,6 +227,14 @@ function renderSidebar() {
 
 function navigateTo(module) {
   try {
+    // 总维护专属页面：非 super 直接改地址栏也不进入
+    if ((module === 'admin-manage' || module === 'dev-tools')) {
+      var ca = window.currentAdmin || {};
+      if (ca.role !== 'super') {
+        if (typeof showToast === 'function') showToast('该页面仅总维护人员可见', 'error');
+        module = 'dashboard';
+      }
+    }
     // 账号级板块开关：被关闭的板块禁止进入
     if (window.canAccessModule && !window.canAccessModule(module)) {
       if (typeof showToast === 'function') showToast('该板块已对你关闭，请联系总维护人员开通', 'error');
@@ -811,27 +819,18 @@ function getAllAdminAccounts() {
   return ADMIN_ACCOUNTS.concat(registered);
 }
 
+// 登录页初始化：预填上次成功登录的用户名；勾选框沿用上次选择
 function renderLoginRoles() {
-  var select = document.getElementById('loginRole');
-  if (!select) return;
-  var kept = select.value;
-  fetch('/api/auth/login-targets', { headers: { 'Accept': 'application/json' } })
-    .then(function(r){ return r.json(); })
-    .then(function(data) {
-      if (!data.success || !Array.isArray(data.targets)) return;
-      var ROLE_ICONS = {
-        'admin-super': '🔧', 'admin-dev': '💻',
-        'admin-property': '🏢', 'admin-committee': '🏛️', 'admin-community': '🏘️'
-      };
-      var html = '<option value="">— 请选择身份 —</option>';
-      data.targets.forEach(function(t) {
-        var icon = t.type === 'account' ? '👤 ' : ((ROLE_ICONS[t.id] || '') + ' ');
-        html += '<option value="' + t.id + '">' + icon + escapeHtml(t.label) + '</option>';
-      });
-      select.innerHTML = html;
-      if (kept) select.value = kept;
-    })
-    .catch(function(){ /* 静态兜底：保留 admin.html 内置的 5 个身份选项 */ });
+  try {
+    var nameEl = document.getElementById('loginName');
+    if (nameEl && !nameEl.value) {
+      nameEl.value = localStorage.getItem('admin_auth_last_user') || '';
+    }
+    var remEl = document.getElementById('loginRemember');
+    if (remEl) {
+      remEl.checked = localStorage.getItem('admin_auth_remember_flag') !== '0';
+    }
+  } catch (e) {}
 }
 
 
@@ -878,6 +877,13 @@ var ACCOUNT_MODULE_LIST = [
   { id: 'trade', name: '交易管理' }
 ];
 
+// 各角色在侧边栏本就可见的模块（-panel 只应展示该角色能力范围内的开关，避免"勾了也没用"的迷惑项）
+var ROLE_MODULE_MAP = {
+  'admin-property':  ['dashboard', 'announcements', 'documents', 'residents', 'workorders', 'life', 'trade', 'settings'],
+  'admin-committee': ['dashboard', 'polls', 'residents', 'complaints', 'life', 'trade', 'settings'],
+  'admin-community': ['dashboard', 'announcements', 'activities', 'complaints', 'life', 'trade', 'settings']
+};
+
 function buildAccountsHtml(accounts) {
   var html = '';
   var pending = accounts.filter(function(a){ return a.status === 'pending'; });
@@ -906,7 +912,8 @@ function buildAccountsHtml(accounts) {
     html += '<p style="color:var(--text-secondary);font-size:13px;">暂无已审批的个人账号（5 个内置身份由环境变量管理，不在此列表）。</p>';
   } else {
     approved.forEach(function(a) {
-      var modsGrid = ACCOUNT_MODULE_LIST.map(function(m) {
+      var roleAllowed = ROLE_MODULE_MAP[a.role] || ACCOUNT_MODULE_LIST.map(function(m){ return m.id; });
+      var modsGrid = ACCOUNT_MODULE_LIST.filter(function(m){ return roleAllowed.indexOf(m.id) >= 0; }).map(function(m) {
         var checked = !(a.modules && a.modules[m.id] === false);
         return '<label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;">' +
           '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleAdminAccountModules(\'' + a.id + '\',\'' + m.id + '\',this.checked)">' + m.name + '</label>';

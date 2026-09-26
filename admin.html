@@ -14,17 +14,13 @@
     <h2>🔐 管理员登录</h2>
     <p class="subtitle">社区小区 · 管理后台</p>
     <div class="error" id="loginError"></div>
-    <select id="loginRole" style="width:100%;padding:12px 14px;margin-bottom:12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;">
-      <option value="">— 请选择身份 —</option>
-      <option value="admin-super">🔧 总维护人员</option>
-      <option value="admin-dev">💻 开发者</option>
-      <option value="admin-property">🏢 物管人员</option>
-      <option value="admin-committee">🏛️ 业委会成员</option>
-      <option value="admin-community">🏘️ 社区人员</option>
-    </select>
-    <input type="password" id="loginPassword" placeholder="请输入密码">
+    <input type="text" id="loginName" placeholder="请输入用户名（姓名 / 身份名称）" maxlength="30" autocomplete="username">
+    <input type="password" id="loginPassword" placeholder="请输入密码" autocomplete="current-password">
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);margin:0 0 12px 2px;cursor:pointer;">
+      <input type="checkbox" id="loginRemember" checked style="width:auto;margin:0;">在这台电脑上记住我（30 天免登录）
+    </label>
     <button id="loginBtn" onclick="doAdminLogin()">登录</button>
-    <p class="tip" id="loginTip">请选择身份并输入密码<br>密码</p>
+    <p class="tip" id="loginTip">个人账号：输入申请时的姓名<br>内置身份：输入「总维护人员 / 物管人员 / 业委会成员 / 社区人员 / 开发者」</p>
     <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);">
       <a href="javascript:void(0)" onclick="showApplyForm()" style="font-size:13px;color:var(--primary);text-decoration:none;">📝 没有账号？申请管理员权限</a>
     </div>

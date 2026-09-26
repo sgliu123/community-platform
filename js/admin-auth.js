@@ -17,6 +17,7 @@
     PERMISSIONS_KEY:'admin_auth_permissions',
     MODULE_CONFIG_KEY:'admin_auth_module_config',
     ACCOUNT_MODULES_KEY:'admin_auth_account_modules',
+    REMEMBER_KEY:   'admin_auth_remember',
     DEBUG_KEY:      'admin_auth_debug_logs'
   };
 
@@ -81,10 +82,39 @@
     sessionStorage.removeItem(CONFIG.PERMISSIONS_KEY);
     sessionStorage.removeItem(CONFIG.MODULE_CONFIG_KEY);
     sessionStorage.removeItem(CONFIG.ACCOUNT_MODULES_KEY);
+    try { localStorage.removeItem(CONFIG.REMEMBER_KEY); } catch (ignore) {}
   }
 
   function getToken() { return sessionStorage.getItem(CONFIG.TOKEN_KEY); }
   function getRole()  { return sessionStorage.getItem(CONFIG.ROLE_KEY); }
+
+  // 角色归一：服务端标识 admin-property → 前端侧边栏统一用 property/super/dev/committee/community
+  function normalizeRole(role) {
+    const map = { 'admin-super': 'super', 'admin-dev': 'dev' };
+    if (map[role]) return map[role];
+    if (role && role.indexOf('admin-') === 0) return role.slice(6);
+    return role || 'admin';
+  }
+
+  // 30 天免登录：从 localStorage 恢复会话到 sessionStorage
+  function restoreRemembered() {
+    try {
+      const raw = localStorage.getItem(CONFIG.REMEMBER_KEY);
+      if (!raw) return;
+      const bundle = JSON.parse(raw);
+      if (!bundle || !bundle.token) { localStorage.removeItem(CONFIG.REMEMBER_KEY); return; }
+      if (Date.now() > (bundle.expire || 0)) { localStorage.removeItem(CONFIG.REMEMBER_KEY); return; }
+      sessionStorage.setItem(CONFIG.TOKEN_KEY, bundle.token);
+      sessionStorage.setItem(CONFIG.ROLE_KEY, bundle.role || '');
+      sessionStorage.setItem(CONFIG.NAME_KEY, bundle.name || '管理员');
+      sessionStorage.setItem(CONFIG.PERMISSIONS_KEY, JSON.stringify(bundle.permissions || {}));
+      sessionStorage.setItem(CONFIG.EXPIRE_KEY, String(bundle.expire));
+      setAccountModules(bundle.modules || null);
+      debugLog('Boot', '已从免登录缓存恢复会话');
+    } catch (e) {
+      try { localStorage.removeItem(CONFIG.REMEMBER_KEY); } catch (ignore) {}
+    }
+  }
 
   function getAuthPermissions() {
     try { return JSON.parse(sessionStorage.getItem(CONFIG.PERMISSIONS_KEY) || '{}'); }
@@ -368,22 +398,25 @@
   window.doAdminLogin = async function() {
     ensureDebugPanel();
     debugLog('Login', '========== 登录开始 ==========');
-    const sel = $('loginRole').value;
+    const username = ($('loginName') ? $('loginName').value : '').trim();
     const password = $('loginPassword').value;
+    const remember = ($('loginRemember') && $('loginRemember').checked) || false;
     const errorEl = $('loginError');
-    if (errorEl) errorEl.textContent = '';
-    if (!sel) { if (errorEl) errorEl.textContent = '请选择身份'; debugLog('Login', '未选身份', true); return; }
+    if (errorEl) errorEl.style.display = 'block', errorEl.textContent = '';
+    if (!username) { if (errorEl) errorEl.textContent = '请输入用户名'; debugLog('Login', '未输用户名', true); return; }
     if (!password) { if (errorEl) errorEl.textContent = '请输入密码'; debugLog('Login', '未输密码', true); return; }
-    // 个人账号选项形如 acct:<id>，登录请求带 accountId；内置身份带 role
-    const isAccount = sel.indexOf('acct:') === 0;
-    const loginBody = isAccount ? { accountId: sel.slice(5), password } : { role: sel, password };
 
     const loading = $('loadingOverlay');
     if (loading) loading.style.display = 'flex';
 
     try {
-      debugLog('Login', '请求登录: ' + sel);
-      const data = await apiPost('/api/auth/login', loginBody, false);
+      debugLog('Login', '请求登录: ' + username);
+      const data = await apiPost('/api/auth/login', { username, password, remember }, false);
+      // 记住本机用户名（30 天预填），不存密码
+      try {
+        localStorage.setItem('admin_auth_last_user', username);
+        localStorage.setItem('admin_auth_remember_flag', remember ? '1' : '0');
+      } catch (ignore) {}
       if (loading) loading.style.display = 'none';
 
       if (!data.success) {
@@ -395,6 +428,19 @@
       debugLog('Login', '登录成功');
       saveAuth(data.token, data.role, data.name, data.permissions);
       setAccountModules(data.modules);
+      // 30 天免登录：把会话打包进 localStorage，刷新/重开浏览器自动续上
+      if (remember) {
+        try {
+          localStorage.setItem(CONFIG.REMEMBER_KEY, JSON.stringify({
+            token: data.token, role: data.role, name: data.name,
+            permissions: data.permissions || {}, modules: data.modules || null,
+            expire: Date.now() + 30 * 24 * 60 * 60 * 1000
+          }));
+        } catch (e) { debugLog('Login', '写入免登录缓存失败: ' + e.message, true); }
+      } else {
+        try { localStorage.removeItem(CONFIG.REMEMBER_KEY); } catch (ignore) {}
+      }
+      const normRoleLogin = normalizeRole(data.role);
 
       const loginPage = $('loginPage');
       const tokenPage = $('tokenPage');
@@ -422,7 +468,7 @@
       window.currentAdmin = {
         id: data.role || 'admin-super',
         name: data.name || '管理员',
-        role: (data.role === 'admin-super') ? 'super' : (data.role || 'admin'),
+        role: normRoleLogin,
         permissions: data.permissions ? Object.keys(data.permissions).filter(function(k){ return data.permissions[k]; }) : []
       };
       window.adminSession = { adminId: window.currentAdmin.id, loginTime: new Date().toISOString() };
@@ -580,6 +626,7 @@ setTimeout(() => {
 
   async function boot() {
     ensureDebugPanel();
+    if (!getToken()) restoreRemembered();
     const token = getToken();
     debugLog('Boot', 'token 存在: ' + !!token);
     if (!token) return;
@@ -608,7 +655,7 @@ setTimeout(() => {
         window.currentAdmin = {
           id: data.role || 'admin-super',
           name: name || '管理员',
-          role: (data.role === 'admin-super') ? 'super' : (data.role || 'admin'),
+          role: normalizeRole(data.role),
           permissions: data.permissions ? Object.keys(data.permissions).filter(function(k){ return data.permissions[k]; }) : []
         };
         window.adminSession = { adminId: window.currentAdmin.id, loginTime: new Date().toISOString() };
