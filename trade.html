@@ -501,34 +501,6 @@ a { text-decoration:none; color:var(--primary); }
   </div>
 </div>
 
-<!-- 预约弹窗 -->
-<div class="modal-overlay appointment-modal" id="appointmentModal">
-  <div class="modal-box">
-    <h3>📅 发送预约</h3>
-    <div class="appointment-row">
-      <label>选择日期</label>
-      <input type="date" id="aptDate">
-    </div>
-    <div class="appointment-row">
-      <label>选择时间段</label>
-      <select id="aptTime">
-        <option value="">请选择</option>
-        <option value="上午 9:00-12:00">上午 9:00-12:00</option>
-        <option value="下午 14:00-17:00">下午 14:00-17:00</option>
-        <option value="晚上 18:00-20:00">晚上 18:00-20:00</option>
-      </select>
-    </div>
-    <div class="appointment-row">
-      <label>留言内容</label>
-      <input type="text" id="aptNote" placeholder="可选补充说明">
-    </div>
-    <div class="report-btn-row">
-      <button class="report-btn-cancel" onclick="closeAppointmentModal()">取消</button>
-      <button class="report-btn-submit" onclick="submitAppointment()">确认发送</button>
-    </div>
-  </div>
-</div>
-
 <!-- 首次发布法律倒计时弹窗 -->
 <div class="modal-overlay legal-countdown-modal" id="legalCountdownModal">
   <div class="modal-box">
@@ -612,6 +584,20 @@ function $(id){ return document.getElementById(id); }
 function escapeHtml(t){ if(!t)return''; const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
 function fmtDate(iso){ if(!iso)return''; const d=new Date(iso); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function fmtPrice(n){ if(n===undefined||n===null||n==='')return'面议'; const num=Number(n); if(isNaN(num))return'面议'; if(num>=10000)return (num/10000).toFixed(1)+'万'; if(num>=1000)return (num/1000).toFixed(1)+'k'; return num.toString(); }
+/* 价格展示：供应=确定价格；需求=弹性范围（最低~最高 / 最低起 / 最高以内 / 面议） */
+function priceText(p){
+  if(!p) return '面议';
+  const ex = p.extraData || {};
+  const pos = v => v !== undefined && v !== null && v !== '' && !isNaN(Number(v)) && Number(v) > 0;
+  const hasMin = pos(p.price);
+  const hasMax = pos(ex.priceMax);
+  if((p.role || p.identity) === 'demand' && (hasMin || hasMax)){
+    if(hasMin && hasMax) return '¥' + fmtPrice(p.price) + ' ~ ' + fmtPrice(ex.priceMax);
+    if(hasMin) return '¥' + fmtPrice(p.price) + '起';
+    return '¥' + fmtPrice(ex.priceMax) + '以内';
+  }
+  return hasMin || p.price === 0 ? '面议' : '¥' + fmtPrice(p.price);
+}
 function genId(){ return 'tp-'+Date.now()+'-'+Math.random().toString(36).substr(2,5); }
 function getAuth(){ try{ return JSON.parse(localStorage.getItem(LS_AUTH))||null; }catch(e){ return null; } }
 async function getPosts(){
@@ -894,7 +880,7 @@ function renderCard(item){
     <div class="card-body">
       <div class="card-title-row">
         <div class="card-title">${escapeHtml(item.title)}</div>
-        <div class="card-price">${item.price===undefined||item.price===null||item.price===''?'面议':'¥'+fmtPrice(item.price)}</div>
+        <div class="card-price">${priceText(item)}</div>
       </div>
       <div class="card-meta">
         <span>📍 ${escapeHtml(item.location||'')}</span>
@@ -1043,6 +1029,22 @@ function renderFormByType(){
   const isEdit = !!postState.editId;
   let editPost = null;
   if(isEdit){ editPost = posts.find(p => p.id === postState.editId); }
+  /* 供应=确定性信息；需求=弹性范围（价格区间、图片选填） */
+  const isDemand = postState.role === 'demand';
+  const priceMaxVal = isEdit && editPost && editPost.extraData ? escapeHtml(String(editPost.extraData.priceMax || '')) : '';
+  function priceFieldHtml(label, phMin, phMax, errText){
+    if(isDemand){
+      return '<label class="form-label">' + label + '<span style="font-weight:400;color:#999;font-size:12px;">（范围，可只填一端，都不填表示不限）</span></label>' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+        `<input class="form-input" id="f_price" type="number" placeholder="${phMin}" value="${priceVal}">` +
+        '<span style="color:var(--text-secondary);flex-shrink:0;">~</span>' +
+        `<input class="form-input" id="f_priceMax" type="number" placeholder="${phMax}" value="${priceMaxVal}">` +
+        '</div><div class="error-msg" id="err_price">最低价格不能高于最高价格</div>';
+    }
+    return '<label class="form-label">' + label + '<span class="required">*</span></label>' +
+      `<input class="form-input" id="f_price" type="number" placeholder="${phMin}" value="${priceVal}">` +
+      `<div class="error-msg" id="err_price">${errText}</div>`;
+  }
   let h = '';
   h += '<div class="post-card">';
   h += `<h3>${isEdit?'编辑':'填写'}${CATEGORIES[t].name}信息</h3>`;
@@ -1074,10 +1076,8 @@ function renderFormByType(){
     h += `<input class="form-input" id="f_area" type="number" placeholder="如：89" value="${areaVal}">`;
     h += '</div>';
     h += '<div class="form-group">';
-    h += '<label class="form-label">租金/月 (元)<span class="required">*</span></label>';
     const priceVal = isEdit && editPost ? escapeHtml(String(editPost.price || '')) : '';
-    h += `<input class="form-input" id="f_price" type="number" placeholder="如：3500" value="${priceVal}">`;
-    h += '<div class="error-msg" id="err_price">请填写租金</div>';
+    h += priceFieldHtml(isDemand ? '期望租金/月 (元)' : '租金/月 (元)', '如：2500', '如：3500', '请填写租金');
     h += '</div>';
     h += '</div>';
     h += '<div class="form-group">';
@@ -1119,10 +1119,8 @@ function renderFormByType(){
     h += '</div>';
     h += '<div class="form-row">';
     h += '<div class="form-group">';
-    h += '<label class="form-label">总价 (万元)<span class="required">*</span></label>';
     const priceVal = isEdit && editPost ? escapeHtml(String(editPost.price || '')) : '';
-    h += `<input class="form-input" id="f_price" type="number" placeholder="如：350" value="${priceVal}">`;
-    h += '<div class="error-msg" id="err_price">请填写总价</div>';
+    h += priceFieldHtml(isDemand ? '期望总价 (万元)' : '总价 (万元)', '如：200', '如：350', '请填写总价');
     h += '</div>';
     h += '<div class="form-group">';
     h += '<label class="form-label">单价 (元/㎡)</label>';
@@ -1173,10 +1171,8 @@ function renderFormByType(){
     h += `<input class="form-input" id="f_originalPrice" type="number" placeholder="如：2000" value="${originalPriceVal}">`;
     h += '</div>';
     h += '<div class="form-group">';
-    h += '<label class="form-label">现价 (元)<span class="required">*</span></label>';
     const priceVal = isEdit && editPost ? escapeHtml(String(editPost.price || '')) : '';
-    h += `<input class="form-input" id="f_price" type="number" placeholder="如：800" value="${priceVal}">`;
-    h += '<div class="error-msg" id="err_price">请填写现价</div>';
+    h += priceFieldHtml(isDemand ? '期望价格 (元)' : '现价 (元)', '如：500', '如：1000', '请填写现价');
     h += '</div>';
     h += '</div>';
     h += '<div class="form-group">';
@@ -1192,7 +1188,9 @@ function renderFormByType(){
   h += `<textarea class="form-textarea" id="f_description" placeholder="请补充描述详细信息...">${descVal}</textarea>`;
   h += '</div>';
   h += '<div class="form-group">';
-  h += '<label class="form-label">图片上传<span class="required">*</span> <span style="font-weight:400;color:#999;font-size:12px;">(至少1张，最多5张，大图自动压缩)</span></label>';
+  h += isDemand
+    ? '<label class="form-label">图片上传<span style="font-weight:400;color:#999;font-size:12px;">（需求选填，最多5张，大图自动压缩）</span></label>'
+    : '<label class="form-label">图片上传<span class="required">*</span> <span style="font-weight:400;color:#999;font-size:12px;">(至少1张，最多5张，大图自动压缩)</span></label>';
   h += `<div class="image-upload-area" onclick="$('fileInput').click()">`;
   h += '<div class="upload-icon">📷</div>';
   h += '<div class="upload-text">点击上传图片</div>';
@@ -1356,8 +1354,14 @@ async function submitPost(){
     const location = $('f_location').value.trim();
     if(!location){ showFieldError('location', true); valid = false; if(!firstErrorField) firstErrorField = 'f_location'; }
 
-    const price = $('f_price').value.trim();
-    if(!price){ showFieldError('price', true); valid = false; if(!firstErrorField) firstErrorField = 'f_price'; }
+    const isDemand = postState.role === 'demand';
+    let price = $('f_price').value.trim();
+    let priceMax = '';
+    if(isDemand){
+      priceMax = $('f_priceMax') ? $('f_priceMax').value.trim() : '';
+      // 需求端：价格范围两端均可空（表示不限），但最低不能高于最高
+      if(price && priceMax && Number(price) > Number(priceMax)){ showFieldError('price', true); valid = false; if(!firstErrorField) firstErrorField = 'f_price'; }
+    } else if(!price){ showFieldError('price', true); valid = false; if(!firstErrorField) firstErrorField = 'f_price'; }
 
     const contact = $('f_contact').value.trim();
     if(!contact){ showFieldError('contact', true); valid = false; if(!firstErrorField) firstErrorField = 'f_contact'; }
@@ -1365,7 +1369,7 @@ async function submitPost(){
     const phone = $('f_phone').value.trim();
     if(!validatePhone(phone)){ showFieldError('phone', true); valid = false; if(!firstErrorField) firstErrorField = 'f_phone'; }
 
-    if(postState.images.length < 1){ showFieldError('images', true); valid = false; if(!firstErrorField) firstErrorField = 'imgPreview'; }
+    if(postState.images.length < 1 && !isDemand){ showFieldError('images', true); valid = false; if(!firstErrorField) firstErrorField = 'imgPreview'; }
 
     if(!$('f_commit').checked && !isEdit){ showFieldError('commit', true); valid = false; if(!firstErrorField) firstErrorField = 'f_commit'; }
 
@@ -1390,6 +1394,7 @@ async function submitPost(){
     if(t === 'rent'){ extra.rentType = $('f_rentType').value; extra.layout = $('f_layout').value.trim(); extra.area = $('f_area').value.trim(); extra.deposit = $('f_deposit').value.trim(); extra.facilities = getCheckboxValues('f_facilities'); }
     if(t === 'house'){ extra.layout = $('f_layout').value.trim(); extra.area = $('f_area').value.trim(); extra.unitPrice = $('f_unitPrice').value.trim(); extra.floor = $('f_floor').value.trim(); extra.direction = $('f_direction').value; extra.decoration = $('f_decoration').value; }
     if(t === 'used'){ extra.itemCat = $('f_itemCat').value; extra.originalPrice = $('f_originalPrice').value.trim(); extra.condition = $('f_condition').value; }
+    if(isDemand && priceMax) extra.priceMax = Number(priceMax); // 需求端弹性价格上限
 
     if(isEdit){
       const idx = posts.findIndex(p => p.id === postState.editId);
@@ -1509,7 +1514,7 @@ async function renderDetailPage(){
   h += '<div class="detail-info-section">';
   h += `<div class="detail-title">${escapeHtml(post.title)}</div>`;
   h += '<div class="detail-price-row">';
-  h += `<div class="detail-price">${post.price===undefined||post.price===null||post.price===''?'面议':'¥'+fmtPrice(post.price)}</div>`;
+  h += `<div class="detail-price">${priceText(post)}</div>`;
   h += `<span class="detail-role-tag ${isSupply?'supply':'demand'}">${isSupply?'供应方':'需求方'}</span>`;
   h += `<span class="card-tag tag-status">${escapeHtml(cat.name)}</span>`;
   h += '</div>';
@@ -1532,7 +1537,7 @@ async function renderDetailPage(){
     h += renderField('租赁类型', extra.rentType || '-');
     h += renderField('户型', extra.layout || '-');
     h += renderField('面积', extra.area ? extra.area + ' ㎡' : '-');
-    h += renderField('租金/月', post.price !== undefined && post.price !== null && post.price !== '' ? '¥' + fmtPrice(post.price) : '面议');
+    h += renderField('租金/月', priceText(post));
     h += renderField('押金', extra.deposit ? '¥' + fmtPrice(extra.deposit) : '-');
     if(extra.facilities && extra.facilities.length){
       h += '</div>';
@@ -1543,7 +1548,7 @@ async function renderDetailPage(){
   } else if(post.type === 'house'){
     h += renderField('户型', extra.layout || '-');
     h += renderField('面积', extra.area ? extra.area + ' ㎡' : '-');
-    h += renderField('总价', post.price !== undefined && post.price !== null && post.price !== '' ? '¥' + fmtPrice(post.price) : '面议');
+    h += renderField('总价', priceText(post));
     h += renderField('单价', extra.unitPrice ? '¥' + fmtPrice(extra.unitPrice) + '/㎡' : '-');
     h += renderField('楼层', extra.floor || '-');
     h += renderField('朝向', extra.direction || '-');
@@ -1553,7 +1558,7 @@ async function renderDetailPage(){
     h += renderField('物品分类', extra.itemCat || '-');
     h += renderField('成色', extra.condition || '-');
     h += renderField('原价', extra.originalPrice ? '¥' + fmtPrice(extra.originalPrice) : '-');
-    h += renderField('现价', post.price !== undefined && post.price !== null && post.price !== '' ? '¥' + fmtPrice(post.price) : '面议');
+    h += renderField('现价', priceText(post));
     h += '</div>';
   } else { h += '</div>'; }
   h += '</div>';
@@ -1583,7 +1588,7 @@ async function renderDetailPage(){
       h += `<div class="similar-card-img">${simImg?`<img src="${simImg}" loading="lazy">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:20px;">${CATEGORIES[s.type]?.icon||'📦'}</div>`}</div>`;
       h += '<div class="similar-card-info">';
       h += `<div class="similar-card-title">${escapeHtml(s.title)}</div>`;
-      h += `<div class="similar-card-price">${s.price===undefined||s.price===null||s.price===''?'面议':'¥'+fmtPrice(s.price)}</div>`;
+      h += `<div class="similar-card-price">${priceText(s)}</div>`;
       h += `<div class="similar-card-meta">${escapeHtml(s.location||'')} · ${fmtDate(s.createTime)}</div>`;
       h += '</div></div>';
     });
@@ -1771,9 +1776,7 @@ function renderMessagesSection(post){
   else {
     h += '<div class="message-input-area">';
     h += '<input class="message-input" id="msgInput" type="text" placeholder="输入留言，与发布者直接交流..." maxlength="300">';
-    h += '<button class="message-btn" onclick="sendMessage()">发送留言</button>';
-    h += '<button class="message-btn message-btn-secondary" onclick="openAppointmentModal()">📅 预约看货</button>';
-    h += '</div>';
+    h += '<button class="message-btn" onclick="sendMessage()">发送留言</button>';    h += '</div>';
   }
   h += '<div class="message-list" id="messageList">';
   if(post.messages && post.messages.length){
@@ -1854,28 +1857,6 @@ async function addMessage(content, replyTo){
   renderDetailPage();
 }
 
-function openAppointmentModal(){
-  const modal = $('appointmentModal');
-  if(!modal){ showMsg('提示', '预约组件未加载，请刷新页面重试'); return; }
-  try {
-    $('aptDate').value = ''; $('aptTime').value = ''; $('aptNote').value = '';
-    modal.classList.add('active');
-  } catch(e) {
-    console.error('打开预约弹窗失败', e);
-    showMsg('提示', '预约弹窗打开失败，请刷新页面重试');
-  }
-}
-function closeAppointmentModal(){ $('appointmentModal').classList.remove('active'); }
-async function submitAppointment(){
-  const date = $('aptDate').value; const time = $('aptTime').value; const note = $('aptNote').value.trim();
-  if(!date){ showMsg('提示', '请选择预约日期'); return; }
-  if(!time){ showMsg('提示', '请选择时间段'); return; }
-  const content = `【预约】${date} ${time}${note ? ' | ' + note : ''}`;
-  closeAppointmentModal();
-  await addMessage(content);
-  showMsg('预约已发送', '您的预约请求已发送给发布者，请留意留言区的回复。');
-}
-
 /* ===================== 我的发布管理 ===================== */
 function goMyPosts(){ location.hash = '#/trade/my-posts'; }
 
@@ -1931,7 +1912,7 @@ function renderMyPostCard(post){
   h += `<div class="my-post-card-title">${escapeHtml(post.title)}</div>`;
   h += '<div class="my-post-card-meta">';
   h += `<span>${cat.name}</span>`;
-  h += `<span>${post.price===undefined||post.price===null||post.price===''?'面议':'¥'+fmtPrice(post.price)}</span>`;
+  h += `<span>${priceText(post)}</span>`;
   h += `<span class="my-post-status ${st.cls}">${st.label}</span>`;
   h += `<span>🕐 ${fmtDate(post.createTime)}</span>`;
   h += '</div>';
