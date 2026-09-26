@@ -174,6 +174,9 @@ export default {
       if (path === '/api/auth/apply' && request.method === 'POST') {
         return await handleApply(request, env);
       }
+      if (path === '/api/auth/login-targets' && request.method === 'GET') {
+        return await handleLoginTargets(request, env);
+      }
 
       // ===== 管理员账号管理（仅总维护人员）=====
       if (path === '/api/admin/accounts' && request.method === 'GET') {
@@ -221,13 +224,52 @@ export default {
 
 // ==================== 认证接口 ====================
 
+// 登录页下拉数据源：内置身份 + 已批准且未停用的个人账号（公开只读，不含密码等敏感信息）
+async function handleLoginTargets(request, env) {
+  const roles = ['admin-super', 'admin-property', 'admin-committee', 'admin-community', 'admin-dev']
+    .filter(r => !!env[getPasswordEnvKey(r)])
+    .map(r => ({ id: r, type: 'role', label: getRoleDisplayName(r) }));
+  const accounts = await readAdminAccounts(env);
+  const accts = accounts
+    .filter(a => a.status === 'approved' && !a.disabled)
+    .map(a => ({
+      id: 'acct:' + a.id,
+      type: 'account',
+      label: a.name + '（' + (a.roleName || getRoleDisplayName(a.role)) + '）'
+    }));
+  return jsonResponse({ success: true, targets: roles.concat(accts) });
+}
+
 async function handleLogin(request, env) {
-  const { role, password } = await request.json();
-  if (!role || !password) return jsonResponse({ success: false, error: '参数不完整' }, 400);
+  const { role, password, accountId } = await request.json();
+  if ((!role && !accountId) || !password) return jsonResponse({ success: false, error: '参数不完整' }, 400);
 
   const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
   if (!checkRateLimit(clientIP)) {
     return jsonResponse({ success: false, error: '尝试次数过多，请 15 分钟后再试' }, 429);
+  }
+
+  // 0) 登录页直接点名个人账号（下拉中选择 "mr li（物管人员）"）
+  if (accountId) {
+    const accounts0 = await readAdminAccounts(env);
+    const acc0 = accounts0.find(a => a.id === accountId);
+    if (!acc0) return jsonResponse({ success: false, error: '账号不存在或已被移除' }, 401);
+    const blocked0 = accountLoginError(acc0);
+    if (blocked0) return jsonResponse({ success: false, error: blocked0 }, 403);
+    const hash0 = await sha256Hex(password);
+    if (!acc0.passHash || (acc0.passHash !== hash0 && acc0.passHash !== password)) {
+      return jsonResponse({ success: false, error: '密码错误' }, 401);
+    }
+    const token0 = await createToken(acc0.role, env.JWT_SECRET, { sub: acc0.name, accountId: acc0.id });
+    return jsonResponse({
+      success: true,
+      token: token0,
+      role: acc0.role,
+      name: acc0.name || getRoleDisplayName(acc0.role),
+      permissions: getRolePermissions(acc0.role),
+      accountId: acc0.id,
+      modules: acc0.modules || null
+    });
   }
 
   const envKey = getPasswordEnvKey(role);

@@ -814,12 +814,24 @@ function getAllAdminAccounts() {
 function renderLoginRoles() {
   var select = document.getElementById('loginRole');
   if (!select) return;
-  var accounts = getAllAdminAccounts();
-  var html = '<option value="">— 请选择 —</option>';
-  accounts.forEach(function(a) {
-    html += '<option value="' + a.id + '">' + escapeHtml(a.name) + '</option>';
-  });
-  select.innerHTML = html;
+  var kept = select.value;
+  fetch('/api/auth/login-targets', { headers: { 'Accept': 'application/json' } })
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (!data.success || !Array.isArray(data.targets)) return;
+      var ROLE_ICONS = {
+        'admin-super': '🔧', 'admin-dev': '💻',
+        'admin-property': '🏢', 'admin-committee': '🏛️', 'admin-community': '🏘️'
+      };
+      var html = '<option value="">— 请选择身份 —</option>';
+      data.targets.forEach(function(t) {
+        var icon = t.type === 'account' ? '👤 ' : ((ROLE_ICONS[t.id] || '') + ' ');
+        html += '<option value="' + t.id + '">' + icon + escapeHtml(t.label) + '</option>';
+      });
+      select.innerHTML = html;
+      if (kept) select.value = kept;
+    })
+    .catch(function(){ /* 静态兜底：保留 admin.html 内置的 5 个身份选项 */ });
 }
 
 
