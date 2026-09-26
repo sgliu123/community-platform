@@ -16,6 +16,7 @@
     EXPIRE_KEY:     'admin_auth_expire',
     PERMISSIONS_KEY:'admin_auth_permissions',
     MODULE_CONFIG_KEY:'admin_auth_module_config',
+    ACCOUNT_MODULES_KEY:'admin_auth_account_modules',
     DEBUG_KEY:      'admin_auth_debug_logs'
   };
 
@@ -79,6 +80,7 @@
     sessionStorage.removeItem(CONFIG.EXPIRE_KEY);
     sessionStorage.removeItem(CONFIG.PERMISSIONS_KEY);
     sessionStorage.removeItem(CONFIG.MODULE_CONFIG_KEY);
+    sessionStorage.removeItem(CONFIG.ACCOUNT_MODULES_KEY);
   }
 
   function getToken() { return sessionStorage.getItem(CONFIG.TOKEN_KEY); }
@@ -96,6 +98,20 @@
 
   function setModuleConfig(config) {
     sessionStorage.setItem(CONFIG.MODULE_CONFIG_KEY, JSON.stringify(config || {}));
+  }
+
+  // ========== 个人账号级板块开关（总维护在「管理员管理」按账号设置） ==========
+  function getAccountModules() {
+    try { return JSON.parse(sessionStorage.getItem(CONFIG.ACCOUNT_MODULES_KEY) || 'null'); }
+    catch(e) { return null; }
+  }
+
+  function setAccountModules(modules) {
+    if (modules && typeof modules === 'object' && Object.keys(modules).length) {
+      sessionStorage.setItem(CONFIG.ACCOUNT_MODULES_KEY, JSON.stringify(modules));
+    } else {
+      sessionStorage.removeItem(CONFIG.ACCOUNT_MODULES_KEY);
+    }
   }
 
   function isExpired() {
@@ -375,6 +391,7 @@
 
       debugLog('Login', '登录成功');
       saveAuth(data.token, data.role, data.name, data.permissions);
+      setAccountModules(data.modules);
 
       const loginPage = $('loginPage');
       const tokenPage = $('tokenPage');
@@ -496,8 +513,6 @@ setTimeout(() => {
   function applyModuleFilters() {
     const nav = $('sidebarNav');
     if (!nav) return;
-    const config = getModuleConfig();
-    if (!config || !config.modules) return;
     const items = nav.querySelectorAll('a, .nav-item, [onclick]');
     items.forEach(item => {
       let moduleId = item.dataset.module;
@@ -507,9 +522,8 @@ setTimeout(() => {
         if (match) moduleId = match[1];
       }
       if (!moduleId) return;
-      const mod = config.modules[moduleId];
-      if (mod && mod.visible === false) item.style.display = 'none';
-      else item.style.display = '';
+      // 统一走 canAccessModule：账号级开关 + 全局配置任一关闭即隐藏
+      item.style.display = window.canAccessModule(moduleId) ? '' : 'none';
     });
   }
 
@@ -542,6 +556,12 @@ setTimeout(() => {
   };
 
   window.canAccessModule = function(moduleId) {
+    // 总维护人员 / 开发者不受任何板块开关限制
+    const role = sessionStorage.getItem(CONFIG.ROLE_KEY) || '';
+    if (role === 'admin-super' || role === 'admin-dev') return true;
+    // 账号级开关（仅个人账号有值；内置身份恒 null，不受影响）
+    const acct = getAccountModules();
+    if (acct && acct[moduleId] === false) return false;
     const config = getModuleConfig();
     if (!config || !config.modules) return true;
     const mod = config.modules[moduleId];
@@ -578,6 +598,7 @@ setTimeout(() => {
         if (roleEl) roleEl.textContent = name || '管理员';
         if (infoEl) infoEl.textContent = name || '管理员';
         await loadModuleConfig();
+        setAccountModules(data.modules); // 个人账号板块开关实时同步（含停用后强制登出已由 verify 拦截）
         applyModuleFilters();
         injectDevToolsEntry();
                 // 设置 currentAdmin，供 admin-core.js 使用
