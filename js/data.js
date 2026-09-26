@@ -223,7 +223,11 @@ async function loadData() {
   if (!ok) {
     try {
       const b64 = document.getElementById("embedded-b64").textContent.trim();
-      const ed = JSON.parse(decodeURIComponent(escape(atob(b64))));
+      // 内嵌数据为 base64(encodeURIComponent(JSON))，直接 decodeURIComponent 即可
+      // （原先套 escape() 会把 % 转成 %25，导致解析失败）
+      let ed;
+      try { ed = JSON.parse(decodeURIComponent(atob(b64))); }
+      catch(_) { ed = JSON.parse(atob(b64)); }
       files.forEach(function(f){
         // 只有该模块完全未加载（undefined）时才使用 embedded 数据
         // 已加载的空数组 [] 或空对象 {} 不应被覆盖
