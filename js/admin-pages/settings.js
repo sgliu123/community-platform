@@ -17,16 +17,10 @@ function renderSettings() {
     '<div class="form-group"><label>确认新密码</label><input type="password" id="confirmPassword" placeholder="再次输入新密码"></div>' +
     '<button class="btn btn-primary" onclick="changePassword()">修改密码</button></div>';
 
-  // 管理员注册（非super可见）
+  // 管理员申请入口提示（个人账号的申请/审批/开关统一走新流程）
   if (!isSuper) {
-    html += '<div class="card"><div class="card-header"><h3>📝 管理员注册</h3></div>' +
-      '<div id="regError" style="color:var(--danger);font-size:13px;margin-bottom:10px;display:none;"></div>' +
-      '<div class="form-group"><label>显示名称</label><input type="text" id="regName" placeholder="如：张三"></div>' +
-      '<div class="form-group"><label>登录账号ID</label><input type="text" id="regId" placeholder="如：admin-zhangsan"></div>' +
-      '<div class="form-group"><label>密码（6位以上）</label><input type="password" id="regPassword" placeholder="设置登录密码"></div>' +
-      '<div class="form-group"><label>确认密码</label><input type="password" id="regConfirmPassword" placeholder="再次输入密码"></div>' +
-      '<button class="btn btn-primary" onclick="submitAdminRegister()">提交注册申请</button>' +
-      '<p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">提交后需总维护人员审批通过方可登录。</p></div>';
+    html += '<div class="card"><div class="card-header"><h3>📝 申请管理员权限</h3></div>' +
+      '<p style="font-size:14px;line-height:1.8;color:var(--text-secondary);">如需为物业 / 业委会 / 社区同事开通个人账号，请退出登录后，在登录页点击「<b>申请管理员权限</b>」提交申请，由总维护人员在「管理员管理」中审批。审批、停用/启用、删除权限开关均在「管理员管理」中操作。</p></div>';
   }
 
   // Worker配置

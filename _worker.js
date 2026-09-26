@@ -23,6 +23,40 @@ function jsonResponse(data, status = 200, extraHeaders = {}) {
   });
 }
 
+// ==================== 通用工具 ====================
+
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+const ADMIN_ACCOUNTS_PATH = 'data/admin-accounts.json';
+
+async function readAdminAccounts(env) {
+  const obj = await env.UPLOADS.get(ADMIN_ACCOUNTS_PATH);
+  if (!obj) return [];
+  try {
+    const data = JSON.parse(await obj.text());
+    return Array.isArray(data) ? data : (Array.isArray(data.accounts) ? data.accounts : []);
+  } catch (e) { return []; }
+}
+
+async function writeAdminAccounts(env, accounts, actor) {
+  await env.UPLOADS.put(ADMIN_ACCOUNTS_PATH, JSON.stringify(accounts, null, 2), {
+    httpMetadata: { contentType: 'application/json', cacheControl: 'no-cache, no-store, must-revalidate' },
+    customMetadata: { updatedAt: new Date().toISOString(), updatedBy: actor || 'system' }
+  });
+}
+
+// 申请类账号的状态文案（直观区分拒绝原因）
+function accountLoginError(account) {
+  if (account.status === 'pending') return '申请待总维护人员审批';
+  if (account.status === 'rejected') return '申请未通过审批';
+  if (account.disabled === true) return '该账号已被总维护人员停用';
+  return null;
+}
+
+
 // ==================== 认证工具 ====================
 
 function getPasswordEnvKey(role) {
@@ -71,8 +105,8 @@ function checkRateLimit(ip) {
   return true;
 }
 
-async function createToken(role, secret) {
-  const payload = JSON.stringify({ role, iat: Date.now(), exp: Date.now() + 8 * 60 * 60 * 1000 });
+async function createToken(role, secret, extra = {}) {
+  const payload = JSON.stringify({ role, ...extra, iat: Date.now(), exp: Date.now() + 8 * 60 * 60 * 1000 });
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     'raw', encoder.encode(secret),
@@ -137,6 +171,20 @@ export default {
       if (path === '/api/auth/logout' && request.method === 'POST') {
         return jsonResponse({ success: true });
       }
+      if (path === '/api/auth/apply' && request.method === 'POST') {
+        return await handleApply(request, env);
+      }
+
+      // ===== 管理员账号管理（仅总维护人员）=====
+      if (path === '/api/admin/accounts' && request.method === 'GET') {
+        return await handleListAccounts(request, env);
+      }
+      if (path === '/api/admin/accounts/review' && request.method === 'POST') {
+        return await handleReviewAccount(request, env);
+      }
+      if (path === '/api/admin/accounts/toggle' && request.method === 'POST') {
+        return await handleToggleAccount(request, env);
+      }
 
       // ===== 数据接口（通用 CRUD，读写 R2）=====
       if (path.startsWith('/api/data/')) {
@@ -185,18 +233,40 @@ async function handleLogin(request, env) {
   const envKey = getPasswordEnvKey(role);
   if (!envKey) return jsonResponse({ success: false, error: '无效身份' }, 400);
 
+  // 1) 环境变量角色密码（5 个内置身份）
   const correct = env[envKey];
-  if (!correct) return jsonResponse({ success: false, error: '该身份未配置密码' }, 401);
-  if (password !== correct) return jsonResponse({ success: false, error: '密码错误' }, 401);
+  if (correct && password === correct) {
+    const token = await createToken(role, env.JWT_SECRET);
+    return jsonResponse({
+      success: true,
+      token,
+      role,
+      name: getRoleDisplayName(role),
+      permissions: getRolePermissions(role)
+    });
+  }
 
-  const token = await createToken(role, env.JWT_SECRET);
-  return jsonResponse({
-    success: true,
-    token,
-    role,
-    name: getRoleDisplayName(role),
-    permissions: getRolePermissions(role)
-  });
+  // 2) 经审批的个人管理员账号（data/admin-accounts.json）
+  const accounts = await readAdminAccounts(env);
+  const hash = await sha256Hex(password);
+  const acc = accounts.find(a =>
+    a.role === role &&
+    a.passHash && (a.passHash === hash || a.passHash === password) // 兼容早期明文
+  );
+  if (acc) {
+    const blocked = accountLoginError(acc);
+    if (blocked) return jsonResponse({ success: false, error: blocked }, 403);
+    const token = await createToken(role, env.JWT_SECRET, { sub: acc.name, accountId: acc.id });
+    return jsonResponse({
+      success: true,
+      token,
+      role,
+      name: acc.name || getRoleDisplayName(role),
+      permissions: getRolePermissions(role)
+    });
+  }
+
+  return jsonResponse({ success: false, error: '密码错误' }, 401);
 }
 
 async function handleVerify(request, env) {
@@ -497,4 +567,111 @@ async function handleImage(request, env) {
   }
 
   return new Response(object.body, { headers });
+}
+
+// ==================== 管理员申请与账号管理 ====================
+
+const APPLY_ROLES = ['admin-property', 'admin-committee', 'admin-community'];
+const applyAttempts = new Map();
+
+async function handleApply(request, env) {
+  // 申请频率限制（独立限速，避免与登录限速互相干扰）
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const now = Date.now();
+  const rec = applyAttempts.get(ip);
+  if (rec && now <= rec.resetTime && rec.count >= 3) {
+    return jsonResponse({ success: false, error: '申请过于频繁，请 15 分钟后再试' }, 429);
+  }
+  if (rec && now <= rec.resetTime) rec.count++;
+  else applyAttempts.set(ip, { count: 1, resetTime: now + 15 * 60 * 1000 });
+
+  let body;
+  try { body = await request.json(); } catch (e) { return jsonResponse({ success: false, error: '请求格式错误' }, 400); }
+
+  const name = String(body.name || '').trim();
+  const role = String(body.role || '').trim();
+  const password = String(body.password || '');
+  const note = String(body.note || '').trim();
+
+  if (!APPLY_ROLES.includes(role)) return jsonResponse({ success: false, error: '申请身份无效（仅开放物管/业委会/社区）' }, 400);
+  if (!name || name.length > 20) return jsonResponse({ success: false, error: '请填写姓名（20字以内）' }, 400);
+  if (password.length < 6) return jsonResponse({ success: false, error: '密码需 6 位以上' }, 400);
+
+  const accounts = await readAdminAccounts(env);
+  const hash = await sha256Hex(password);
+  const dup = accounts.find(a => a.role === role && a.passHash === hash);
+  if (dup) return jsonResponse({ success: false, error: '该身份下已存在相同密码的账号，请更换密码或联系总维护人员' }, 409);
+
+  accounts.push({
+    id: 'acc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+    name, role,
+    roleName: getRoleDisplayName(role),
+    passHash: hash,
+    note: note.slice(0, 100),
+    status: 'pending',
+    disabled: false,
+    canDelete: true,
+    appliedAt: new Date().toISOString()
+  });
+  await writeAdminAccounts(env, accounts, 'apply:' + name);
+  return jsonResponse({ success: true, message: '申请已提交，请等待总维护人员审批' });
+}
+
+function requireSuper(payload) {
+  return payload && payload.role === 'admin-super';
+}
+
+async function handleListAccounts(request, env) {
+  let user;
+  try { user = await requireAuth(request, env); } catch (e) { return jsonResponse({ success: false, error: e.message }, 401); }
+  if (!requireSuper(user)) return jsonResponse({ success: false, error: '仅总维护人员可操作' }, 403);
+
+  const accounts = await readAdminAccounts(env);
+  return jsonResponse({
+    success: true,
+    accounts: accounts.map(a => ({
+      id: a.id, name: a.name, role: a.role, roleName: a.roleName || getRoleDisplayName(a.role),
+      note: a.note || '', status: a.status, disabled: !!a.disabled, canDelete: a.canDelete !== false,
+      appliedAt: a.appliedAt, reviewedAt: a.reviewedAt || '', reviewedBy: a.reviewedBy || '',
+      rejectedReason: a.rejectedReason || ''
+    }))
+  });
+}
+
+async function handleReviewAccount(request, env) {
+  let user;
+  try { user = await requireAuth(request, env); } catch (e) { return jsonResponse({ success: false, error: e.message }, 401); }
+  if (!requireSuper(user)) return jsonResponse({ success: false, error: '仅总维护人员可操作' }, 403);
+
+  const { id, action, reason } = await request.json();
+  if (!id || !['approve', 'reject'].includes(action)) return jsonResponse({ success: false, error: '参数不完整' }, 400);
+
+  const accounts = await readAdminAccounts(env);
+  const acc = accounts.find(a => a.id === id);
+  if (!acc) return jsonResponse({ success: false, error: '账号不存在' }, 404);
+  if (acc.status !== 'pending') return jsonResponse({ success: false, error: '该申请已处理过' }, 409);
+
+  acc.status = action === 'approve' ? 'approved' : 'rejected';
+  acc.reviewedAt = new Date().toISOString();
+  acc.reviewedBy = user.sub || user.role;
+  if (action === 'reject') acc.rejectedReason = String(reason || '').slice(0, 100);
+  await writeAdminAccounts(env, accounts, user.sub || user.role);
+  return jsonResponse({ success: true, status: acc.status, name: acc.name });
+}
+
+async function handleToggleAccount(request, env) {
+  let user;
+  try { user = await requireAuth(request, env); } catch (e) { return jsonResponse({ success: false, error: e.message }, 401); }
+  if (!requireSuper(user)) return jsonResponse({ success: false, error: '仅总维护人员可操作' }, 403);
+
+  const { id, disabled, canDelete } = await request.json();
+  const accounts = await readAdminAccounts(env);
+  const acc = accounts.find(a => a.id === id);
+  if (!acc) return jsonResponse({ success: false, error: '账号不存在' }, 404);
+  if (acc.status !== 'approved') return jsonResponse({ success: false, error: '仅已启用的账号可调整开关' }, 409);
+
+  if (typeof disabled === 'boolean') acc.disabled = disabled;
+  if (typeof canDelete === 'boolean') acc.canDelete = canDelete;
+  await writeAdminAccounts(env, accounts, user.sub || user.role);
+  return jsonResponse({ success: true, id: acc.id, disabled: acc.disabled, canDelete: acc.canDelete });
 }

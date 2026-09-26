@@ -25,6 +25,26 @@
     <input type="password" id="loginPassword" placeholder="请输入密码">
     <button id="loginBtn" onclick="doAdminLogin()">登录</button>
     <p class="tip" id="loginTip">请选择身份并输入密码<br>密码</p>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);">
+      <a href="javascript:void(0)" onclick="showApplyForm()" style="font-size:13px;color:var(--primary);text-decoration:none;">📝 没有账号？申请管理员权限</a>
+    </div>
+    <div id="applyForm" style="display:none;margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);">
+      <p class="subtitle" style="margin-bottom:10px;">📝 申请管理员权限（物业 / 业委会 / 社区）</p>
+      <div class="error" id="applyError"></div>
+      <select id="applyRole" style="width:100%;padding:12px 14px;margin-bottom:12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;">
+        <option value="">— 申请身份 —</option>
+        <option value="admin-property">🏢 物管人员</option>
+        <option value="admin-committee">🏛️ 业委会成员</option>
+        <option value="admin-community">🏘️ 社区人员</option>
+      </select>
+      <input type="text" id="applyName" placeholder="姓名（登录页署名）" maxlength="20">
+      <input type="password" id="applyPassword" placeholder="设置登录密码（6位以上）">
+      <input type="password" id="applyPassword2" placeholder="再次输入密码">
+      <input type="text" id="applyNote" placeholder="申请说明（可选，如：3栋管理员）" maxlength="50">
+      <button onclick="doAdminApply()" style="background:var(--primary);">提交申请</button>
+      <p class="tip">提交后需总维护人员审批，审批通过即可登录</p>
+      <a href="javascript:void(0)" onclick="hideApplyForm()" style="font-size:13px;color:var(--text-secondary);text-decoration:none;">← 返回登录</a>
+    </div>
   </div>
 </div>
 
