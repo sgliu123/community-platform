@@ -368,19 +368,22 @@
   window.doAdminLogin = async function() {
     ensureDebugPanel();
     debugLog('Login', '========== 登录开始 ==========');
-    const role = $('loginRole').value;
+    const sel = $('loginRole').value;
     const password = $('loginPassword').value;
     const errorEl = $('loginError');
     if (errorEl) errorEl.textContent = '';
-    if (!role) { if (errorEl) errorEl.textContent = '请选择身份'; debugLog('Login', '未选身份', true); return; }
+    if (!sel) { if (errorEl) errorEl.textContent = '请选择身份'; debugLog('Login', '未选身份', true); return; }
     if (!password) { if (errorEl) errorEl.textContent = '请输入密码'; debugLog('Login', '未输密码', true); return; }
+    // 个人账号选项形如 acct:<id>，登录请求带 accountId；内置身份带 role
+    const isAccount = sel.indexOf('acct:') === 0;
+    const loginBody = isAccount ? { accountId: sel.slice(5), password } : { role: sel, password };
 
     const loading = $('loadingOverlay');
     if (loading) loading.style.display = 'flex';
 
     try {
-      debugLog('Login', '请求登录: ' + role);
-      const data = await apiPost('/api/auth/login', { role, password }, false);
+      debugLog('Login', '请求登录: ' + sel);
+      const data = await apiPost('/api/auth/login', loginBody, false);
       if (loading) loading.style.display = 'none';
 
       if (!data.success) {
