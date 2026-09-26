@@ -933,10 +933,13 @@ function gatherPackages() {
   var editors = document.querySelectorAll('.pkg-editor');
   var pkgs = [];
   editors.forEach(function(el, idx) {
-    var name = el.querySelector('.pkg-name').value.trim();
+    var nameEl = el.querySelector('.pkg-name');
+    var name = nameEl ? nameEl.value.trim() : '';
     if (!name) return;
-    var price = parseFloat(el.querySelector('.pkg-price').value) || 0;
-    var stockRaw = el.querySelector('.pkg-stock').value;
+    var priceEl = el.querySelector('.pkg-price');
+    var price = priceEl ? (parseFloat(priceEl.value) || 0) : 0;
+    var stockEl = el.querySelector('.pkg-stock');
+    var stockRaw = stockEl ? stockEl.value : '0';
     var stock = stockRaw === '-1' ? -1 : (parseInt(stockRaw) || 0);
     var desc = el.querySelector('.pkg-desc').value.trim();
     var tags = el.querySelector('.pkg-tags').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
@@ -954,18 +957,28 @@ function gatherPackages() {
 }
 
 async function saveMenu() {
-  var date = document.getElementById('menuDate').value;
-  var meal = document.getElementById('menuMeal').value;
-  if (!date) { alert('请选择日期'); return; }
-  var pkgs = gatherPackages();
-  if (!pkgs.length) { if (!confirm('当前餐别无套餐，确定保存为空菜单吗？')) return; }
-  if (!canteenMenuData.menus) canteenMenuData.menus = {};
-  if (!canteenMenuData.menus[date]) canteenMenuData.menus[date] = { date: date, meals: {} };
-  canteenMenuData.menus[date].meals[meal] = {
-    mealType: meal, mealName: getMealLabel(meal), orderDeadline: getMealDeadline(meal), packages: pkgs
-  };
-  await saveCanteenMenu();
-  renderMenuPreview();
+  try {
+    var date = document.getElementById('menuDate').value;
+    var meal = document.getElementById('menuMeal').value;
+    if (!date) { alert('请选择日期'); return; }
+    var editors = document.querySelectorAll('.pkg-editor');
+    var pkgs = gatherPackages();
+    if (!pkgs.length && editors.length > 0) {
+      alert('套餐名称不能为空：未填写名称的套餐不会被保存。请补全名称后再保存。');
+      return;
+    }
+    if (!pkgs.length) { if (!confirm('当前餐别无套餐，确定保存为空菜单吗？')) return; }
+    if (!canteenMenuData.menus) canteenMenuData.menus = {};
+    if (!canteenMenuData.menus[date]) canteenMenuData.menus[date] = { date: date, meals: {} };
+    canteenMenuData.menus[date].meals[meal] = {
+      mealType: meal, mealName: getMealLabel(meal), orderDeadline: getMealDeadline(meal), packages: pkgs
+    };
+    await saveCanteenMenu();
+    renderMenuPreview();
+  } catch(e) {
+    console.error('saveMenu 失败', e);
+    alert('保存失败：' + (e && e.message ? e.message : e) + '\n请检查网络后重试。');
+  }
 }
 
 function copyYesterdayMenu() {
