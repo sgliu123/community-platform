@@ -582,7 +582,15 @@ const WORKER_BASE = (function(){
   if (!v || v === 'off' || /firstblade\.site|workers\.dev/.test(v)) return '';
   return v.replace(/\/+$/, '');
 })();
-const TRADE_DATA_FILE = 'trade_posts.json';
+
+/* ===== 存储统一（与后台二手交易管理一致）=====
+   发布 → 写入【本月待审文件】；公共列表 → 读取【已通过文件】；审核由后台完成 */
+function getTradeMonth(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+const TRADE_PENDING_FILE = 'trades/' + getTradeMonth() + '.json';
+const TRADE_APPROVED_FILE = 'trades/approved.json';
 
 async function workerRead(filePath) {
   const res = await fetch(WORKER_BASE + '/api/read/' + encodeURIComponent(filePath));
@@ -607,22 +615,57 @@ function fmtPrice(n){ if(n===undefined||n===null||n==='')return'面议'; const n
 function genId(){ return 'tp-'+Date.now()+'-'+Math.random().toString(36).substr(2,5); }
 function getAuth(){ try{ return JSON.parse(localStorage.getItem(LS_AUTH))||null; }catch(e){ return null; } }
 async function getPosts(){
-  try{ 
-    const cloud = await workerRead(TRADE_DATA_FILE);
-    if(cloud && Array.isArray(cloud)){ 
-      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(cloud)); }catch(e){}
-      return cloud; 
+  try{
+    const cloud = await workerRead(TRADE_APPROVED_FILE);
+    if(cloud && Array.isArray(cloud)){
+      // 已通过文件中的历史数据可能缺省 status，统一补为 approved
+      cloud.forEach(p=>{ if(p && typeof p==='object' && !p.status) p.status='approved'; });
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cloud)); }catch(e){}
+      return cloud;
     }
   }
   catch(e){ console.error('Worker读取失败，回退本地', e); }
   try{ const d=localStorage.getItem(STORAGE_KEY); return d?JSON.parse(d):[]; }catch(e){ return []; }
 }
-async function setPosts(arr){
-  try{ 
-    await workerWrite(TRADE_DATA_FILE, arr, '更新交易数据'); 
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); } catch(e){}
-  }
-  catch(e){ console.error('Worker保存失败', e); throw new Error('云端保存失败，请检查网络或Worker配置后重试'); }
+
+/* ===== 云端单条读写：待审月文件 / 已通过文件 双集合寻址 ===== */
+async function _readArr(file){
+  try{ const d = await workerRead(file); return Array.isArray(d) ? d : []; }
+  catch(e){ return []; }
+}
+/* 新发布：进入本月待审文件（后台审核队列） */
+async function cloudAddPending(post){
+  const pend = await _readArr(TRADE_PENDING_FILE);
+  const i = pend.findIndex(p => p && p.id === post.id);
+  if(i >= 0) pend[i] = post; else pend.unshift(post);
+  await workerWrite(TRADE_PENDING_FILE, pend, '业主发布交易 ' + (post.title || post.id));
+}
+/* 更新原帖：先待审、后已通过，都没有则补写进待审 */
+async function cloudUpdatePost(post){
+  let pend = await _readArr(TRADE_PENDING_FILE);
+  let i = pend.findIndex(p => p && p.id === post.id);
+  if(i >= 0){ pend[i] = post; await workerWrite(TRADE_PENDING_FILE, pend, '更新交易 ' + post.id); return; }
+  let appr = await _readArr(TRADE_APPROVED_FILE);
+  i = appr.findIndex(p => p && p.id === post.id);
+  if(i >= 0){ appr[i] = post; await workerWrite(TRADE_APPROVED_FILE, appr, '更新已通过交易 ' + post.id); return; }
+  console.warn('[Trade] 原帖未找到，按待审新帖写入:', post.id);
+  pend.unshift(post);
+  await workerWrite(TRADE_PENDING_FILE, pend, '补写待审交易 ' + post.id);
+}
+/* 删除：两个集合都清理 */
+async function cloudDeletePost(postId){
+  const pend = await _readArr(TRADE_PENDING_FILE);
+  const pend2 = pend.filter(p => p && p.id !== postId);
+  if(pend2.length !== pend.length) await workerWrite(TRADE_PENDING_FILE, pend2, '删除交易 ' + postId);
+  const appr = await _readArr(TRADE_APPROVED_FILE);
+  const appr2 = appr.filter(p => p && p.id !== postId);
+  if(appr2.length !== appr.length) await workerWrite(TRADE_APPROVED_FILE, appr2, '删除已通过交易 ' + postId);
+}
+/* 重新上架：移出已通过，回到待审队列 */
+async function cloudMoveToPending(post){
+  post.status = 'pending';
+  await cloudDeletePost(post.id);
+  await cloudAddPending(post);
 }
 
 function getSensitiveWords(){
@@ -740,8 +783,11 @@ async function init(){
 
   const postMap = new Map();
   if(Array.isArray(cloudPosts)) cloudPosts.forEach(p => { if(p && p.id) postMap.set(p.id, p); });
+  /* 本地旧缓存可能含迁移前的待审帖，公共列表只允许展示态进入合并 */
+  const cacheOK = ['approved','active','已通过','published','online','sold','hidden'];
   if(Array.isArray(localPosts)) localPosts.forEach(p => {
     if(!p || !p.id) return;
+    if(p.status && cacheOK.indexOf(p.status) < 0) return;
     if(!postMap.has(p.id)){
       postMap.set(p.id, p);
     } else {
@@ -752,22 +798,7 @@ async function init(){
     }
   });
   posts = Array.from(postMap.values());
-
-  const hasSeeded = localStorage.getItem('trade_data_seeded');
-  if(!posts || !posts.length){
-    if(!hasSeeded){
-      posts = seedData();
-      try { 
-        await setPosts(posts);
-        localStorage.setItem('trade_data_seeded', 'true');
-      } catch(e) {
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch(e2){}
-      }
-      console.log('[Trade] 首次使用，已生成模拟数据');
-    }
-  } else {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch(e){}
-  }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch(e){}
 
   const r = getRoute();
   if(r === 'post'){
@@ -1356,7 +1387,7 @@ async function submitPost(){
       existing.title = title; existing.price = Number(price) || 0; existing.location = location;
       existing.images = postState.images; existing.contact = contact; existing.phone = phone;
       existing.tags = getCheckboxValues('f_tags'); existing.description = ($('f_description') && $('f_description').value.trim()) || ''; existing.extraData = extra;
-      await setPosts(posts);
+      await cloudUpdatePost(existing);
       showMsg('保存成功', '您的信息已更新。');
       const btn = $('msgModal').querySelector('.modal-btn');
       const oldClick = btn.onclick;
@@ -1377,8 +1408,8 @@ async function submitPost(){
       content: ($('f_description') && $('f_description').value.trim()) || '',
       extraData: extra
     };
-    posts.unshift(post);
-    await setPosts(posts);
+    await cloudAddPending(post);
+    posts.unshift(post); // 供「我的发布」即时可见；公共列表待后台审核通过后展示
     showMsg('提交成功', '您的信息已提交，等待审核通过后将展示在列表中。');
     const btn = $('msgModal').querySelector('.modal-btn');
     const oldClick = btn.onclick;
@@ -1443,7 +1474,7 @@ async function renderDetailPage(){
   }
   currentDetailPost = post;
   post.viewCount = (post.viewCount || 0) + 1;
-  try { await setPosts(posts); } catch(e) {}
+  try { await cloudUpdatePost(post); } catch(e) {}
   const cat = CATEGORIES[post.type || post.category] || { name:'', icon:'' };
   const isSupply = (post.role || post.identity) === 'supply';
   let h = '<div class="detail-page fade-in">';
@@ -1667,7 +1698,7 @@ async function submitReport(){
   if(post){
     post.reportCount = (post.reportCount || 0) + 1;
     post.status = 'hidden'; // 前端临时隐藏
-    try { await setPosts(posts); } catch(e) {}
+    try { await cloudUpdatePost(post); } catch(e) {}
   }
 
   closeReportModal();
@@ -1804,7 +1835,7 @@ async function addMessage(content, replyTo){
     content: content, createTime: new Date().toISOString(),
     isAppointment: false, replyTo: replyTo || null
   });
-  try { await setPosts(posts); } catch(e) {}
+  try { await cloudUpdatePost(post); } catch(e) {}
   renderDetailPage();
 }
 
@@ -1824,7 +1855,7 @@ function submitAppointment(){
 /* ===================== 我的发布管理 ===================== */
 function goMyPosts(){ location.hash = '#/trade/my-posts'; }
 
-function renderMyPosts(){
+async function renderMyPosts(){
   $('fab').style.display = 'none';
   const auth = getAuth();
   if(!auth){
@@ -1832,7 +1863,17 @@ function renderMyPosts(){
     return;
   }
   const uid = auth.roomNo || auth.id || '';
-  const myPosts = posts.filter(p => {
+  /* 我的发布 = 公共列表缓存 + 待审月文件 + 已通过文件（待审帖子不在公共列表中，必须额外读） */
+  let mine = posts.slice();
+  try {
+    const pend = await _readArr(TRADE_PENDING_FILE);
+    pend.forEach(p => { if(p && !mine.find(x => x.id === p.id)) mine.push(p); });
+  } catch(e){}
+  try {
+    const appr = await _readArr(TRADE_APPROVED_FILE);
+    appr.forEach(p => { if(p && !mine.find(x => x.id === p.id)) mine.push(p); });
+  } catch(e){}
+  const myPosts = mine.filter(p => {
     const pUid = p.userId || p.author || p.contact || '';
     return pUid === uid || pUid === (auth.name||'') || pUid === (auth.roomNo||'');
   }).sort((a,b) => new Date(b.createTime || b.createdAt) - new Date(a.createTime || a.createdAt));
@@ -1886,17 +1927,29 @@ function editPost(postId){
   postState = { step: 3, role: post.role, type: post.type, images: post.images ? [...post.images] : [], editId: postId };
   location.hash = '#/trade/post'; renderPostPage();
 }
+/* 在我的发布里定位帖子（可能在公共列表、待审或已通过文件中） */
+async function findMyPost(postId){
+  let post = posts.find(p => p.id === postId);
+  if(post) return post;
+  const pend = await _readArr(TRADE_PENDING_FILE);
+  post = pend.find(p => p && p.id === postId);
+  if(post) return post;
+  const appr = await _readArr(TRADE_APPROVED_FILE);
+  return appr.find(p => p && p.id === postId) || null;
+}
 async function deletePost(postId){
   if(!confirm('确定要删除这条发布吗？此操作不可恢复。')) return;
-  posts = posts.filter(p => p.id !== postId); try{ await setPosts(posts); }catch(e){} renderMyPosts();
+  posts = posts.filter(p => p.id !== postId);
+  try{ await cloudDeletePost(postId); }catch(e){}
+  renderMyPosts();
 }
 async function markSold(postId){
-  const post = posts.find(p => p.id === postId);
-  if(post){ post.status = 'sold'; try{ await setPosts(posts); }catch(e){} renderMyPosts(); }
+  const post = await findMyPost(postId);
+  if(post){ post.status = 'sold'; try{ await cloudUpdatePost(post); }catch(e){} renderMyPosts(); }
 }
 async function resubmitPost(postId){
-  const post = posts.find(p => p.id === postId);
-  if(post){ post.status = 'pending'; try{ await setPosts(posts); }catch(e){} renderMyPosts(); }
+  const post = await findMyPost(postId);
+  if(post){ try{ await cloudMoveToPending(post); }catch(e){} renderMyPosts(); }
 }
 
 /* ===================== 法律合规中心 ===================== */
