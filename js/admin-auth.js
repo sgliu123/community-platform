@@ -260,11 +260,15 @@
 
     nav.innerHTML = '';
     modules.forEach(function(mod) {
-      // 权限检查（非 super）
+      // 非 super：可见性统一由 canAccessModule 判定（身份默认基线 + 账号级板块开关 + 全局开关），
+      // 不再在构建时按 role 硬过滤，保证「管理员管理 → 板块权限」的勾选与实际侧边栏一致
       if (!isSuper) {
-        const hasRole = !mod.roles || mod.roles.indexOf(role) >= 0;
-        if (!hasRole) return;
-        if (config.modules && config.modules[mod.id] && config.modules[mod.id].visible === false) return;
+        if (window.canAccessModule && !window.canAccessModule(mod.id)) return;
+        if (!window.canAccessModule) {
+          const hasRole = !mod.roles || mod.roles.indexOf(role) >= 0;
+          if (!hasRole) return;
+          if (config.modules && config.modules[mod.id] && config.modules[mod.id].visible === false) return;
+        }
       }
       const a = document.createElement('a');
       a.className = 'nav-item';
@@ -608,13 +612,22 @@ setTimeout(() => {
     // 总维护人员 / 开发者不受任何板块开关限制
     const role = sessionStorage.getItem(CONFIG.ROLE_KEY) || '';
     if (role === 'admin-super' || role === 'admin-dev') return true;
-    // 账号级开关（仅个人账号有值；内置身份恒 null，不受影响）
-    const acct = getAccountModules();
-    if (acct && acct[moduleId] === false) return false;
+    // 全局板块开关（总维护在开发者工具设置）对所有人生效（admin-core.js 的侧边栏同理）
     const config = getModuleConfig();
-    if (!config || !config.modules) return true;
-    const mod = config.modules[moduleId];
-    return !mod || mod.visible !== false;
+    if (config && config.modules && config.modules[moduleId] && config.modules[moduleId].visible === false) return false;
+    // 账号级开关（仅个人账号有值）：显式设置过则以账号设置为准（可超出身份基线）
+    const acct = getAccountModules();
+    if (acct && typeof acct[moduleId] === 'boolean') return acct[moduleId];
+    // 未显式设置：按身份默认基线（与 ROLE_MODULE_MAP / 板块权限面板一致）
+    const BASELINE_FALLBACK = {
+      'admin-property':  ['dashboard', 'announcements', 'documents', 'residents', 'workorders', 'life', 'trade', 'settings'],
+      'admin-committee': ['dashboard', 'polls', 'residents', 'complaints', 'life', 'trade', 'settings'],
+      'admin-community': ['dashboard', 'announcements', 'activities', 'complaints', 'life', 'trade', 'settings']
+    };
+    const MAP = window.ROLE_MODULE_MAP || BASELINE_FALLBACK;
+    const baseline = MAP[role] || null;
+    if (baseline && baseline.indexOf(moduleId) < 0) return false;
+    return true;
   };
 
   window.canEditModule = function(moduleId) {
