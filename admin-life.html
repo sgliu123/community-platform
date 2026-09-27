@@ -688,6 +688,8 @@ function downloadJSON() {
 /* ===== 食堂管理数据 ===== */
 let canteenMenuData = { version: "1.0", updatedAt: "", menus: {} };
 let canteenOrdersData = { version: "1.0", updatedAt: "", orders: [] };
+// 食堂账本：业主余额（canteen-users.json），与 life.html 约定一致
+let canteenUsersData = { version: "1.0", updatedAt: "", balances: {}, penalties: [], transactions: [] };
 let _pkgEditors = [];
 
 const CANTEEN_EMBED = {
@@ -779,6 +781,7 @@ function switchCanteenTab(tab) {
   canteenTab = tab;
   renderPage();
   if (tab === 'orders') renderOrderPage();
+  if (tab === 'users') renderUsersPage();
 }
 
 function renderPage() {
@@ -796,6 +799,7 @@ function renderPage() {
     if (container) container.innerHTML = renderCanteenPage();
     if (canteenTab === 'menu') { initMenuEditor(); renderMenuPreview(); }
     if (canteenTab === 'orders') renderOrderPage();
+    if (canteenTab === 'users') renderUsersPage();
   }
 }
 
@@ -811,13 +815,119 @@ function renderCanteenPage() {
   var h = '<div class="tab-bar">';
   h += '<button class="' + (canteenTab === 'menu' ? 'active' : '') + '" onclick="switchCanteenTab(\'menu\')">&#127860; 发布菜单</button>';
   h += '<button class="' + (canteenTab === 'orders' ? 'active' : '') + '" onclick="switchCanteenTab(\'orders\')">&#128203; 订单管理</button>';
+  h += '<button class="' + (canteenTab === 'users' ? 'active' : '') + '" onclick="switchCanteenTab(\'users\')">&#128176; 业主账户</button>';
   h += '</div>';
   if (canteenTab === 'menu') {
     h += renderMenuEditor();
+  } else if (canteenTab === 'users') {
+    h += '<div id="usersPageContent"></div>';
   } else {
     h += '<div id="orderPageContent"></div>';
   }
   return h;
+}
+
+/* ===== 业主账户（余额 / 信用 / 流水）===== */
+function renderUsersPage() {
+  var el = document.getElementById('usersPageContent');
+  if (!el) return;
+  var users = {};
+  Object.keys(canteenUsersData.balances || {}).forEach(function(uid) { users[uid] = true; });
+  (canteenOrdersData.orders || []).forEach(function(o) { if (o.userId && o.userId !== 'u-guest') users[o.userId] = true; });
+  (canteenUsersData.penalties || []).forEach(function(p) { users[p.userId] = true; });
+  var uidList = Object.keys(users);
+  var h = '';
+  h += '<div class="alert-banner">&#128176; <span>余额规则：业主先由食堂/物业<b>线下面充</b>记录到账，下单自动扣款、取消自动退款；无余额业主到店付款。<b>爽约规则：现场付款订单被标记爽约 1 次即停用订餐资格，需手动解禁。</b></span></div>';
+  h += '<div class="card">';
+  h += '<div class="card-title" style="font-size:16px;font-weight:600;margin-bottom:12px;">&#128100; 业主账户（' + uidList.length + '）</div>';
+  if (!uidList.length) {
+    h += '<div class="empty"><div class="empty-icon">&#128176;</div><div>暂无业主账户，业主下单或管理员充值后自动生成</div></div>';
+  } else {
+    h += '<div class="table-wrap"><table class="order-table"><thead><tr><th>业主</th><th>房号</th><th>余额</th><th>累计充值</th><th>订单/爽约</th><th>订餐资格</th><th style="width:230px;">操作</th></tr></thead><tbody>';
+    uidList.sort(function(a, b) { return (canteenUsersData.balances[b] ? canteenUsersData.balances[b].balance : 0) - (canteenUsersData.balances[a] ? canteenUsersData.balances[a].balance : 0); });
+    uidList.forEach(function(uid) {
+      var rec = canteenUsersData.balances[uid] || { balance: 0, name: '', roomNo: '' };
+      var myOrders = (canteenOrdersData.orders || []).filter(function(o){ return o.userId === uid; });
+      var penalty = (canteenUsersData.penalties || []).find(function(p){ return p.userId === uid && p.active; });
+      var totalRecharge = (canteenUsersData.transactions || []).filter(function(t){ return t.userId === uid && t.type === 'recharge'; }).reduce(function(s, t){ return s + t.amount; }, 0);
+      h += '<tr>';
+      h += '<td>' + escapeHtml(rec.name || myOrders.map(function(o){return o.userName;}).find(Boolean) || uid.split('-').slice(2).join('-') || uid) + '<br><span style="color:var(--text-secondary);font-size:11px;">' + escapeHtml(uid) + '</span></td>';
+      h += '<td>' + escapeHtml(rec.roomNo || '') + '</td>';
+      h += '<td style="font-weight:600;color:' + (rec.balance > 0 ? '#2e7d32' : (rec.balance < 0 ? '#c62828' : 'inherit')) + '">&#165;' + Number(rec.balance).toFixed(2) + '</td>';
+      h += '<td>&#165;' + totalRecharge.toFixed(2) + '</td>';
+      h += '<td>' + myOrders.length + ' 单' + (penalty ? '<br><span style="color:#c62828;font-size:11px;">1 次爽约：' + escapeHtml(penalty.reason || '') + '</span>' : '') + '</td>';
+      h += '<td>' + (penalty ? '<span style="background:#fdecea;color:#c62828;border-radius:4px;padding:2px 6px;font-size:12px;">⛔ 已停用</span>' : '<span style="background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:2px 6px;font-size:12px;">正常</span>') + '</td>';
+      h += '<td style="white-space:nowrap;">';
+      h += '<button class="btn btn-primary btn-sm" onclick="usRecharge(\'' + uid + '\')">充值</button> ';
+      h += '<button class="btn btn-secondary btn-sm" onclick="usAdjustPrompt(\'' + uid + '\')">调整</button> ';
+      if (penalty) h += '<button class="btn btn-primary btn-sm" onclick="usUnban(\'' + uid + '\')">解禁</button>';
+      else h += '<button class="btn btn-danger btn-sm" onclick="usBan(\'' + uid + '\')">停用</button>';
+      h += '</td>';
+      h += '</tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  h += '</div>';
+  // 最近流水
+  var txns = (canteenUsersData.transactions || []).slice(0, 50);
+  h += '<div class="card">';
+  h += '<div class="card-title" style="font-size:16px;font-weight:600;margin-bottom:8px;">&#128202; 账本流水（最近 ' + txns.length + ' 条）</div>';
+  if (!txns.length) h += '<div style="color:var(--text-secondary);font-size:13px;">暂无流水</div>';
+  else {
+    h += '<div class="table-wrap"><table class="order-table"><thead><tr><th>时间</th><th>业主</th><th>类型</th><th>金额</th><th>关联订单</th><th>说明</th></tr></thead><tbody>';
+    txns.forEach(function(t) {
+      var typeText = { recharge: '充值', order: '订餐扣款', refund: '退款', collect: '到店收款', adjust: '调整' }[t.type] || t.type;
+      h += '<tr><td style="font-size:12px;">' + String(t.at || '').slice(0, 16).replace('T', ' ') + '</td><td>' + escapeHtml(t.name || '') + '</td><td>' + typeText + '</td>';
+      h += '<td style="color:' + (t.amount >= 0 ? '#2e7d32' : '#c62828') + ';font-weight:600;">' + (t.amount >= 0 ? '+' : '') + '¥' + Number(t.amount).toFixed(2) + '</td>';
+      h += '<td style="font-size:12px;">' + escapeHtml(t.orderId || '') + '</td><td style="font-size:12px;">' + escapeHtml(t.note || '') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  h += '</div>';
+  el.innerHTML = h;
+}
+
+async function usRecharge(userId) {
+  var input = prompt('为业主「' + userId + '」记录线下充值金额（元）：', '50');
+  if (input === null) return;
+  var amount = parseFloat(input);
+  if (isNaN(amount) || amount <= 0) { alert('金额无效'); return; }
+  var note = prompt('备注（如：扫码/现金）：', '线下充值');
+  if (note === null) return;
+  await loadCanteenUsers();
+  usAdjust(userId, '', '', amount, 'recharge', note || '线下充值');
+  await saveCanteenUsers('业主充值 ' + userId + ' ¥' + amount.toFixed(2));
+  renderUsersPage();
+}
+async function usAdjustPrompt(userId) {
+  var input = prompt('调整金额（正数加、负数减，用于纠错）：', '');
+  if (input === null) return;
+  var amount = parseFloat(input);
+  if (isNaN(amount) || amount === 0) { alert('金额无效'); return; }
+  var note = prompt('调整原因：', '管理员纠错');
+  if (note === null) return;
+  await loadCanteenUsers();
+  usAdjust(userId, '', '', amount, 'adjust', note || '管理员调整');
+  await saveCanteenUsers('余额调整 ' + userId + ' ' + (amount > 0 ? '+' : '') + amount);
+  renderUsersPage();
+}
+async function usBan(userId) {
+  var reason = prompt('停用「' + userId + '」订餐资格的原因：', '管理员停用');
+  if (reason === null) return;
+  await loadCanteenUsers();
+  if (!canteenUsersData.penalties) canteenUsersData.penalties = [];
+  canteenUsersData.penalties.unshift({ userId: userId, name: (canteenUsersData.balances[userId] || {}).name || '', orderId: null, reason: reason || '管理员停用', at: new Date().toISOString(), active: true, revokedBy: null, revokedAt: null });
+  await saveCanteenUsers('停用订餐资格 ' + userId);
+  renderUsersPage();
+}
+async function usUnban(userId) {
+  if (!confirm('确定解除「' + userId + '」的订餐资格停用？')) return;
+  await loadCanteenUsers();
+  (canteenUsersData.penalties || []).forEach(function(p) {
+    if (p.userId === userId && p.active) { p.active = false; p.revokedBy = '管理员'; p.revokedAt = new Date().toISOString(); }
+  });
+  await saveCanteenUsers('解除订餐资格停用 ' + userId);
+  renderUsersPage();
 }
 
 /* ===== 菜单编辑器 ===== */
@@ -1096,6 +1206,63 @@ async function saveCanteenOrders() {
   showPageLoading(false);
 }
 
+async function loadCanteenUsers() {
+  showPageLoading(true);
+  try {
+    var data = await workerRead('canteen-users.json');
+    if (data && data.balances && !Array.isArray(data)) canteenUsersData = data;
+  } catch(e) { console.log('账本读取失败，按空账本处理', e); }
+  if (!canteenUsersData.balances) canteenUsersData.balances = {};
+  if (!Array.isArray(canteenUsersData.penalties)) canteenUsersData.penalties = [];
+  if (!Array.isArray(canteenUsersData.transactions)) canteenUsersData.transactions = [];
+  showPageLoading(false);
+}
+
+async function saveCanteenUsers(message) {
+  showPageLoading(true);
+  try {
+    canteenUsersData.updatedAt = new Date().toISOString();
+    await workerWrite('canteen-users.json', canteenUsersData, message || '管理员更新食堂账本');
+    showToast('账本已更新');
+  } catch(e) {
+    console.error('账本保存失败', e);
+    alert('账本保存到服务器失败，请重试！');
+  }
+  showPageLoading(false);
+}
+
+/* ===== 账本辅助：记录一笔流水并更新余额 ===== */
+function usTxn(userId, name, type, amount, orderId, note) {
+  if (!canteenUsersData.transactions) canteenUsersData.transactions = [];
+  canteenUsersData.transactions.unshift({ txnId: 'txn-' + Date.now(), userId: userId, name: name, type: type, amount: Math.round(amount * 100) / 100, orderId: orderId || null, note: note || '', at: new Date().toISOString() });
+  if (canteenUsersData.transactions.length > 300) canteenUsersData.transactions.length = 300;
+}
+function usGetUser(userId, name, roomNo) {
+  if (!canteenUsersData.balances) canteenUsersData.balances = {};
+  var rec = canteenUsersData.balances[userId];
+  if (!rec) {
+    rec = { userId: userId, name: name || '', roomNo: roomNo || (userId.split('-').slice(1, -1).join('-')), balance: 0, updatedAt: '' };
+    if (!rec.roomNo) rec.roomNo = '';
+    canteenUsersData.balances[userId] = rec;
+  }
+  if (name && !rec.name) rec.name = name;
+  if (roomNo && !rec.roomNo) rec.roomNo = roomNo;
+  return rec;
+}
+function usAdjust(userId, name, roomNo, delta, type, note, orderId) {
+  var rec = usGetUser(userId, name, roomNo);
+  rec.balance = Math.round((rec.balance + delta) * 100) / 100;
+  rec.updatedAt = new Date().toISOString();
+  usTxn(userId, rec.name || name, type, delta, orderId, note);
+  return rec.balance;
+}
+function hasActivePenalty(userId) {
+  return (canteenUsersData.penalties || []).some(function(p){ return p.userId === userId && p.active; });
+}
+
+/* 支付方式徽标（历史无 payMode 的订单按到店付款展示） */
+function getPayText(o) { return o.payMode === 'balance' ? '余额扣款' : '到店付款'; }
+
 /* 库存回滚：取消订单时释放库存 */
 function rollbackStock(order) {
   if (!order || !order.packages) return;
@@ -1205,7 +1372,7 @@ function renderOrderTable() {
   if (!orders.length) return '<div class="empty"><div class="empty-icon">&#128203;</div><div>暂无订单</div></div>';
   var h = '<div class="table-wrap"><table class="order-table"><thead><tr>';
   h += '<th style="width:30px;"><input type="checkbox" onchange="toggleSelectAll(this)"></th>';
-  h += '<th>订单号</th><th>业主信息</th><th>日期/餐别</th><th>套餐明细</th><th>份数</th><th>金额</th><th>取餐方式</th><th>状态</th><th>下单时间</th><th style="width:120px;">操作</th>';
+  h += '<th>订单号</th><th>业主信息</th><th>日期/餐别</th><th>套餐明细</th><th>份数</th><th>金额</th><th>支付</th><th>取餐方式</th><th>状态</th><th>下单时间</th><th style="width:190px;">操作</th>';
   h += '</tr></thead><tbody>';
   orders.forEach(function(o) {
     var qty = o.packages.reduce(function(s,p){return s+p.quantity;},0);
@@ -1219,12 +1386,15 @@ function renderOrderTable() {
     h += '<td class="pkg-list">' + pkgDetail + '</td>';
     h += '<td>' + qty + '</td>';
     h += '<td>&#165;' + o.totalAmount.toFixed(2) + '</td>';
+    h += '<td><span style="background:' + (o.payMode === 'balance' ? '#e8f5e9;color:#2e7d32;' : '#fff8e1;color:#e65100;') + ';border-radius:4px;padding:2px 6px;font-size:12px;">' + getPayText(o) + '</span></td>';
     h += '<td>' + getPickupText(o.pickupType) + (o.deliveryAddress ? '<br><span style="color:var(--text-secondary);font-size:11px;">' + escapeHtml(o.deliveryAddress) + '</span>' : '') + '</td>';
     h += '<td>' + getStatusBadge(o.status) + '</td>';
     h += '<td>' + formatDateTime(o.createdAt) + '</td>';
     h += '<td>';
     if (o.status === 'pending') h += '<button class="btn btn-primary btn-sm" onclick="confirmOrder(\'' + o.orderId + '\')">确认</button> ';
-    if (o.status !== 'cancelled' && o.status !== 'completed') h += '<button class="btn btn-danger btn-sm" onclick="cancelOrder(\'' + o.orderId + '\')">取消</button>';
+    if (o.status === 'confirmed') h += '<button class="btn btn-primary btn-sm" onclick="completeOrder(\'' + o.orderId + '\');" title="余额订单完成交易；到店付款订单录入实收金额">完成</button> ';
+    if (o.status === 'pending' || o.status === 'confirmed') h += '<button class="btn btn-danger btn-sm" onclick="markPenaltyOrder(\'' + o.orderId + '\');" title="标记爽约：停用该业主订餐资格，直到手动解禁">爽约</button> ';
+    if (o.status !== 'cancelled' && o.status !== 'completed') h += '<button class="btn btn-secondary btn-sm" onclick="cancelOrder(\'' + o.orderId + '\')">取消</button>';
     h += '</td>';
     h += '</tr>';
   });
@@ -1277,15 +1447,68 @@ async function confirmOrder(orderId) {
   await saveCanteenOrders();
   renderOrderPage();
 }
+/* 完成 = 已完成（余额扣款订单表示交易闭环；到店付款订单表示现场已收款，实收金额记入流水） */
+async function completeOrder(orderId) {
+  var o = (canteenOrdersData.orders || []).find(function(x){return x.orderId === orderId;});
+  if (!o) return;
+  var received = o.totalAmount;
+  if (o.payMode !== 'balance') {
+    var input = prompt('该订单为「到店付款」，请输入实收金额（元）：', o.totalAmount.toFixed(2));
+    if (input === null) return;
+    received = parseFloat(input);
+    if (isNaN(received) || received < 0) { alert('金额无效'); return; }
+  }
+  o.status = 'completed';
+  o.completedAt = new Date().toISOString();
+  o.paidAmount = received;
+  await saveCanteenOrders();
+  if (o.payMode !== 'balance') {
+    var uid = o.userId || '';
+    if (uid && uid !== 'u-guest') {
+      await loadCanteenUsers();
+      usTxn(uid, o.userName, 'collect', received, o.orderId, '到店收款 ' + (o.orderDate || '') + ' ' + (o.mealName || ''));
+      await saveCanteenUsers('到店收款 ' + o.orderId + ' ¥' + received.toFixed(2));
+    }
+  }
+  renderOrderPage();
+}
+/* 标记爽约：1 次即停用该业主订餐资格，只有管理员解禁后才能再订 */
+async function markPenaltyOrder(orderId) {
+  var o = (canteenOrdersData.orders || []).find(function(x){return x.orderId === orderId;});
+  if (!o) return;
+  var uid = o.userId || '';
+  if (!uid || uid === 'u-guest') { alert('该订单无有效业主身份，无法标记爽约'); return; }
+  var reason = prompt('标记爽约的原因（将停用该业主订餐资格，直到手动解禁）：', '未按时取餐');
+  if (reason === null) return;
+  if (!confirm('确定把「' + o.userName + '（' + o.orderId + '）」标记为爽约？\n\n· 订单将被取消并释放库存\n· 该业主将被停用订餐资格（1 次爽约即停用）\n· 余额扣款订单不会自动退款，如需退款请到「业主账户」手动调整')) return;
+  rollbackStock(o);
+  o.status = 'cancelled';
+  o.cancelledAt = new Date().toISOString();
+  o.cancelReason = '爽约处理：' + (reason || '未按时取餐');
+  await saveCanteenOrders();
+  await loadCanteenUsers();
+  if (!canteenUsersData.penalties) canteenUsersData.penalties = [];
+  canteenUsersData.penalties.unshift({ userId: uid, name: o.userName || '', roomNo: '', orderId: o.orderId, reason: reason || '未按时取餐', at: new Date().toISOString(), active: true, revokedBy: null, revokedAt: null });
+  await saveCanteenUsers('标记爽约 ' + o.orderId + ' ' + o.userName);
+  renderOrderPage();
+}
 async function cancelOrder(orderId) {
   var o = (canteenOrdersData.orders || []).find(function(x){return x.orderId === orderId;});
   if (!o) return;
-  if (!confirm('确定要取消订单「' + orderId + '」吗？')) return;
+  var refundNote = '';
+  if (o.payMode === 'balance' && (o.status === 'pending' || o.status === 'confirmed')) refundNote = '\n该订单为余额扣款，取消后将自动退款到业主余额';
+  if (!confirm('确定要取消订单「' + orderId + '」吗？' + refundNote)) return;
   rollbackStock(o);
   o.status = 'cancelled';
   o.cancelledAt = new Date().toISOString();
   o.cancelReason = '管理员取消';
+  const wasBalance = o.payMode === 'balance' && refundNote !== '';
   await saveCanteenOrders();
+  if (wasBalance) {
+    await loadCanteenUsers();
+    usAdjust(o.userId, o.userName, '', o.totalAmount, 'refund', '订单取消退款 ' + o.orderId, o.orderId);
+    await saveCanteenUsers('取消退款 ' + o.orderId + ' ¥' + o.totalAmount.toFixed(2));
+  }
   renderOrderPage();
 }
 async function batchConfirm() {
@@ -1303,16 +1526,28 @@ async function batchConfirm() {
 }
 async function batchCancel() {
   if (!_selectedOrders.length) return;
-  if (!confirm('确定批量取消 ' + _selectedOrders.length + ' 个订单吗？')) return;
+  if (!confirm('确定批量取消 ' + _selectedOrders.length + ' 个订单吗？（余额扣款订单将自动退款）')) return;
+  var batchRefunds = [];
   (canteenOrdersData.orders || []).forEach(function(o) {
     if (_selectedOrders.indexOf(o.orderId) >= 0 && o.status !== 'cancelled' && o.status !== 'completed') {
       rollbackStock(o);
       o.status = 'cancelled';
       o.cancelledAt = new Date().toISOString();
       o.cancelReason = '管理员批量取消';
+      // 余额扣款订单批量取消时自动退款
+      if (o.payMode === 'balance') {
+        batchRefunds.push(o);
+      }
     }
   });
   await saveCanteenOrders();
+  if (batchRefunds.length) {
+    await loadCanteenUsers();
+    batchRefunds.forEach(function(o) {
+      usAdjust(o.userId, o.userName, '', o.totalAmount, 'refund', '批量取消退款 ' + o.orderId, o.orderId);
+    });
+    await saveCanteenUsers('批量取消退款 ' + batchRefunds.length + ' 单');
+  }
   _selectedOrders = [];
   renderOrderPage();
 }
@@ -1321,12 +1556,12 @@ function exportOrderCSV() {
   var orders = getFilteredOrders();
   if (!orders.length) { alert('当前筛选条件下无订单可导出'); return; }
   var rows = [];
-  rows.push(['订单号','姓名','电话','套餐','份数','取餐方式','地址','备注'].join(','));
+  rows.push(['订单号','姓名','电话','套餐','份数','取餐方式','支付方式','地址','备注'].join(','));
   orders.forEach(function(o) {
     o.packages.forEach(function(p) {
       rows.push([
         o.orderId, o.userName, o.userPhone, p.name, p.quantity,
-        getPickupText(o.pickupType), o.deliveryAddress || '', o.remark || ''
+        getPickupText(o.pickupType), getPayText(o), o.deliveryAddress || '', o.remark || ''
       ].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','));
     });
   });
@@ -1456,6 +1691,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   try { await loadServices(); } catch(e) { console.log("[AdminLife] loadServices error", e); }
   await loadCanteenMenu();
   await loadCanteenOrders();
+  await loadCanteenUsers();
   var hash = window.location.hash;
   if (hash.indexOf('canteen') >= 0) { switchPage('canteen'); }
   else { switchPage('life'); renderServiceList(); }
