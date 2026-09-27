@@ -1999,7 +1999,7 @@ async function verifyAccountPassword(env, acc, password) {
   const direct = acc.passHash && (acc.passHash === password);
   const sha = acc.passHash && (acc.passHash === await sha256Hex(password));
   if (sha || direct) {
-    if (D1_STATE.ready) {
+    if (dstate(env).ready) {
       await upgradeAdminPassword(env, 'account', String(acc.id || ''), acc.name, password);
     }
     return true;
