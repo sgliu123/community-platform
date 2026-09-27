@@ -1089,6 +1089,7 @@ function renderD1Panel() {
     '<button class="btn btn-primary" onclick="runD1Setup()">🚀 D1 一键初始化</button>' +
     '<button class="btn" onclick="showD1Status()">📋 查看状态</button>' +
     '</div>';
+  html += renderTenantPanel();
   html += '<div style="margin-top:14px;padding-top:12px;border-top:1px dashed #e0e0e0;">' +
     '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">📦 历史订单归档</div>' +
     '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">把指定日期之前的食堂订单导出到归档文件并从数据库移除（账本流水保留）。订单量大时定期归档可控制库容。</div>' +
@@ -1135,6 +1136,71 @@ function runD1Setup() {
 
 function showD1Status() {
   d1ApiCall('GET');
+}
+
+/* ===== 一键添加小区（可填多租户信息）===== */
+function renderTenantPanel() {
+  const isSuper = (typeof currentAdmin !== 'undefined') && currentAdmin && currentAdmin.role === 'admin-super';
+  let html = '<div class="card" style="margin-top:18px;border:1px solid #eef2ff;">';
+  if (!isSuper) {
+    html += '<div style="font-size:12px;color:var(--text-secondary);">🏷️ 多租户管理仅总维护人员可见。</div></div>';
+    return html;
+  }
+  html += '<div class="card-header"><h3>🏘️ 添加新小区</h3></div>';
+  html += '<p style="font-size:12px;color:var(--text-secondary);line-height:1.7;margin-bottom:10px;">' +
+    '全自动开通：独立数据库 + 独立域名 + 总维护账号。域名按 <b>前缀.firstblade.site</b> 生成（通配解析已就绪）。开通后 2-3 分钟生效，新小区后台执行一次「D1 一键初始化」即完全启用。</p>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+    '<div><label style="font-size:12px;">小区名称 *</label><input id="tnName" placeholder="如：红星小区" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;"></div>' +
+    '<div><label style="font-size:12px;">域名前缀 *（小写字母/数字）</label><input id="tnPrefix" placeholder="如：hongxing" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;"></div>' +
+    '<div><label style="font-size:12px;">总维护姓名</label><input id="tnSuper" placeholder="默认：小区名+总维护" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;"></div>' +
+    '<div><label style="font-size:12px;">总维护初始密码</label><input id="tnPass" placeholder="默认 123456，登录后请修改" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;"></div>' +
+  '</div>';
+  html += '<div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
+    '<button class="btn btn-primary" id="tnSubmitBtn" onclick="addTenant()">🚀 立即开通</button>' +
+    '<span id="tnStatus" style="font-size:12px;color:var(--text-secondary);"></span>' +
+  '</div>';
+  html += '<pre id="tnResult" style="display:none;margin-top:12px;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;font-size:12px;white-space:pre-wrap;max-height:300px;overflow:auto;"></pre>';
+  html += '</div>';
+  return html;
+}
+
+async function addTenant() {
+  var name = (document.getElementById('tnName') || {}).value || '';
+  var prefix = (document.getElementById('tnPrefix') || {}).value || '';
+  var superName = (document.getElementById('tnSuper') || {}).value || '';
+  var password = (document.getElementById('tnPass') || {}).value || '123456';
+  var statusEl = document.getElementById('tnStatus');
+  var outEl = document.getElementById('tnResult');
+  if (!name || !prefix) { statusEl.textContent = '小区名与前缀必填'; return; }
+  if (!confirm('确认开通新小区？\n· 名称：' + name + '\n· 域名：' + prefix + '.firstblade.site\n· 将创建独立数据库并自动登记')) return;
+  var btn = document.getElementById('tnSubmitBtn');
+  btn.disabled = true; btn.textContent = '开空中…';
+  statusEl.textContent = '正在向 Cloudflare 申请资源…（约 20 秒）';
+  outEl.style.display = 'none';
+  try {
+    var base = getWorkerBase();
+    var res = await fetch(base + '/api/tenants/add', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, getAdminAuthHeaders()),
+      body: JSON.stringify({ name: name, prefix: prefix, superName: superName, password: password })
+    });
+    var data = await res.json().catch(() => ({}));
+    outEl.style.display = 'block';
+    outEl.textContent = JSON.stringify(data, null, 2);
+    if (data && data.success) {
+      statusEl.innerHTML = '✅ 已受理：' + (data.tenant && data.tenant.tid) + ' · ' + (data.tenant && data.tenant.domain) +
+        '（发布' + (data.buildTriggered ? '已触发' : '未触发') + '，2-3 分钟后生效）';
+      statusEl.style.color = '#16a34a';
+      statusEl.style.fontSize = '13px';
+    } else {
+      statusEl.innerHTML = '❌ ' + (data && data.error || '开通失败');
+      statusEl.style.color = '#c62828';
+    }
+  } catch (e) {
+    statusEl.innerHTML = '❌ ' + String(e && e.message || e);
+  } finally {
+    btn.disabled = false; btn.textContent = '🚀 立即开通';
+  }
 }
 
 async function runD1Archive() {
