@@ -1778,7 +1778,14 @@ export default {
       if (path === '/api/health' && request.method === 'GET') {
         let d1on = false;
         try { d1on = await d1Ready(env); } catch (e) {}
-        return jsonResponse({ success: true, tenant: env.RID, name: env.TENANT_NAME, d1: d1on });
+        let name = env.TENANT_NAME;
+        try {
+          // 名称跟随小区自己配置（后台「社区配置」改名后门户自动同步）
+          const cfg = await readDocJson(env, 'data/config.json', null);
+          const cn = cfg && cfg.community && String(cfg.community.name || '').trim();
+          if (cn) name = cn;
+        } catch (e) {}
+        return jsonResponse({ success: true, tenant: env.RID, name: name, d1: d1on });
       }
 
       // ===== D1 初始化 / 状态（管理员）=====
@@ -2444,10 +2451,10 @@ async function cfRest(env, method, path, body) {
 }
 
 // GitHub 上更新 build 触发文件（仅触发 Pages 重新构建）
+// 主路走 contents PUT；失败自动降级 git-data 四步流（blob → tree → commit → merge）
 async function ghTriggerBuild(env) {
   const token = env.GH_PROVISION_TOKEN;
   const repo = env.GH_PROVISION_REPO || 'sgliu123/community-platform';
-  if (!token) return { ghErr: '未配置 GH_PROVISION_TOKEN' };
   const path = '_build_trigger.json';
   const headers = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
   let sha = null;
@@ -2466,10 +2473,43 @@ async function ghTriggerBuild(env) {
     body: JSON.stringify({ message: 'chore(build): provision trigger', content: b64, sha: sha, branch: 'main' })
   });
   if (!res.ok) {
-    const t = await res.text().catch(() => '');
-    return { ghErr: 'HTTP ' + res.status + ' ' + t.slice(0, 120) };
+    try { console.error('ghTriggerBuild PUT failed:', res.status); } catch (e) {}
+    return await ghTriggerBuildViaData(env, repo, token);
   }
   return { ok: true };
+}
+
+// 降级：git data API 提交（contents PUT 被拒时使用）
+async function ghTriggerBuildViaData(env, repo, token) {
+  const H = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
+  const call = async (path, method, body) => {
+    const res = await fetch('https://api.github.com/repos/' + repo + path,
+      { method: method, headers: H, body: body ? JSON.stringify(body) : undefined });
+    let d = null; try { d = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error(method + ' ' + path + ' HTTP' + res.status);
+    return d;
+  };
+  try {
+    const main = await call('/commits/main', 'GET');
+    const parent = main.sha, baseTree = main.commit.tree.sha;
+    const payload = JSON.stringify({ ts: Date.now(), note: 'tenant provision trigger' });
+    const bytes = new TextEncoder().encode(payload);
+    let bin = '';
+    for (const bb of bytes) bin += String.fromCharCode(bb);
+    const blob = await call('/git/blobs', 'POST', { content: btoa(bin), encoding: 'base64' });
+    const tree = await call('/git/trees', 'POST', {
+      base_tree: baseTree,
+      tree: [{ path: '_build_trigger.json', mode: '100644', type: 'blob', sha: blob.sha }]
+    });
+    const commit = await call('/git/commits', 'POST',
+      { message: 'chore(build): provision trigger (data)', tree: tree.sha, parents: [parent] });
+    const br = 'refs/heads/build-trigger-' + commit.sha.slice(0, 8);
+    await call('/git/refs', 'POST', { ref: br, sha: commit.sha });
+    await call('/merges', 'POST', { base: 'main', head: br });
+    return { ok: true };
+  } catch (e) {
+    return { ghErr: 'PUT+data 均失败: ' + e.message };
+  }
 }
 
 function nextTenantId(list) {
