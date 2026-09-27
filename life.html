@@ -438,13 +438,8 @@ async function loadData() {
     const cm = await workerRead("canteen-menu.json");
     if (cm && cm.menus) canteenData = cm;
   } catch(e) { console.log("[Canteen] menu read fail", e); }
-  try {
-    const co = await workerRead("canteen-orders.json");
-    if (co && co.orders) canteenOrders = co;
-  } catch(e) { console.log("[Canteen] orders read fail", e); }
-  try {
-    await loadCanteenUsers();
-  } catch(e) { console.log("[Canteen] 账本读取失败", e); }
+  // 安全模式：本人订单/余额/信用经由服务端接口读取（不再整读订单文件）
+  try { await loadCanteenUsers(); } catch(e) { console.log("[Canteen] 业主状态读取失败", e); }
   showPageLoading(false);
 }
 
@@ -714,30 +709,40 @@ function canteenLoginPromptHtml(backLabel) {
  *   transactions: [ { txnId, userId, name, type: recharge|order|refund|collect|adjust, amount(+入/-出), orderId, note, at } ]
  * 约定：余额>0 下单直接扣余额；不足则「取餐时现场付款」；现场付款订单被标记爽约 1 次即停用，需管理员解禁。
  */
-let canteenUsersData = { version: "1.0", updatedAt: "", balances: {}, penalties: [], transactions: [] };
+let canteenUsersData = { version: "1.0", updatedAt: "", balance: 0, penalty: null, transactions: [] };
 
-async function loadCanteenUsers() {
+function residentAuthHeaders() {
   try {
-    const data = await workerRead("canteen-users.json");
-    if (data && data.balances && !Array.isArray(data)) canteenUsersData = data;
-    else canteenUsersData = { version: "1.0", updatedAt: "", balances: {}, penalties: [], transactions: [] };
-    if (!canteenUsersData.balances) canteenUsersData.balances = {};
-    if (!Array.isArray(canteenUsersData.penalties)) canteenUsersData.penalties = [];
-    if (!Array.isArray(canteenUsersData.transactions)) canteenUsersData.transactions = [];
-  } catch (e) {
-    console.log("账本读取失败，按空账本处理", e);
-    canteenUsersData = { version: "1.0", updatedAt: "", balances: {}, penalties: [], transactions: [] };
-  }
+    const a = getResidentAuth();
+    if (a && a.token) return { "Authorization": "Bearer " + a.token, "Content-Type": "application/json" };
+  } catch (e) {}
+  return { "Content-Type": "application/json" };
 }
 
-function getActivePenalty(userId) {
-  return (canteenUsersData.penalties || []).find(p => p.userId === userId && p.active) || null;
+async function loadCanteenUsers() {
+  // 安全模式：业主数据全部经由服务端接口（仅返回本人数据），不再整读订单/账本文件
+  canteenUsersData = { version: "1.0", updatedAt: "", balance: 0, penalty: null, transactions: [] };
+  const auth = getResidentAuth();
+  if (!auth || !auth.token || !auth.token.length) return;
+  try {
+    const base = getWorkerBase();
+    if (base === null) return;
+    const res = await fetch(base + "/api/canteen/owner/state", { headers: residentAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && data.success) {
+      canteenOrders = { orders: data.orders || [] };
+      canteenUsersData = { version: "1.0", updatedAt: "", balance: data.balance || 0, penalty: data.penalty || null, transactions: data.transactions || [] };
+    }
+  } catch (e) { console.log("业主状态读取失败", e); }
+}
+
+function getActivePenalty() {
+  return canteenUsersData.penalty || null;
 }
 
 function getMyBalance() {
-  const userId = getCanteenUserId();
-  const b = userId && canteenUsersData.balances[userId];
-  return b && typeof b.balance === "number" ? b.balance : 0;
+  return typeof canteenUsersData.balance === "number" ? canteenUsersData.balance : 0;
 }
 
 function renderCanteenHome() {
@@ -971,114 +976,39 @@ async function doCanteenOrder(dateStr, mealType) {
   if (!packages.length) { showToast("购物车为空"); return; }
   showPageLoading(true);
   try {
-    let menuData = canteenData;
-    let orderData = canteenOrders;
-    try { menuData = await workerRead("canteen-menu.json"); } catch(e1) { console.log("菜单读取失败，使用本地数据", e1); }
-    try { orderData = await workerRead("canteen-orders.json"); } catch(e2) { console.log("订单读取失败，使用本地数据", e2); }
-    const m = menuData.menus && menuData.menus[dateStr] && menuData.menus[dateStr].meals && menuData.menus[dateStr].meals[mealType];
-    if (m) {
-      for (const it of packages) {
-        const p = m.packages.find(x => x.id === it.pkgId);
-        if (p) {
-          const rem = getRemaining(p);
-          if (it.quantity > rem) { showToast("订购未成功：「" + it.name + "」库存不足，当前仅可订 " + Math.max(0, rem) + " 份"); showPageLoading(false); return; }
-          if (p.sold === undefined || p.sold === null) p.sold = 0;
-          p.sold += it.quantity;
-        }
-      }
+    // 服务端下单：库存校验/定价/扣款全部在服务端完成（前端只传意图，防止篡改）
+    const res = await fetch(getWorkerBase() + "/api/canteen/order", {
+      method: "POST",
+      headers: residentAuthHeaders(),
+      body: JSON.stringify({
+        orderDate: dateStr,
+        mealType: mealType,
+        packages: packages.map(p => ({ pkgId: p.pkgId, quantity: p.quantity })),
+        peopleCount: people,
+        pickupType: pickup,
+        deliveryAddress: addr,
+        userName: name,
+        userPhone: phone,
+        remark: remark
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) {
+      showPageLoading(false);
+      showToast(data.error || "下单失败，请稍后再试");
+      return;
     }
-    // —— 账本：订餐资格（爽约停用）+ 支付路由（余额充足即扣款，否则取餐时现场付款）——
-    let usersData = null;
-    let payMode = 'postpaid';
-    try {
-      const rawUsers = await workerRead("canteen-users.json");
-      if (rawUsers && rawUsers.balances && !Array.isArray(rawUsers)) {
-        usersData = rawUsers;
-        if (!usersData.penalties) usersData.penalties = [];
-        if (!usersData.transactions) usersData.transactions = [];
-        const pen = usersData.penalties.find(p => p.userId === userId && p.active);
-        if (pen) { showPageLoading(false); showToast("您的订餐资格已停用（" + (pen.reason || "爽约") + "），请联系食堂管理员解除"); return; }
-        const rec = usersData.balances[userId];
-        const cur = rec && typeof rec.balance === "number" ? rec.balance : 0;
-        if (cur >= totalAmount && totalAmount > 0) {
-          payMode = "balance";
-          rec.balance = Math.round((cur - totalAmount) * 100) / 100;
-          rec.updatedAt = new Date().toISOString();
-          usersData.transactions.unshift({ txnId: "txn-" + Date.now(), userId: userId, name: name, type: "order", amount: -totalAmount, orderId: null, note: dateStr + " " + getMealName(mealType) + " 预订", at: new Date().toISOString() });
-          if (usersData.transactions.length > 300) usersData.transactions.length = 300;
-          usersData.updatedAt = new Date().toISOString();
-        }
-      }
-    } catch(eU) { console.log("账本读取失败，按现场付款处理", eU); usersData = null; payMode = "postpaid"; }
-    const newOrder = {
-      orderId: "ord-" + Date.now(),
-      userId: userId,
-      payMode: payMode,
-      userName: name,
-      userPhone: phone,
-      orderDate: dateStr,
-      mealType: mealType,
-      mealName: getMealName(mealType),
-      packages: packages,
-      peopleCount: people,
-      pickupType: pickup,
-      deliveryAddress: pickup === "delivery" ? addr : "",
-      totalAmount: totalAmount,
-      status: "pending",
-      remark: remark,
-      createdAt: new Date().toISOString(),
-      confirmedAt: null,
-      cancelledAt: null,
-      completedAt: null,
-      cancelReason: null
-    };
-    if (!orderData.orders) orderData.orders = [];
-    orderData.orders.unshift(newOrder);
-    orderData.updatedAt = new Date().toISOString();
-    let ordersWritten = false;
-    let txn = null;
-    if (usersData && payMode === "balance") {
-      txn = usersData.transactions[0];
-      if (txn) txn.orderId = newOrder.orderId;
-    }
-    try {
-      await workerWrite("canteen-menu.json", menuData, "扣减库存 " + dateStr + " " + mealType);
-      await workerWrite("canteen-orders.json", orderData, "用户下单 " + newOrder.orderId + (payMode === "balance" ? "（余额扣款）" : "（到店付款）"));
-      ordersWritten = true;
-      if (usersData && payMode === "balance") {
-        // 扣款账本最后落盘；若落盘失败则把已建订单标记为现场付款，防止「扣了钱订单却没了」
-        try {
-          await workerWrite("canteen-users.json", usersData, "余额扣款 " + newOrder.orderId + " ¥" + totalAmount.toFixed(2));
-        } catch(usersWriteErr) {
-          console.error("扣款落盘失败，订单回退为到店付款", usersWriteErr);
-          payMode = "postpaid";
-          txn.orderId = newOrder.orderId;
-          usersData.balances[userId].balance = Math.round((usersData.balances[userId].balance + totalAmount) * 100) / 100;
-          usersData.transactions.unshift({ txnId: "txn-" + Date.now(), userId: userId, name: name, type: "adjust", amount: totalAmount, orderId: newOrder.orderId, note: "扣款落盘失败，系统回退", at: new Date().toISOString() });
-          try { await workerWrite("canteen-users.json", usersData, "扣款落盘失败回退 " + newOrder.orderId); } catch(e3) {}
-          newOrder.payMode = "postpaid";
-          const localOrder = orderData.orders.find(x => x.orderId === newOrder.orderId);
-          if (localOrder) localOrder.payMode = "postpaid";
-          try { await workerWrite("canteen-orders.json", orderData, "订单支付方式修正 " + newOrder.orderId); } catch(e4) {}
-        }
-      }
-    } catch(writeErr) {
-      console.error("Worker写入失败，仅更新本地数据", writeErr);
-      canteenData = menuData;
-      canteenOrders = orderData;
-      if (usersData) canteenUsersData = usersData;
-    }
-    if (payMode === "balance") {
-      canteenUsersData = usersData;
-      _cart[getCartKey(dateStr, mealType)] = {};
-      showToast("已提交，已从余额扣款 ¥" + totalAmount.toFixed(2) + "，等待食堂确认");
-    } else {
-      canteenUsersData = usersData || canteenUsersData;
-      _cart[getCartKey(dateStr, mealType)] = {};
-      showToast("已提交，请取餐时现场付款，等待食堂确认");
-    }
+    const od = data.order;
+    canteenOrders = { orders: (canteenOrders.orders || []).filter(x => x.orderId !== od.orderId) };
+    canteenOrders.orders.unshift(od);
+    if (typeof data.balance === "number") canteenUsersData.balance = data.balance;
+    try { const mu = await workerRead("canteen-menu.json"); if (mu && mu.menus) canteenData = mu; } catch (e) {}
+    _cart[getCartKey(dateStr, mealType)] = {};
+    showToast(od.payMode === "balance"
+      ? "已提交，已从余额扣款 ¥" + Number(od.totalAmount).toFixed(2) + "，等待食堂确认"
+      : "已提交，请取餐时现场付款，等待食堂确认");
     navigate("canteen/myorders");
-  } catch(e) {
+  } catch (e) {
     console.error(e);
     alert("下单失败：" + e.message);
   }

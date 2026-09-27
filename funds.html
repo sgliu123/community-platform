@@ -249,19 +249,27 @@ async function submitDispute() {
   if (!text) { showToast('请填写异议内容'); return; }
   showPageLoading(true);
   try {
-    const data = await workerRead('funds-data.json');
-    const fd = (data && data.accounts) ? data : JSON.parse(JSON.stringify(FUNDS_DEFAULT));
-    if (!fd.disputes) fd.disputes = [];
-    fd.disputes.push({ disputeId: 'dsp-' + Date.now(), userId: 'u-' + me.roomNo + '-' + me.name, name: me.name, roomNo: me.roomNo, content: text.slice(0, 300), status: '待处理', reply: '', createdAt: new Date().toISOString() });
-    if (fd.disputes.length > 200) fd.disputes.length = 200;
-    fd.updatedAt = new Date().toISOString();
-    await workerWrite('funds-data.json', fd, '业主异议 ' + me.roomNo);
+    const base = getWorkerBase();
+    if (base === null) throw new Error('云端读写已禁用');
+    const res = await fetch(base + '/api/funds/dispute', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + (me.token || ''), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: text })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) { showPageLoading(false); showToast(data.error || '提交失败'); return; }
+    fundsData.disputes.unshift({
+      disputeId: 'dsp-local-' + Date.now(),
+      userId: 'u-' + me.roomNo + '-' + me.name,
+      name: me.name, roomNo: me.roomNo,
+      content: text, status: '待处理', reply: '',
+      createdAt: new Date().toISOString()
+    });
     document.getElementById('disputeText').value = '';
-    fundsData = fd;
+    showPageLoading(false);
     showToast('已提交，管理单位将核实并答复');
     render();
-  } catch (e) { showToast('提交失败：' + e.message); }
-  showPageLoading(false);
+  } catch (e) { showPageLoading(false); showToast('提交失败：' + e.message); }
 }
 
 /* ===== 启动 ===== */

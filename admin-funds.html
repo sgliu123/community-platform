@@ -121,16 +121,27 @@ td { padding:8px; border-top:1px solid var(--border); vertical-align:top; }
 /* ===== 通用 IO ===== */
 const WORKER_BASE = (function(){ const v = localStorage.getItem('workerBase'); if (v === 'off') return null; if (!v || /firstblade\.site|workers\.dev/.test(v)) return ''; return v; })();
 function getWorkerBase(){ return WORKER_BASE === null ? null : WORKER_BASE.replace(/\/$/,''); }
+/* 管理端身份头：写操作必须携带管理员 token（服务端已启用写门禁） */
+function getAdminAuthHeaders() {
+  try {
+    let t = sessionStorage.getItem('admin_auth_token');
+    if (!t) {
+      const raw = localStorage.getItem('admin_auth_remember');
+      if (raw) { const b = JSON.parse(raw); if (b && b.token && Date.now() < (b.expire || 0)) t = b.token; }
+    }
+    return t ? { 'Authorization': 'Bearer ' + t } : {};
+  } catch (e) { return {}; }
+}
 async function workerRead(filePath) {
   const base = getWorkerBase(); if (base === null) throw new Error('云端读写已禁用');
-  const res = await fetch(base + '/api/read/' + encodeURIComponent(filePath) + '?_=' + Date.now(), { cache: 'no-store' });
+  const res = await fetch(base + '/api/read/' + encodeURIComponent(filePath) + '?_=' + Date.now(), Object.assign({ cache: 'no-store' }, getAdminAuthHeaders()));
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('读取失败');
   const t = await res.text(); return t ? JSON.parse(t) : null;
 }
 async function workerWrite(filePath, data, message) {
   const base = getWorkerBase(); if (base === null) throw new Error('云端读写已禁用');
-  const res = await fetch(base + '/api/write/' + encodeURIComponent(filePath), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: JSON.stringify(data, null, 2), message }) });
+  const res = await fetch(base + '/api/write/' + encodeURIComponent(filePath), { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, getAdminAuthHeaders()), body: JSON.stringify({ content: JSON.stringify(data, null, 2), message }) });
   if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || '保存失败'); }
 }
 async function workerUpload(file) {

@@ -56,6 +56,17 @@ const WORKER_BASE = (function(){
 
 
 function getWorkerBase(){ return WORKER_BASE === null ? null : WORKER_BASE.replace(/\/$/,''); }
+/* 管理端身份头：所有写操作与敏感读操作必须携带管理员 token（/api/write 已加服务端门禁） */
+function getAdminAuthHeaders() {
+  try {
+    let t = sessionStorage.getItem('admin_auth_token');
+    if (!t) {
+      const raw = localStorage.getItem('admin_auth_remember');
+      if (raw) { const b = JSON.parse(raw); if (b && b.token && Date.now() < (b.expire || 0)) t = b.token; }
+    }
+    return t ? { 'Authorization': 'Bearer ' + t } : {};
+  } catch (e) { return {}; }
+}
 
 
 function getCurrentMonthPath(module){
@@ -121,7 +132,7 @@ async function workerWrite(filePath,data,message){
     return;
   }
   const res=await fetch(base+'/api/write/'+encodeURIComponent(filePath),{
-    method:'POST',headers:{'Content-Type':'application/json'},
+    method:'POST',headers: Object.assign({ 'Content-Type': 'application/json' }, (typeof getAdminAuthHeaders === 'function' ? getAdminAuthHeaders() : {})),
     body:JSON.stringify({content:JSON.stringify(data,null,2),message})
   });
   if(!res.ok){const e=await res.json();throw new Error(e.error||'保存失败');}
@@ -134,7 +145,7 @@ async function workerUpload(file){
     return {url:URL.createObjectURL(file),name:file.name};
   }
   const fd=new FormData();fd.append('file',file);
-  const res=await fetch(base+'/api/upload',{method:'POST',body:fd});
+  const res=await fetch(base + '/api/upload', { method: 'POST', headers: (typeof getAdminAuthHeaders === 'function' ? getAdminAuthHeaders() : {}), body: fd });
   if(!res.ok) throw new Error('上传失败');
   return await res.json();
 }

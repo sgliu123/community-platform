@@ -80,17 +80,35 @@ document.getElementById("loginModal").addEventListener("click", function(e) {
   if (e.target === this) hideLogin();
 });
 
-function doLogin() {
+async function doLogin() {
   const room = document.getElementById("loginRoom").value.trim();
   const name = document.getElementById("loginName").value.trim();
   const phone = document.getElementById("loginPhone").value.trim();
   const err = document.getElementById("loginError");
   if (!room || !name || !phone) { err.textContent = "请填写完整信息"; err.style.display = "block"; return; }
-  const match = (appData.residents||[]).find(r => r.roomNo === room && r.name === name && phone.endsWith(r.phoneSuffix) && r.status === "active");
-  if (!match) { err.textContent = "信息不匹配，请联系物业核实"; err.style.display = "block"; return; }
-  residentAuth = { isLoggedIn: true, roomNo: match.roomNo, name: match.name, loginTime: new Date().toISOString(), token: Math.random().toString(36).substring(2,18) };
+  const oldMatch = (appData.residents||[]).find(r => r.roomNo === room && r.name === name && phone.endsWith(r.phoneSuffix) && r.status === "active");
+  let serverToken = null;
+  // 服务端校验并签发业主 token（居民级写操作必需；失败时回退本地校验，仅影响线上功能）
+  try {
+    const res = await fetch("/api/residents/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomNo: room, name: name, phoneSuffix: phone.slice(-4) })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data && data.success && data.token) {
+      serverToken = data.token;
+    } else if (data && data.error) {
+      err.textContent = data.error; err.style.display = "block"; return;
+    }
+  } catch (e) { console.log("居民登录接口异常，回退本地校验", e); }
+  if (!serverToken && !oldMatch) { err.textContent = "信息不匹配，请联系物业核实"; err.style.display = "block"; return; }
+  residentAuth = { isLoggedIn: true, roomNo: room, name: name, loginTime: new Date().toISOString(), token: serverToken || Math.random().toString(36).substring(2,18) };
   localStorage.setItem("residentAuth", JSON.stringify(residentAuth));
-  hideLogin(); updateUserUI(); render(); alert("✅ 登录成功！");
+  hideLogin(); updateUserUI(); render(); alert("✅ 登录成功！" + (serverToken ? "" : "（服务器校验不可用，订餐等功能暂不可用）"));
+  if (!serverToken) {
+    residentAuth.roomNo = oldMatch.roomNo; residentAuth.name = oldMatch.name;
+    localStorage.setItem("residentAuth", JSON.stringify(residentAuth));
+  }
   if (window._pendingPollId) {
     const p = (appData.polls||[]).find(x => x.id === window._pendingPollId);
     if (p && p.tencentUrl) { setTimeout(() => window.open(p.tencentUrl, '_blank'), 300); }
