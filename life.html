@@ -674,6 +674,36 @@ function getRemaining(pkg) {
   return pkg.stock - (pkg.sold || 0);
 }
 
+// 食堂订餐用户身份：绑定业主登录账号（首页业主登录后写入的 residentAuth，房号+姓名稳定唯一）
+// 保证「我的订单」只显示本人订单；未登录业主账号时返回 null（不允许下单/看单）
+function getCanteenUserId() {
+  const auth = getResidentAuth();
+  if (auth && auth.roomNo && auth.name) {
+    return "u-" + String(auth.roomNo).trim().replace(/\s+/g, "") + "-" + String(auth.name).trim().replace(/\s+/g, "");
+  }
+  return null;
+}
+
+function getResidentAuth() {
+  try {
+    const auth = JSON.parse(localStorage.getItem("residentAuth") || "null");
+    if (auth && auth.isLoggedIn) return auth;
+  } catch (e) {}
+  return null;
+}
+
+// 未登录业主时的提示卡（订餐 / 我的订单共用）
+function canteenLoginPromptHtml(backLabel) {
+  let h = '<div class="card"><div class="empty"><div class="empty-icon">&#128100;</div>';
+  h += '<div>请先完成业主登录</div>';
+  h += '<div style="font-size:13px;margin-top:8px;color:var(--text-secondary);">订餐需绑定业主账号（房号+姓名），这样订单才会归属到您，仅您本人可见</div>';
+  h += '<div style="margin-top:16px;display:flex;gap:10px;justify-content:center;">';
+  h += '<button class="poll-btn" onclick="location.href=\'index.html#/profile\'">去登录</button>';
+  h += '<button class="poll-btn" style="background:#f0f2f5;color:var(--text);" onclick="navigate(\'canteen\')">' + (backLabel || '返回食堂首页') + '</button>';
+  h += '</div></div></div>';
+  return h;
+}
+
 function renderCanteenHome() {
   const dates = getNext3Dates();
   let hasAnyMenu = false;
@@ -825,6 +855,11 @@ function renderCanteenOrder() {
   if (!canOrder(dateStr, mealType)) {
     return '<div class="container"><div class="card"><div class="empty"><div class="empty-icon">&#9888;</div><div>该餐别已截止预订</div><div style="font-size:13px;margin-top:8px;">需提前12小时预订，已截止</div><button class="poll-btn" style="margin-top:16px;" onclick="navigate(\'canteen\')">返回食堂首页</button></div></div></div>';
   }
+  // 订餐需绑定业主账号：未登录先引导去首页登录
+  const me = getResidentAuth();
+  if (!me) {
+    return '<div class="container">' + canteenLoginPromptHtml('返回选餐') + '</div>';
+  }
   let h = '<div class="container">';
   h += '<div class="canteen-nav">';
   h += '<a href="#/canteen">&#127860; 食堂首页</a>';
@@ -844,7 +879,7 @@ function renderCanteenOrder() {
   h += '<div class="form-group"><label>用餐人数</label><input type="number" id="coPeople" value="1" min="1" max="50"></div>';
   h += '<div class="form-group"><label>取餐方式</label><select id="coPickup" onchange="document.getElementById(\'coAddrWrap\').style.display=this.value===\'delivery\'?\'block\':\'none\'"><option value="self">自取</option><option value="dinein">堂食</option><option value="delivery">送餐</option></select></div>';
   h += '<div class="form-group" id="coAddrWrap" style="display:none;"><label>送餐地址</label><input type="text" id="coAddr" placeholder="请输入详细地址"></div>';
-  h += '<div class="form-group"><label>联系人</label><input type="text" id="coName" placeholder="您的姓名"></div>';
+  h += '<div class="form-group"><label>联系人</label><input type="text" id="coName" value="' + escapeHtml(me.name || '') + '" placeholder="您的姓名"></div>';
   h += '<div class="form-group"><label>联系电话</label><input type="tel" id="coPhone" placeholder="手机号码"></div>';
   h += '<div class="form-group"><label>备注</label><textarea id="coRemark" placeholder="口味偏好、忌口等"></textarea></div>';
   const total = items.reduce((s, it) => s + it.pkg.price * it.qty, 0);
@@ -862,6 +897,10 @@ function renderCanteenOrder() {
 async function doCanteenOrder(dateStr, mealType) {
   dateStr = (dateStr || "").split("?")[0];
   if (!canOrder(dateStr, mealType)) { showToast("已截止预订，无法下单"); return; }
+  // 订单必须归属业主登录账号（房间号+姓名），否则无法区分「我的订单」
+  const userId = getCanteenUserId();
+  const me = getResidentAuth();
+  if (!userId) { alert("请先返回首页完成业主登录，再提交订单"); return; }
   const people = parseInt(document.getElementById("coPeople").value) || 1;
   const pickup = document.getElementById("coPickup").value;
   const addr = document.getElementById("coAddr").value.trim();
@@ -907,7 +946,7 @@ async function doCanteenOrder(dateStr, mealType) {
     }
     const newOrder = {
       orderId: "ord-" + Date.now(),
-      userId: "u-" + (localStorage.getItem("communityUserId") || "guest"),
+      userId: userId,
       userName: name,
       userPhone: phone,
       orderDate: dateStr,
@@ -948,14 +987,18 @@ async function doCanteenOrder(dateStr, mealType) {
 }
 
 function renderCanteenMyOrders() {
-  const userId = "u-" + (localStorage.getItem("communityUserId") || "guest");
-  const orders = (canteenOrders.orders || []).filter(o => o.userId === userId);
   let h = '<div class="container">';
   h += '<div class="canteen-nav">';
   h += '<a href="#/canteen">&#127860; 食堂首页</a>';
   h += '<a href="#/canteen/myorders" class="active">&#128203; 我的订单</a>';
   h += '<a href="#/life">&#11013; 返回生活</a>';
   h += '</div>';
+  // 只展示业主登录账号名下的订单；未登录看不到任何订单（防止串单）
+  const userId = getCanteenUserId();
+  if (!userId) {
+    return h + canteenLoginPromptHtml('返回食堂首页') + '</div>';
+  }
+  const orders = (canteenOrders.orders || []).filter(o => o.userId === userId);
   h += '<div class="card"><div class="card-title">&#128203; 我的订单 (' + orders.length + ')</div>';
   if (!orders.length) {
     h += '<div class="empty"><div class="empty-icon">&#128203;</div><div>暂无订单</div></div>';
@@ -984,8 +1027,13 @@ function renderCanteenMyOrders() {
 }
 
 function renderCanteenOrderDetail(orderId) {
+  // 只能看到自己名下的订单（防止通过链接查看他人订单）
+  const userId = getCanteenUserId();
   const o = (canteenOrders.orders || []).find(x => x.orderId === orderId);
-  if (!o) return '<div class="container"><div class="card"><div class="empty"><div class="empty-icon">&#10067;</div><div>订单不存在</div></div></div></div>';
+  if (!o || !userId || o.userId !== userId) {
+    let h = '<div class="container"><div class="card"><div class="empty"><div class="empty-icon">&#10067;</div><div>订单不存在或您无权查看</div></div></div></div>';
+    return h;
+  }
   const stCls = { pending: "status-pending", confirmed: "status-confirmed", cancelled: "status-cancelled", completed: "status-completed" }[o.status] || "status-pending";
   const stText = { pending: "待确认", confirmed: "已确认", cancelled: "已取消", completed: "已完成" }[o.status] || o.status;
   const pickupText = { self: "自取", dinein: "堂食", delivery: "送餐" }[o.pickupType] || o.pickupType;
