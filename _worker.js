@@ -78,6 +78,29 @@ function resolveTenant(list, request) {
 function dbBindingName(tid) { return tid === DEFAULT_TID ? 'DB' : 'DB_' + tid; }
 function r2BindingName(tid) { return tid === DEFAULT_TID ? 'UPLOADS' : 'UPLOADS_' + tid; }
 
+// R2 前缀隔离：未给租户建独立桶时，自动回落共享主桶 + 'tNN/' 前缀
+// （键全部透明加前缀；list 返回时剥掉前缀，调用方无感知）
+function prefixedR2(base, prefix) {
+  if (!base) return null;
+  const withPrefix = key => prefix + key;
+  return {
+    async get(key) { return base.get(withPrefix(key)); },
+    async put(key, value, opts) { return base.put(withPrefix(key), value, opts); },
+    async delete(key) { return base.delete(withPrefix(key)); },
+    async head(key) { return base.head ? base.head(withPrefix(key)) : null; },
+    async list(opts) {
+      const o = Object.assign({}, opts || {});
+      o.prefix = prefix + (o.prefix || '');
+      const res = await base.list(o);
+      return {
+        objects: ((res && res.objects) || []).map(x => ({ key: String(x.key).slice(prefix.length) })),
+        truncated: !!(res && res.truncated),
+        cursor: res && res.cursor
+      };
+    }
+  };
+}
+
 // 为本次请求构造"租户视角 env"：DB/UPLOADS 指向该租户绑定，其余字段透传
 function withTenant(list, env, request) {
   const t = resolveTenant(list, request);
@@ -87,7 +110,13 @@ function withTenant(list, env, request) {
   tenv.TENANT_LIST = list;
   let db = null, uploads = null;
   try { db = env[dbBindingName(t.tid)] || null; } catch (e) { db = null; }
-  try { uploads = env[r2BindingName(t.tid)] || null; } catch (e) { uploads = null; }
+  try {
+    uploads = env[r2BindingName(t.tid)] || null;
+    if (!uploads && t.tid !== DEFAULT_TID) {
+      // 允许不给租户单独建桶：回落共享主桶 + 前缀隔离
+      uploads = prefixedR2(env.UPLOADS, t.tid + '/');
+    }
+  } catch (e) { uploads = null; }
   tenv.DB = db;
   tenv.UPLOADS = uploads;
   return tenv;
