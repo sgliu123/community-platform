@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>阳光资金公示 - 小区数字化平台</title>
+<style>
+:root {
+  --primary: #2E8B57;
+  --primary-dark: #1f6e42;
+  --text: #222;
+  --text-secondary: #666;
+  --border: #e5e7eb;
+  --bg: #f4f6f5;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); }
+.app-header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.app-header .logo { width: 38px; height: 38px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; overflow: hidden; }
+.app-header .logo img { width: 100%; height: 100%; object-fit: cover; }
+.app-header h1 { font-size: 17px; flex: 1; }
+.header-user button { background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; }
+.container { max-width: 860px; margin: 0 auto; padding: 14px; }
+.card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.card-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.sub-note { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+.acct-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+.acct-name { font-weight: 600; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+.acct-type { font-size: 11px; background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+.acct-type-repair { background: #e3f2fd; color: #1565c0; }
+.acct-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.acct-cell { background: #fafbfc; border-radius: 8px; padding: 8px; text-align: center; }
+.acct-cell .v { font-size: 16px; font-weight: 700; color: var(--primary); }
+.acct-cell .l { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+table.pub-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.pub-table th { background: #f7f9f8; text-align: left; padding: 8px 6px; font-weight: 600; white-space: nowrap; }
+table.pub-table td { padding: 8px 6px; border-top: 1px solid var(--border); vertical-align: top; }
+.in-amt { color: #2e7d32; font-weight: 600; }
+.out-amt { color: #c62828; font-weight: 600; }
+.badge { display: inline-block; font-size: 11px; border-radius: 10px; padding: 2px 8px; }
+.badge-pub { background: #e8f5e9; color: #2e7d32; }
+.badge-repair { background: #e3f2fd; color: #1565c0; }
+.btn-login { background: var(--primary); color: #fff; border: none; padding: 8px 18px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+.login-tip { background: #f0f7f3; border: 1px dashed var(--primary); border-radius: 10px; padding: 12px; font-size: 13px; color: var(--primary-dark); display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; }
+.empty { text-align: center; padding: 30px 0; color: #999; }
+.params-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.params-bar select, .params-bar input { padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: #fff; }
+textarea { width: 100%; min-height: 70px; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 14px; font-family: inherit; }
+.page-loading { position: fixed; inset: 0; background: rgba(255,255,255,0.85); z-index: 3000; display: none; align-items: center; justify-content: center; }
+.toast { position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%); background: rgba(0,0,0,0.75); color: #fff; font-size: 14px; padding: 10px 20px; border-radius: 8px; z-index: 5000; display: none; }
+.audit-strip { font-size: 12px; color: var(--text-secondary); background: #fafbfc; border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="app-header">
+  <div class="logo" id="siteLogoIcon">🏦</div>
+  <h1 id="siteTitle">阳光资金公示</h1>
+  <div class="header-user"><button onclick="location.href='index.html#/home'">返回首页</button></div>
+</div>
+
+<div id="main"></div>
+
+<div class="page-loading" id="pageLoading"><div style="width:40px;height:40px;border:3px solid #e0e0e0;border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;"></div></div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== 数据 IO（与 life.html / admin 同一套约定：KV canteen/funds-data.json）===== */
+const WORKER_BASE = (function(){
+  const v = localStorage.getItem('workerBase');
+  if (v === 'off') return null;
+  if (!v || /firstblade\.site|workers\.dev/.test(v)) return '';
+  return v;
+})();
+function getWorkerBase(){ return WORKER_BASE === null ? null : WORKER_BASE.replace(/\/$/,""); }
+async function workerRead(filePath){
+  const base = getWorkerBase();
+  if (base === null) throw new Error("云端读写已禁用（开发模式）");
+  const res = await fetch(base + "/api/read/" + encodeURIComponent(filePath) + "?_=" + Date.now(), { cache: "no-store" });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("读取失败");
+  const t = await res.text();
+  return t ? JSON.parse(t) : null;
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(showToast._h); showToast._h = setTimeout(() => { t.style.display = 'none'; }, 2400);
+}
+function escapeHtml(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function showPageLoading(show){ document.getElementById('pageLoading').style.display = show ? 'flex' : 'none'; }
+
+/* ===== 业主身份（与首页业主登录一致）===== */
+function getResidentAuth() {
+  try {
+    const auth = JSON.parse(localStorage.getItem('residentAuth') || 'null');
+    if (auth && auth.isLoggedIn) return auth;
+  } catch (e) {}
+  return null;
+}
+
+/* ===== 保密脱敏 ===== */
+function maskAccountNo(no) {
+  const s = String(no || '');
+  if (!s) return '—';
+  return '****' + s.slice(-4);
+}
+
+/* ===== 数据 ===== */
+const FUNDS_DEFAULT = { version: '1.0', updatedAt: '', accounts: [], txns: [], contracts: [], assets: [], disputes: [], audit: [] };
+let fundsData = JSON.parse(JSON.stringify(FUNDS_DEFAULT));
+let _filterPeriod = '';
+
+function getPeriods() {
+  const set = new Set((fundsData.txns || []).map(t => t.period || ''));
+  set.delete('');
+  return Array.from(set).sort().reverse();
+}
+function acctBalance(accountId) {
+  const acct = (fundsData.accounts || []).find(a => a.accountId === accountId);
+  const start = acct && typeof acct.openingBalance === 'number' ? acct.openingBalance : 0;
+  const delta = (fundsData.txns || []).filter(t => t.accountId === accountId && (!_filterPeriod || t.period === _filterPeriod || !_filterPeriod))
+    .filter(t => !_filterPeriod || t.period === _filterPeriod)
+    .reduce((s, t) => s + (t.direction === 'in' ? t.amount : -t.amount), 0);
+  return { start, delta, balance: Math.round((start + delta) * 100) / 100 };
+}
+
+function render() {
+  const me = getResidentAuth();
+  const accounts = fundsData.accounts || [];
+  const txns = fundsData.txns || [];
+  const periods = getPeriods();
+  let h = '<div class="container">';
+
+  // 顶部说明（合规口径）
+  h += '<div class="audit-strip">依据《重庆市物业管理条例》及市物业工作专班《关于加快智慧物业线上纳管公共收益的通知》：公共收益实行“专户、专账、专人”管理，专款专用、独立核算，收支明细按期公示，接受全体业主监督。<br>数据最后更新：<b>' + (fundsData.updatedAt ? fundsData.updatedAt.slice(0,16).replace('T',' ') : '—') + '</b>（管理单位维护，历次变更均留存操作记录）</div>';
+
+  if (me) {
+    h += '<div class="login-tip"><span>✅ 已登录业主：' + escapeHtml(me.name) + '（' + escapeHtml(me.roomNo) + '）· 可提交异议</span></div>';
+  } else {
+    h += '<div class="login-tip"><span>🔒 汇总与收支明细对所有业主公开；经营合同附件等资料仅登录业主可查看</span><button class="btn-login" onclick="location.href=\'index.html#/profile\'">业主登录</button></div>';
+  }
+
+  // 一、专户账户（一区一专户；账号脱敏）
+  h += '<div class="card"><div class="card-title">🏦 公共资金专户（' + accounts.length + '）</div>';
+  if (!accounts.length) { h += '<div class="empty">管理单位尚未录入专户信息</div>'; }
+  accounts.forEach(a => {
+    const b = acctBalance(a.accountId);
+    const isRepair = a.type === '维修资金账户';
+    h += '<div class="acct-card"><div class="acct-name"><span>' + escapeHtml(a.name) + '</span><span class="acct-type' + (isRepair ? ' acct-type-repair' : '') + '">' + escapeHtml(a.type || '公共收益专户') + '</span></div>';
+    h += '<div class="sub-note" style="margin-top:4px;">开户行：' + escapeHtml(a.bank || '—') + ' · 账号：' + maskAccountNo(a.accountNo) + ' · 建账余额基准：' + escapeHtml(a.openingPeriod || '—') + '</div>';
+    h += '<div class="acct-grid">';
+    h += '<div class="acct-cell"><div class="v">¥' + b.start.toFixed(2) + '</div><div class="l">建账余额</div></div>';
+    h += '<div class="acct-cell"><div class="v" style="color:' + (b.delta >= 0 ? '#2e7d32' : '#c62828') + '">' + (b.delta >= 0 ? '+' : '') + '¥' + b.delta.toFixed(2) + '</div><div class="l">' + (_filterPeriod ? _filterPeriod + ' 变动' : '累计变动') + '</div></div>';
+    h += '<div class="acct-cell"><div class="v">¥' + b.balance.toFixed(2) + '</div><div class="l">当前余额</div></div>';
+    h += '</div>';
+    if (a.note) h += '<div class="sub-note" style="margin-top:6px;">' + escapeHtml(a.note) + '</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+
+  // 期间筛选
+  h += '<div class="card"><div class="card-title">📒 收支明细</div>';
+  h += '<div class="params-bar"><label class="sub-note">公示期次：</label><select onchange="_filterPeriod=this.value;render()">';
+  h += '<option value="">全部（累计）</option>';
+  periods.forEach(p => { h += '<option value="' + escapeHtml(p) + '"' + (p === _filterPeriod ? ' selected' : '') + '>' + escapeHtml(p) + '</option>'; });
+  h += '</select></div>';
+  const view = txns.filter(t => !_filterPeriod || t.period === _filterPeriod).slice().sort((x, y) => String(y.date).localeCompare(String(x.date)));
+  if (!view.length) { h += '<div class="empty">该期次暂无收支记录</div>'; }
+  else {
+    h += '<div style="overflow-x:auto;"><table class="pub-table"><thead><tr><th>日期</th><th>账户</th><th>科目</th><th>摘要</th><th style="text-align:right;">金额</th><th>凭证号</th></tr></thead><tbody>';
+    view.forEach(t => {
+      const acct = (fundsData.accounts || []).find(a => a.accountId === t.accountId);
+      const isIn = t.direction === 'in';
+      h += '<tr><td style="white-space:nowrap;">' + escapeHtml(t.date || '') + '</td><td style="white-space:nowrap;">' + (acct ? '<span class="badge ' + (acct.type === '维修资金账户' ? 'badge-repair' : 'badge-pub') + '">' + escapeHtml(acct.name) + '</span>' : '—') + '</td>';
+      h += '<td style="white-space:nowrap;">' + escapeHtml(t.category || '') + '</td><td>' + escapeHtml(t.summary || '') + '</td>';
+      h += '<td style="text-align:right;white-space:nowrap;" class="' + (isIn ? 'in-amt' : 'out-amt') + '">' + (isIn ? '+' : '-') + '¥' + Number(t.amount).toFixed(2) + '</td>';
+      h += '<td style="white-space:nowrap;">' + escapeHtml(t.voucherNo || '—') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    h += '<div class="sub-note" style="margin-top:8px;">收支数据按期次由管理单位录入（原则上每半年更新，按季记账的按季度更新），线上线下同步公示。</div>';
+  }
+  h += '</div>';
+
+  // 二、经营合同（附件需业主登录）
+  h += '<div class="card"><div class="card-title">📑 公共收益经营合同（' + (fundsData.contracts || []).length + '）</div>';
+  const contracts = fundsData.contracts || [];
+  if (!contracts.length) { h += '<div class="empty">暂无公示合同</div>'; }
+  contracts.forEach(c => {
+    h += '<div class="acct-card"><div class="acct-name"><span>' + escapeHtml(c.title || '') + '</span></div>';
+    h += '<div class="sub-note">承包方：' + escapeHtml(c.partyB || '—') + ' · 期限：' + escapeHtml(c.term || '—') + ' · 金额：' + (c.amount ? '¥' + Number(c.amount).toFixed(2) : '—') + (c.note ? '<br>' + escapeHtml(c.note) : '') + '</div>';
+    if (c.attachmentUrl) {
+      if (me) {
+        h += '<div style="margin-top:8px;"><a class="btn-login" style="text-decoration:none;font-size:13px;" href="' + escapeHtml(c.attachmentUrl) + '" target="_blank" rel="noopener">📎 查看合同附件</a></div>';
+      } else {
+        h += '<div class="sub-note" style="margin-top:8px;color:#e65100;">📎 合同附件仅登录业主可查看</div>';
+      }
+    }
+    h += '</div>';
+  });
+  h += '</div>';
+
+  // 三、公共资产
+  h += '<div class="card"><div class="card-title">🏛️ 公共资产（' + (fundsData.assets || []).length + '）</div>';
+  const assets = fundsData.assets || [];
+  if (!assets.length) { h += '<div class="empty">暂无登记资产</div>'; }
+  else {
+    h += '<div style="overflow-x:auto;"><table class="pub-table"><thead><tr><th>资产</th><th>位置</th><th>状态</th><th>经营情况</th></tr></thead><tbody>';
+    assets.forEach(s => {
+      h += '<tr><td>' + escapeHtml(s.name || '') + '</td><td>' + escapeHtml(s.location || '') + '</td><td>' + escapeHtml(s.status || '') + '</td><td>' + escapeHtml(s.note || '') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  h += '</div>';
+
+  // 四、业主异议（实名，登录后提交）
+  h += '<div class="card"><div class="card-title">🗳️ 数据异议与监督</div>';
+  const disputes = (fundsData.disputes || []).slice().reverse().slice(0, 10);
+  if (me) {
+    h += '<div class="sub-note" style="margin-bottom:8px;">您对本页数据有疑问？请实名提交，管理单位将依规核实并答复：</div>';
+    h += '<textarea id="disputeText" placeholder="请描述您的疑问（如某笔收支的用途、凭证等）"></textarea>';
+    h += '<div style="margin-top:10px;text-align:right;"><button class="btn-login" onclick="submitDispute()">提交异议</button></div>';
+  } else {
+    h += '<div class="sub-note">提交异议需先进行业主登录（实名）。</div>';
+  }
+  if (disputes.length) {
+    h += '<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">';
+    disputes.forEach(d => {
+      const me2 = getResidentAuth();
+      if (!me2) return; // 异议内容涉及业主个人，仅登录业主可见
+      const st = d.status === '已回复' ? '<span class="badge badge-pub">已回复</span>' : '<span class="badge" style="background:#fff3e0;color:#e65100;">待处理</span>';
+      h += '<div style="padding:8px 0;border-bottom:1px dashed var(--border);font-size:13px;"><b>' + escapeHtml(d.roomNo || '') + ' ' + escapeHtml(d.name || '') + '</b> ' + st + '<div style="margin:4px 0;">' + escapeHtml(d.content || '') + '</div>';
+      if (d.reply) h += '<div style="color:#2e7d32;">↳ 管理单位回复：' + escapeHtml(d.reply) + '</div>';
+      h += '<span style="color:var(--text-secondary);font-size:11px;">' + String(d.createdAt || '').slice(0, 10) + '</span></div>';
+    });
+    h += '</div>';
+  }
+  h += '</div>';
+
+  h += '<div class="sub-note" style="text-align:center;margin:20px 0;">银行账号等敏感信息已脱敏展示 · 数据修改留痕可追溯 · 发现问题请向管理单位或社区反映</div>';
+  h += '</div>';
+  document.getElementById('main').innerHTML = h;
+}
+
+async function submitDispute() {
+  const me = getResidentAuth();
+  if (!me) { showToast('请先业主登录'); return; }
+  const text = (document.getElementById('disputeText').value || '').trim();
+  if (!text) { showToast('请填写异议内容'); return; }
+  showPageLoading(true);
+  try {
+    const data = await workerRead('funds-data.json');
+    const fd = (data && data.accounts) ? data : JSON.parse(JSON.stringify(FUNDS_DEFAULT));
+    if (!fd.disputes) fd.disputes = [];
+    fd.disputes.push({ disputeId: 'dsp-' + Date.now(), userId: 'u-' + me.roomNo + '-' + me.name, name: me.name, roomNo: me.roomNo, content: text.slice(0, 300), status: '待处理', reply: '', createdAt: new Date().toISOString() });
+    if (fd.disputes.length > 200) fd.disputes.length = 200;
+    fd.updatedAt = new Date().toISOString();
+    await workerWrite('funds-data.json', fd, '业主异议 ' + me.roomNo);
+    document.getElementById('disputeText').value = '';
+    fundsData = fd;
+    showToast('已提交，管理单位将核实并答复');
+    render();
+  } catch (e) { showToast('提交失败：' + e.message); }
+  showPageLoading(false);
+}
+
+/* ===== 启动 ===== */
+(async function boot() {
+  showPageLoading(true);
+  try {
+    const cfg = await workerRead('config.json');
+    if (cfg && cfg.community) {
+      if (cfg.community.siteTitle) document.getElementById('siteTitle').textContent = cfg.community.siteTitle;
+      if (cfg.community.logo) document.getElementById('siteLogoIcon').innerHTML = '<img src="' + escapeHtml(cfg.community.logo) + '" alt="">';
+    }
+  } catch (e) {}
+  try {
+    const data = await workerRead('funds-data.json');
+    if (data && data.accounts) fundsData = data;
+    if (!fundsData.disputes) fundsData.disputes = [];
+  } catch (e) { console.log('funds read fail', e); }
+  showPageLoading(false);
+  render();
+})();
+</script>
+</body>
+</html>

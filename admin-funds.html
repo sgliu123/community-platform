@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>阳光资金管理 - 社区数字化平台</title>
+<style>
+:root { --primary:#2E8B57; --text:#333; --text-secondary:#666; --border:#e5e7eb; --danger:#c62828; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:#f4f6f5; color:var(--text); font-size:14px; }
+.layout { display:flex; min-height:100vh; }
+.sidebar { width:220px; background:#2f3b33; color:#fff; display:flex; flex-direction:column; position:fixed; top:0; bottom:0; left:0; }
+.sidebar-logo { font-size:16px; font-weight:700; padding:18px 20px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; gap:8px; }
+.sidebar-nav { flex:1; padding:10px 0; overflow-y:auto; }
+.sidebar-nav a { display:flex; align-items:center; gap:10px; padding:11px 20px; color:rgba(255,255,255,0.75); font-size:14px; text-decoration:none; transition:.15s; border-left:3px solid transparent; }
+.sidebar-nav a:hover { background:rgba(255,255,255,0.06); color:#fff; }
+.sidebar-nav a.active { background:rgba(255,255,255,0.08); color:#fff; border-left-color:#7dd3a8; }
+.main-content { flex:1; margin-left:220px; padding:20px 24px; }
+.topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px; }
+.topbar h1 { font-size:20px; }
+.topbar-actions { display:flex; gap:10px; }
+.btn { border:none; border-radius:8px; padding:9px 16px; font-size:14px; cursor:pointer; transition:.15s; }
+.btn-primary { background:var(--primary); color:#fff; }
+.btn-secondary { background:#fff; color:var(--text); border:1px solid var(--border); }
+.btn-danger { background:var(--danger); color:#fff; }
+.btn-sm { padding:5px 10px; font-size:12px; border-radius:6px; }
+.card { background:#fff; border-radius:12px; padding:16px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+.card-title { font-size:15px; font-weight:600; margin-bottom:12px; }
+.tab-bar { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--border); flex-wrap:wrap; }
+.tab-bar button { background:none; border:none; padding:10px 16px; font-size:14px; cursor:pointer; color:var(--text-secondary); border-bottom:2px solid transparent; margin-bottom:-2px; }
+.tab-bar button.active { color:var(--primary); border-bottom-color:var(--primary); font-weight:600; }
+.filter-bar { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px; }
+.form-group { display:flex; flex-direction:column; gap:4px; }
+.form-group label { font-size:12px; color:var(--text-secondary); font-weight:500; }
+.form-group input, .form-group select, .form-group textarea { padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px; min-width:120px; font-family:inherit; }
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { background:#f7f9f8; text-align:left; padding:9px 8px; font-weight:600; white-space:nowrap; }
+td { padding:8px; border-top:1px solid var(--border); vertical-align:top; }
+.in-amt { color:#2e7d32; font-weight:600; }
+.out-amt { color:#c62828; font-weight:600; }
+.badge { display:inline-block; font-size:11px; border-radius:10px; padding:2px 8px; background:#e8f5e9; color:#2e7d32; white-space:nowrap; }
+.badge-repair { background:#e3f2fd; color:#1565c0; }
+.badge-warn { background:#fff3e0; color:#e65100; }
+.badge-off { background:#fdecea; color:#c62828; }
+.empty { text-align:center; padding:30px; color:#999; }
+.admin-banner { border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:13px; background:#fff8e1; color:#e65100; border-left:4px solid #e65100; }
+.hint { font-size:12px; color:var(--text-secondary); line-height:1.7; }
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:2000; display:none; align-items:center; justify-content:center; }
+.modal-box { background:#fff; border-radius:12px; width:min(560px, 92vw); max-height:86vh; overflow-y:auto; }
+.modal-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; font-weight:600; font-size:15px; }
+.modal-body { padding:16px 18px; display:flex; flex-direction:column; gap:12px; }
+.modal-footer { padding:12px 18px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; }
+.modal-footer .btn { min-width:80px; }
+.three-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; }
+.stat-card { background:#fafbfc; border:1px solid var(--border); border-radius:10px; padding:12px; text-align:center; }
+.stat-card .v { font-size:18px; font-weight:700; color:var(--primary); }
+.stat-card .l { font-size:12px; color:var(--text-secondary); margin-top:2px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">🏦 阳光资金管理</div>
+    <nav class="sidebar-nav">
+      <a href="admin.html">🏠 返回管理后台</a>
+      <a href="admin-life.html">🍽️ 食堂管理</a>
+      <a href="funds.html" target="_blank">👁️ 查看前台公示</a>
+    </nav>
+    <div style="padding:12px 20px;border-top:1px solid rgba(255,255,255,0.1);font-size:12px;color:rgba(255,255,255,0.5);">公共收益“三专”管理<br>专户 · 专账 · 专人</div>
+  </aside>
+  <div class="main-content">
+    <div class="topbar">
+      <h1>🏦 阳光资金管理（公共收益 / 维修资金 / 公共资产）</h1>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary" onclick="exportTxnCSV()">⬇ 导出台账</button>
+        <button class="btn btn-primary" onclick="openTxnModal()">＋ 登记收支</button>
+      </div>
+    </div>
+    <div class="admin-banner" id="opBanner"></div>
+    <div class="tab-bar">
+      <button class="active" data-tab="accounts" onclick="switchTab('accounts')">🏦 专户与余额</button>
+      <button data-tab="txns" onclick="switchTab('txns')">📒 收支台账</button>
+      <button data-tab="contracts" onclick="switchTab('contracts')">📑 经营合同</button>
+      <button data-tab="assets" onclick="switchTab('assets')">🏛️ 公共资产</button>
+      <button data-tab="disputes" onclick="switchTab('disputes')">🗳️ 业主异议</button>
+      <button data-tab="audit" onclick="switchTab('audit')">📜 操作留痕</button>
+    </div>
+    <div id="pageBody"></div>
+  </div>
+</div>
+
+<!-- 收支登记弹窗 -->
+<div class="modal-overlay" id="txnModal" onclick="if(event.target===this)closeTxnModal()">
+  <div class="modal-box">
+    <div class="modal-header"><span>登记收支 / 划转</span><button class="btn btn-secondary btn-sm" onclick="closeTxnModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>专户 *</label><select id="txnAccount"></select></div>
+      <div class="three-grid">
+        <div class="form-group"><label>公示期次 *</label><input type="text" id="txnPeriod" placeholder="如 2026-H2 / 2026-Q3"></div>
+        <div class="form-group"><label>业务日期 *</label><input type="date" id="txnDate"></div>
+        <div class="form-group"><label>方向 *</label><select id="txnDirection" onchange="onDirChange()"><option value="in">收入</option><option value="out">支出 / 划出</option></select></div>
+      </div>
+      <div class="form-group"><label>科目 / 用途类型 *</label><select id="txnCategory"></select></div>
+      <div class="three-grid">
+        <div class="form-group"><label>金额（元）*</label><input type="number" id="txnAmount" step="0.01" min="0.01"></div>
+        <div class="form-group"><label>凭证号</label><input type="text" id="txnVoucher" placeholder="银行流水/票据号"></div>
+        <div class="form-group"><label>经办人</label><input type="text" id="txnOperator" placeholder="经办人姓名"></div>
+      </div>
+      <div class="three-grid">
+        <div class="form-group"><label>复核人</label><input type="text" id="txnReviewer" placeholder="复核人姓名（三方监管）"></div>
+        <div class="form-group" style="grid-column:span 2;"><label>摘要</label><input type="text" id="txnSummary" placeholder="用途说明，如：电梯广告 2026 Q3 收入"></div>
+      </div>
+      <div class="hint">提示：划转物业专项维修资金请选择方向“支出/划出”+科目“划转维修资金”，并同步在维修资金账户登记一笔收入。错误数据不删除，采用“冲正”（自动生成反向记录）。</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeTxnModal()">取消</button><button class="btn btn-primary" onclick="saveTxn()">保存并公示</button></div>
+  </div>
+</div>
+
+<script>
+/* ===== 通用 IO ===== */
+const WORKER_BASE = (function(){ const v = localStorage.getItem('workerBase'); if (v === 'off') return null; if (!v || /firstblade\.site|workers\.dev/.test(v)) return ''; return v; })();
+function getWorkerBase(){ return WORKER_BASE === null ? null : WORKER_BASE.replace(/\/$/,''); }
+async function workerRead(filePath) {
+  const base = getWorkerBase(); if (base === null) throw new Error('云端读写已禁用');
+  const res = await fetch(base + '/api/read/' + encodeURIComponent(filePath) + '?_=' + Date.now(), { cache: 'no-store' });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('读取失败');
+  const t = await res.text(); return t ? JSON.parse(t) : null;
+}
+async function workerWrite(filePath, data, message) {
+  const base = getWorkerBase(); if (base === null) throw new Error('云端读写已禁用');
+  const res = await fetch(base + '/api/write/' + encodeURIComponent(filePath), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: JSON.stringify(data, null, 2), message }) });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || '保存失败'); }
+}
+async function workerUpload(file) {
+  const base = getWorkerBase(); if (base === null) throw new Error('云端读写已禁用');
+  const fd = new FormData(); fd.append('file', file);
+  const res = await fetch(base + '/api/upload', { method: 'POST', body: fd });
+  if (!res.ok) throw new Error('上传失败 ' + res.status);
+  return await res.json();
+}
+function showToast(msg){ const t = document.getElementById('toast') || createToast(); t.textContent = msg; t.style.display = 'block'; clearTimeout(showToast._h); showToast._h = setTimeout(() => { t.style.display = 'none'; }, 2400); }
+function createToast(){ const d = document.createElement('div'); d.id = 'toast'; d.style.cssText = 'position:fixed;left:50%;bottom:60px;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;font-size:14px;padding:10px 20px;border-radius:8px;z-index:5000;display:none;'; document.body.appendChild(d); return d; }
+function escapeHtml(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function maskAccountNo(no){ const s = String(no || ''); return s ? '****' + s.slice(-4) : '—'; }
+
+/* ===== 数据 ===== */
+const FUNDS_DEFAULT = { version: '1.0', updatedAt: '', accounts: [], txns: [], contracts: [], assets: [], disputes: [], audit: [] };
+const CATEGORIES = {
+  in: ['广告费收入', '停车费收入', '场地租赁收入', '经营承包收入', '公共配套收入', '利息收入', '其他收入'],
+  out: ['划转维修资金', '维修支出', '公区维护支出', '公共设备购置', '其他支出']
+};
+let fundsData = JSON.parse(JSON.stringify(FUNDS_DEFAULT));
+let currentTab = 'accounts';
+let editingContractIdx = -1, editingAssetIdx = -1;
+
+function operatorName() {
+  try {
+    const names = ['admin_auth_name', 'adminName'];
+    for (const k of names) { const v = sessionStorage.getItem(k); if (v) return v; }
+  } catch (e) {}
+  try {
+    const ra = JSON.parse(sessionStorage.getItem('admin_auth_permissions') || 'null');
+  } catch (e) {}
+  return '未登记操作员';
+}
+let _pendingAudit = null;
+/* 记账式审计：auditLog 暂存动作，saveFunds 落库成功时合并写入（避免“记录了却没保存成”的假留痕） */
+function auditLog(action, detail, refId) {
+  _pendingAudit = { auditId: 'aud-' + Date.now(), at: new Date().toISOString(), by: operatorName(), action: action, detail: detail || '', refId: refId || '' };
+}
+async function loadFunds() {
+  showLoading(true);
+  try {
+    const data = await workerRead('funds-data.json');
+    if (data && data.accounts) fundsData = data;
+  } catch (e) { console.log('funds read fail', e); }
+  ['accounts', 'txns', 'contracts', 'assets', 'disputes', 'audit'].forEach(function(k) {
+    if (!Array.isArray(fundsData[k])) fundsData[k] = [];
+  });
+  showLoading(false);
+}
+async function saveFunds(message) {
+  showLoading(true);
+  try {
+    fundsData.updatedAt = new Date().toISOString();
+    if (_pendingAudit) {
+      if (!fundsData.audit) fundsData.audit = [];
+      fundsData.audit.unshift(_pendingAudit);
+      if (fundsData.audit.length > 500) fundsData.audit.length = 500;
+      _pendingAudit = null;
+    }
+    await workerWrite('funds-data.json', fundsData, message || '管理员更新阳光资金台账');
+    showToast('已保存并同步公示');
+  } catch (e) { alert('保存失败：' + e.message); }
+  showLoading(false);
+}
+/* 记账式审计：auditLog 与 saveFunds 配对，详见文件前部定义 */
+function showLoading(show) { let el = document.getElementById('pageLoading'); if (!el) { el = document.createElement('div'); el.id = 'pageLoading'; el.style.cssText = 'position:fixed;inset:0;background:rgba(255,255,255,0.85);z-index:3000;display:flex;align-items:center;justify-content:center;'; el.innerHTML = '<div style="width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;"></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style>'; document.body.appendChild(el); } el.style.display = show ? 'flex' : 'none'; }
+
+function acctById(id) { return (fundsData.accounts || []).find(a => a.accountId === id); }
+function acctBalance(accountId) {
+  const a = acctById(accountId);
+  const start = a && typeof a.openingBalance === 'number' ? a.openingBalance : 0;
+  const delta = (fundsData.txns || []).filter(t => t.accountId === accountId).reduce((s, t) => s + (t.direction === 'in' ? t.amount : -t.amount), 0);
+  return { start: start, delta: Math.round(delta * 100) / 100, balance: Math.round((start + delta) * 100) / 100 };
+}
+function acctName(id) { const a = acctById(id); return a ? a.name : '（已删除专户）'; }
+
+/* ===== 页签框架 ===== */
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-bar button').forEach(function(b) { b.classList.toggle('active', b.dataset.tab === tab); });
+  renderPage();
+}
+function renderPage() {
+  const el = document.getElementById('pageBody');
+  const me = operatorName();
+  const banner = document.getElementById('opBanner');
+  if (banner) banner.innerHTML = me === '未登记操作员'
+    ? '⚠️ 尚未从管理后台登录，本次操作将以「未登记操作员」记入留痕。请从管理后台进入本页。'
+    : ('操作员：' + escapeHtml(me) + ' · 所有变更将自动记入「操作留痕」，公示页面实时同步。');
+  if (currentTab === 'accounts') el.innerHTML = renderAccounts();
+  else if (currentTab === 'txns') { el.innerHTML = renderTxns(); renderTxnList(); }
+  else if (currentTab === 'contracts') el.innerHTML = renderContracts();
+  else if (currentTab === 'assets') el.innerHTML = renderAssets();
+  else if (currentTab === 'disputes') el.innerHTML = renderDisputes();
+  else el.innerHTML = renderAudit();
+}
+
+/* ===== 专户 ===== */
+function renderAccounts() {
+  let h = '<div class="card"><div class="card-title">🏦 专户管理 <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="openAcctModal()">＋ 新增专户</button></div>';
+  const accounts = fundsData.accounts || [];
+  if (!accounts.length) { h += '<div class="empty">尚未录入专户。按通知要求：一个物业管理区域开设一个公共收益专户，独立核算、专款专用。</div>'; }
+  accounts.forEach(a => {
+    const b = acctBalance(a.accountId);
+    const isRepair = a.type === '维修资金账户';
+    h += '<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">';
+    h += '<div><b>' + escapeHtml(a.name) + '</b> <span class="badge ' + (isRepair ? 'badge-repair' : '') + '">' + escapeHtml(a.type || '公共收益专户') + '</span></div>';
+    h += '<div><button class="btn btn-secondary btn-sm" onclick="openAcctModal(\'' + a.accountId + '\')">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteAcct(\'' + a.accountId + '\')">删除</button></div>';
+    h += '</div>';
+    h += '<div class="hint" style="margin-top:6px;">开户行：' + escapeHtml(a.bank || '—') + ' · 账号：' + maskAccountNo(a.accountNo) + '（公示页仅显示尾号） · 建账余额 ¥' + (a.openingBalance || 0).toFixed(2) + '（' + escapeHtml(a.openingPeriod || '—') + '）</div>';
+    h += '<div class="three-grid" style="margin-top:8px;">';
+    h += '<div class="stat-card"><div class="v">¥' + b.start.toFixed(2) + '</div><div class="l">建账余额</div></div>';
+    h += '<div class="stat-card"><div class="v" style="color:' + (b.delta >= 0 ? '#2e7d32' : '#c62828') + ';">' + (b.delta >= 0 ? '+' : '') + '¥' + b.delta.toFixed(2) + '</div><div class="l">累计变动</div></div>';
+    h += '<div class="stat-card"><div class="v">¥' + b.balance.toFixed(2) + '</div><div class="l">当前余额</div></div>';
+    h += '</div>';
+    if (a.note) h += '<div class="hint" style="margin-top:6px;">' + escapeHtml(a.note) + '</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
+function openAcctModal(accountId) {
+  const a = accountId ? acctById(accountId) : null;
+  const name = prompt('专户名称：', a ? a.name : '公共收益专户'); if (name === null) return;
+  const type = prompt('专户类型（公共收益专户 / 维修资金账户）：', a ? a.type : '公共收益专户'); if (type === null) return;
+  const bank = prompt('开户行（公示）：', a ? a.bank : ''); if (bank === null) return;
+  const no = prompt('银行账号（仅后台留存，前台脱敏显示）：', a ? a.accountNo : ''); if (no === null) return;
+  const ob = prompt('建账余额（元，期初未清金额）：', a ? (a.openingBalance || 0) : '0'); if (ob === null) return;
+  const op = prompt('建账余额基准（期）：', a ? (a.openingPeriod || '2025-12-31') : '2025-12-31'); if (op === null) return;
+  const note = prompt('备注：', a ? (a.note || '') : ''); if (note === null) return;
+  if (!String(name).trim() || !String(type).trim()) { alert('名称与类型必填'); return; }
+  if (a) {
+    Object.assign(a, { name: name.trim(), type: type.trim(), bank: bank.trim(), accountNo: no.trim(), openingBalance: parseFloat(ob) || 0, openingPeriod: op.trim(), note: note.trim() });
+    auditLog('编辑专户', a.name + '（' + maskAccountNo(a.accountNo) + '）', a.accountId);
+  } else {
+    const newId = 'acct-' + Date.now();
+    fundsData.accounts.push({ accountId: newId, name: name.trim(), type: type.trim(), bank: bank.trim(), accountNo: no.trim(), openingBalance: parseFloat(ob) || 0, openingPeriod: op.trim(), note: note.trim(), createdAt: new Date().toISOString() });
+    auditLog('新增专户', name.trim() + '（' + maskAccountNo(no) + '）', newId);
+  }
+  saveFunds(a ? '更新专户 ' + name : '新增专户 ' + name).then(renderPage);
+}
+function deleteAcct(id) {
+  const a = acctById(id); if (!a) return;
+  const used = (fundsData.txns || []).some(t => t.accountId === id);
+  if (used) { alert('该专户已有收支记录，不允许删除（避免台账断链）。如确需报废请先处理其下所有收支。'); return; }
+  if (!confirm('确定删除专户「' + a.name + '」？（无收支记录才可删除，删除会记入留痕）')) return;
+  fundsData.accounts = fundsData.accounts.filter(x => x.accountId !== id);
+  auditLog('删除专户', a.name, id);
+  saveFunds('删除专户 ' + a.name).then(renderPage);
+}
+
+/* ===== 收支台账 ===== */
+function renderTxns() {
+  const periods = Array.from(new Set((fundsData.txns || []).map(t => t.period).filter(Boolean))).sort().reverse();
+  let h = '<div class="card"><div class="card-title">📒 收支台账（append-only：错误用“冲正”，不物理删除）</div>';
+  h += '<div class="filter-bar"><div class="form-group"><label>专户</label><select id="ftAcct" onchange="renderTxnList()"><option value="">全部</option>' + (fundsData.accounts || []).map(a => '<option value="' + a.accountId + '">' + escapeHtml(a.name) + '</option>').join('') + '</select></div>';
+  h += '<div class="form-group"><label>期次</label><select id="ftPeriod" onchange="renderTxnList()"><option value="">全部</option>' + periods.map(p => '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>').join('') + '</select></div></div>';
+  h += '<div id="txnList"></div></div>';
+  return h;
+}
+function renderTxnList() {
+  const list = document.getElementById('txnList'); if (!list) return;
+  const acctEl = document.getElementById('ftAcct'), perEl = document.getElementById('ftPeriod');
+  list.innerHTML = buildTxnTable(acctEl ? acctEl.value : '', perEl ? perEl.value : '');
+}
+function buildTxnTable(acctFilter, periodFilter) {
+  const rows = (fundsData.txns || []).filter(t => (!acctFilter || t.accountId === acctFilter) && (!periodFilter || t.period === periodFilter))
+    .slice().sort((x, y) => String(y.date).localeCompare(String(x.date)));
+  if (!rows.length) return '<div class="empty">暂无记录，请点右上角「登记收支」</div>';
+  let h = '<div class="table-wrap"><table><thead><tr><th>日期</th><th>专户</th><th>期次</th><th>方向</th><th>科目</th><th>摘要</th><th style="text-align:right;">金额</th><th>凭证号</th><th>经办/复核</th><th>冲正</th></tr></thead><tbody>';
+  rows.forEach(t => {
+    const isIn = t.direction === 'in';
+    h += '<tr><td style="white-space:nowrap;">' + escapeHtml(t.date || '') + '</td><td style="white-space:nowrap;">' + escapeHtml(acctName(t.accountId)) + '</td>';
+    h += '<td>' + escapeHtml(t.period || '') + '</td><td><span class="badge ' + (isIn ? '' : 'badge-repair') + '">' + (isIn ? '收入' : '支出') + '</span></td>';
+    h += '<td style="white-space:nowrap;">' + escapeHtml(t.category || '') + '</td><td>' + escapeHtml(t.summary || '') + '</td>';
+    h += '<td style="text-align:right;white-space:nowrap;" class="' + (isIn ? 'in-amt' : 'out-amt') + '">' + (isIn ? '+' : '-') + '¥' + Number(t.amount).toFixed(2) + '</td>';
+    h += '<td style="white-space:nowrap;">' + escapeHtml(t.voucherNo || '—') + '</td>';
+    h += '<td style="font-size:12px;white-space:nowrap;">' + escapeHtml(t.operator || '—') + ' / ' + escapeHtml(t.reviewer || '—') + '</td>';
+    h += '<td>' + (t.reversalOf ? '<span class="badge badge-warn">冲正</span>' : '<button class="btn btn-secondary btn-sm" onclick="reverseTxn(\'' + t.txnId + '\')">冲正</button>') + '</td></tr>';
+  });
+  h += '</tbody></table></div><div class="hint" style="margin-top:8px;">共 ' + rows.length + ' 条。冲正会自动生成一笔方向相反的记录，双方均保留，符合审计要求。</div>';
+  return h;
+}
+function openTxnModal() {
+  if (!(fundsData.accounts || []).length) { alert('请先在「专户与余额」页新增专户'); return; }
+  const sel = document.getElementById('txnAccount');
+  sel.innerHTML = (fundsData.accounts || []).map(a => '<option value="' + a.accountId + '">' + escapeHtml(a.name) + '（' + escapeHtml(a.type) + '）</option>').join('');
+  document.getElementById('txnDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('txnModal').style.display = 'flex';
+  onDirChange();
+}
+function closeTxnModal() { document.getElementById('txnModal').style.display = 'none'; }
+function onDirChange() {
+  const dir = document.getElementById('txnDirection').value;
+  document.getElementById('txnCategory').innerHTML = CATEGORIES[dir].map(c => '<option value="' + c + '">' + c + '</option>').join('');
+}
+async function saveTxn() {
+  const accountId = document.getElementById('txnAccount').value;
+  const period = document.getElementById('txnPeriod').value.trim();
+  const date = document.getElementById('txnDate').value;
+  const direction = document.getElementById('txnDirection').value;
+  const category = document.getElementById('txnCategory').value;
+  const amount = parseFloat(document.getElementById('txnAmount').value);
+  const voucherNo = document.getElementById('txnVoucher').value.trim();
+  const operator = document.getElementById('txnOperator').value.trim();
+  const reviewer = document.getElementById('txnReviewer').value.trim();
+  const summary = document.getElementById('txnSummary').value.trim();
+  if (!accountId || !period || !date || !category || !amount || amount <= 0) { alert('请完整填写：专户、期次、日期、科目、金额'); return; }
+  const a = acctById(accountId);
+  const txn = { txnId: 'txn-' + Date.now(), accountId: accountId, period: period, date: date, direction: direction, category: category, amount: Math.round(amount * 100) / 100, voucherNo: voucherNo, operator: operator, reviewer: reviewer, summary: summary, createdBy: operatorName(), createdAt: new Date().toISOString(), reversalOf: null };
+  fundsData.txns = fundsData.txns || [];
+  fundsData.txns.unshift(txn);
+  auditLog('登记收支', (direction === 'in' ? '收入' : '支出') + ' ¥' + amount.toFixed(2) + ' ' + category + '（' + acctName(accountId) + ' · ' + period + '）', txn.txnId);
+  closeTxnModal();
+  await saveFunds('登记收支 ' + txn.txnId + ' ' + (direction === 'in' ? '+' : '-') + amount.toFixed(2));
+  currentTab === 'txns' ? renderTxnListSafe() : renderPage();
+}
+function renderTxnListSafe() { if (document.getElementById('txnList')) renderTxnList(); else renderPage(); }
+async function reverseTxn(txnId) {
+  const t = (fundsData.txns || []).find(x => x.txnId === txnId);
+  if (!t || t.reversalOf) return;
+  const reason = prompt('冲正原因（将写入留痕）：', '录入错误'); if (reason === null) return;
+  fundsData.txns.unshift(Object.assign({}, t, { txnId: 'txn-' + Date.now(), direction: t.direction === 'in' ? 'out' : 'in', summary: '【冲正 ' + t.txnId + '】' + (reason || ''), reversalOf: t.txnId, createdBy: operatorName(), createdAt: new Date().toISOString() }));
+  auditLog('冲正收支', t.txnId + ' 原 ' + (t.direction === 'in' ? '+' : '-') + t.amount + '；原因：' + reason, t.txnId);
+  await saveFunds('冲正 ' + t.txnId);
+  renderTxnListSafe();
+}
+
+/* ===== 经营合同 ===== */
+function renderContracts() {
+  const list = fundsData.contracts || [];
+  let h = '<div class="card"><div class="card-title">📑 经营合同公示 <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="openContractModal()">＋ 新增合同</button></div>';
+  h += '<div class="hint" style="margin-bottom:10px;">按通知要求：录入公共收益收支时同步录入并公示对应经营合同及附件（附件对业主登录后可见）。</div>';
+  if (!list.length) h += '<div class="empty">暂无合同记录</div>';
+  list.forEach((c, i) => {
+    h += '<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">';
+    h += '<div><b>' + escapeHtml(c.title || '') + '</b> <span class="badge">' + escapeHtml(c.partyB || '') + '</span>' + (c.attachmentUrl ? ' <a href="' + escapeHtml(c.attachmentUrl) + '" target="_blank" rel="noopener" style="font-size:12px;">📎 附件</a>' : '') + '<div class="hint">期限：' + escapeHtml(c.term || '—') + ' · 金额：' + (c.amount ? '¥' + Number(c.amount).toFixed(2) : '—') + (c.note ? ' · ' + escapeHtml(c.note) : '') + '</div></div>';
+    h += '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;"><div><button class="btn btn-secondary btn-sm" onclick="openContractModal(' + i + ')">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteContract(' + i + ')">删除</button></div>';
+    h += '<div style="font-size:12px;">' + (c.attachmentUrl ? '可换附件' : '') + '</div></div>';
+    h += '</div></div>';
+  });
+  h += '</div>';
+  return h;
+}
+function openContractModal(idx) {
+  editingContractIdx = (typeof idx === 'number') ? idx : -1;
+  const c = editingContractIdx >= 0 ? fundsData.contracts[editingContractIdx] : {};
+  const title = prompt('合同名称：', c.title || ''); if (title === null) return;
+  const partyB = prompt('承包方/乙方：', c.partyB || ''); if (partyB === null) return;
+  const term = prompt('期限（如 2026-01-01 至 2026-12-31）：', c.term || ''); if (term === null) return;
+  const amount = prompt('合同金额（元，无则留空）：', c.amount || ''); if (amount === null) return;
+  const note = prompt('备注：', c.note || ''); if (note === null) return;
+  const obj = editingContractIdx >= 0 ? fundsData.contracts[editingContractIdx] : { contractId: 'ct-' + Date.now(), createdAt: new Date().toISOString() };
+  Object.assign(obj, { title: title.trim(), partyB: partyB.trim(), term: term.trim(), amount: parseFloat(amount) || null, note: note.trim() });
+  const fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.accept = 'image/*,application/pdf';
+  fileInput.onchange = function() {
+    const f = fileInput.files[0];
+    if (!f) { finish(); return; }
+    showLoading(true);
+    workerUpload(f).then(function(res) {
+      obj.attachmentUrl = (res && res.url) ? res.url : (res && res.path ? '/api/image/' + res.path : '');
+      finish();
+    }).catch(function(e) { alert('附件上传失败：' + e.message); showLoading(false); });
+  };
+  function finish() {
+    if (editingContractIdx < 0) fundsData.contracts.push(obj);
+    auditLog(editingContractIdx >= 0 ? '编辑合同' : '新增合同', title.trim(), obj.contractId);
+    saveFunds((editingContractIdx >= 0 ? '编辑合同 ' : '新增合同 ') + title).then(function() { switchTab('contracts'); });
+  }
+  fileInput.click();
+}
+function deleteContract(idx) {
+  const c = fundsData.contracts[idx]; if (!c) return;
+  if (!confirm('确定删除合同「' + (c.title || '') + '」？（删除会记入留痕）')) return;
+  fundsData.contracts.splice(idx, 1);
+  auditLog('删除合同', c.title || '', c.contractId);
+  saveFunds('删除合同 ' + (c.title || '')).then(renderPage);
+}
+
+/* ===== 公共资产 ===== */
+function renderAssets() {
+  const list = fundsData.assets || [];
+  let h = '<div class="card"><div class="card-title">🏛️ 公共资产台账 <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="openAssetModal()">＋ 登记资产</button></div>';
+  if (!list.length) h += '<div class="empty">暂无登记资产</div>';
+  else {
+    h += '<div class="table-wrap"><table><thead><tr><th>资产</th><th>位置</th><th>状态</th><th>经营情况</th><th style="width:130px;">操作</th></tr></thead><tbody>';
+    list.forEach((s, i) => {
+      h += '<tr><td>' + escapeHtml(s.name || '') + '</td><td>' + escapeHtml(s.location || '') + '</td><td>' + escapeHtml(s.status || '') + '</td><td>' + escapeHtml(s.note || '') + '</td>';
+      h += '<td><button class="btn btn-secondary btn-sm" onclick="openAssetModal(' + i + ')">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteAsset(' + i + ')">删除</button></td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  h += '</div>';
+  return h;
+}
+function openAssetModal(idx) {
+  editingAssetIdx = (typeof idx === 'number') ? idx : -1;
+  const s = editingAssetIdx >= 0 ? fundsData.assets[editingAssetIdx] : {};
+  const name = prompt('资产名称（如：3-5号楼电梯广告位）:', s.name || ''); if (name === null) return;
+  const location = prompt('位置/范围：', s.location || ''); if (location === null) return;
+  const status = prompt('状态（在用 / 闲置 / 待处置）：', s.status || '在用'); if (status === null) return;
+  const note = prompt('经营情况说明：', s.note || ''); if (note === null) return;
+  const obj = editingAssetIdx >= 0 ? fundsData.assets[editingAssetIdx] : { assetId: 'ast-' + Date.now(), createdAt: new Date().toISOString() };
+  Object.assign(obj, { name: name.trim(), location: location.trim(), status: status.trim(), note: note.trim() });
+  if (editingAssetIdx < 0) fundsData.assets.push(obj);
+  auditLog(editingAssetIdx >= 0 ? '编辑资产' : '登记资产', name.trim(), obj.assetId);
+  saveFunds((editingAssetIdx >= 0 ? '编辑资产 ' : '登记资产 ') + name).then(function() { switchTab('assets'); });
+}
+function deleteAsset(idx) {
+  const s = fundsData.assets[idx]; if (!s) return;
+  if (!confirm('确定删除资产「' + (s.name || '') + '」？')) return;
+  fundsData.assets.splice(idx, 1);
+  auditLog('删除资产', s.name || '', s.assetId);
+  saveFunds('删除资产 ' + (s.name || '')).then(renderPage);
+}
+
+/* ===== 业主异议 ===== */
+function renderDisputes() {
+  const list = (fundsData.disputes || []).slice().reverse();
+  let h = '<div class="card"><div class="card-title">🗳️ 业主异议（' + list.length + '）</div>';
+  h += '<div class="hint" style="margin-bottom:10px;">按通知要求：业主对公共收益数据提出异议的，管理单位应及时核实并向业主解释。前台实名提交，此处回复后前台同步展示。</div>';
+  if (!list.length) h += '<div class="empty">暂无异议</div>';
+  list.forEach(d => {
+    const st = d.status === '已回复' ? '<span class="badge">已回复</span>' : '<span class="badge badge-warn">待处理</span>';
+    h += '<div style="border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;"><div><b>' + escapeHtml(d.roomNo || '') + ' ' + escapeHtml(d.name || '') + '</b> ' + st + ' <span style="color:var(--text-secondary);font-size:12px;">' + String(d.createdAt || '').slice(0, 16).replace('T', ' ') + '</span></div>';
+    if (d.status !== '已回复') h += '<button class="btn btn-primary btn-sm" onclick="replyDispute(\'' + d.disputeId + '\')">核实答复</button>';
+    h += '</div><div style="margin-top:6px;">' + escapeHtml(d.content || '') + '</div>';
+    if (d.reply) h += '<div style="margin-top:6px;color:#2e7d32;">↳ ' + escapeHtml(d.reply) + '</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
+async function replyDispute(disputeId) {
+  const d = (fundsData.disputes || []).find(x => x.disputeId === disputeId);
+  if (!d) return;
+  const reply = prompt('核实结果 / 答复业主：', ''); if (reply === null) return;
+  d.status = '已回复'; d.reply = (reply || '').trim(); d.repliedBy = operatorName(); d.repliedAt = new Date().toISOString();
+  auditLog('答复异议', (d.roomNo || '') + ' ' + (d.name || '') + '：' + d.reply, d.disputeId);
+  await saveFunds('答复业主异议 ' + d.disputeId);
+  renderPage();
+}
+
+/* ===== 审计留痕 ===== */
+function renderAudit() {
+  const list = (fundsData.audit || []).slice(0, 200);
+  let h = '<div class="card"><div class="card-title">📜 操作留痕（最近 ' + list.length + ' 条）</div>';
+  if (!list.length) h += '<div class="empty">暂无操作记录</div>';
+  else {
+    h += '<div class="table-wrap"><table><thead><tr><th>时间</th><th>操作员</th><th>动作</th><th>明细</th></tr></thead><tbody>';
+    list.forEach(a => {
+      h += '<tr><td style="white-space:nowrap;font-size:12px;">' + String(a.at || '').slice(0, 16).replace('T', ' ') + '</td><td>' + escapeHtml(a.by || '') + '</td><td style="white-space:nowrap;">' + escapeHtml(a.action || '') + '</td><td style="font-size:12px;">' + escapeHtml(a.detail || '') + '</td></tr>';
+    });
+    h += '</tbody></table></div><div class="hint" style="margin-top:8px;">留痕仅追加、不提供删除，满足“符合法规的追踪查询”要求；可配合台账导出应对检查。</div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+/* ===== 导出 ===== */
+function exportTxnCSV() {
+  const rows = [];
+  rows.push(['日期', '专户', '期次', '方向', '科目', '摘要', '金额', '凭证号', '经办人', '复核人', '冲正标记', '录入人', '录入时间'].join(','));
+  (fundsData.txns || []).forEach(function(t) {
+    rows.push([t.date, acctName(t.accountId), t.period, t.direction === 'in' ? '收入' : '支出', t.category, t.summary, (t.amount || 0).toFixed(2), t.voucherNo || '', t.operator || '', t.reviewer || '', t.reversalOf ? '冲正' : '', t.createdBy || '', t.createdAt || ''].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','));
+  });
+  const blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '公共资金台账-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+}
+
+/* ===== 启动 ===== */
+(async function boot() {
+  try {
+    const cfg = await workerRead('config.json');
+    if (cfg && cfg.community && cfg.community.adminTitle) document.title = cfg.community.adminTitle + ' · 阳光资金';
+  } catch (e) {}
+  await loadFunds();
+  renderPage();
+})();
+</script>
+</body>
+</html>

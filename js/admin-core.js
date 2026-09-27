@@ -134,7 +134,7 @@ function showAdminLayout() {
   const hash = location.hash;
   const match = hash.match(/module=([^&]+)/);
   const targetModule = match ? match[1] : 'dashboard';
-  const validModules = ['dashboard','config','announcements','documents','activities','polls','residents','audit','workorders','complaints','settings','admin-manage','dev-tools','life','trade'];
+  const validModules = ['dashboard','config','announcements','documents','activities','polls','residents','audit','workorders','complaints','funds','settings','admin-manage','dev-tools','life','trade'];
   if (validModules.includes(targetModule)) {
     navigateTo(targetModule);
   } else {
@@ -169,6 +169,7 @@ function renderSidebar() {
       { id: 'residents', label: '业主管理', icon: '👥', external: null },
       { id: 'workorders', label: '工单管理', icon: '🔧', external: null },
       { id: 'complaints', label: '投诉建议', icon: '📝', external: null },
+      { id: 'funds', label: '阳光资金', icon: '🏦', external: 'admin-funds.html' },
       { id: 'life', label: '生活服务', icon: '🍽️', external: 'admin-life.html' },
       { id: 'trade', label: '交易管理', icon: '🛒', external: 'trade-admin.html' },
       { id: 'settings', label: '系统设置', icon: '🔐', external: null },
@@ -202,6 +203,7 @@ function renderSidebar() {
     { id: 'residents', label: '业主管理', icon: '👥', perm: 'residents', roles: ['super','property','committee'] },
     { id: 'workorders', label: '工单管理', icon: '🔧', perm: 'workorders', roles: ['super','property'] },
     { id: 'complaints', label: '投诉建议', icon: '📝', perm: 'complaints', roles: ['super','committee','community'] },
+    { id: 'funds', label: '阳光资金', icon: '🏦', perm: 'all', roles: ['super','property','committee','community'], external: 'admin-funds.html' },
     { id: 'life', label: '生活服务', icon: '🍽️', perm: 'all', roles: ['super','property','committee','community'], external: 'admin-life.html' },
     { id: 'trade', label: '交易管理', icon: '🛒', perm: 'all', roles: ['super','property','committee','community'], external: 'trade-admin.html' },
     { id: 'settings', label: '系统设置', icon: '🔐', perm: 'all', roles: ['super','property','committee','community'] }
@@ -253,12 +255,12 @@ function navigateTo(module) {
       if (typeof showToast === 'function') showToast('该板块已对你关闭，请联系总维护人员开通', 'error');
       return;
     }
-    const externalLinks = { life: 'admin-life.html', trade: 'trade-admin.html' };
+    const externalLinks = { life: 'admin-life.html', trade: 'trade-admin.html', funds: 'admin-funds.html' };
     if (externalLinks[module]) { window.open(externalLinks[module], '_blank'); return; }
     currentModule = module;
     location.hash = 'module=' + module;
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === module));
-    const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', objections: '异议管理', audit: '操作日志', workorders: '工单管理', complaints: '投诉建议', life: '生活服务', settings: '系统设置', 'admin-manage': '管理员管理', 'dev-tools': '开发者工具' };
+    const titles = { dashboard: '仪表盘', config: '社区配置', announcements: '公告管理', documents: '文件管理', activities: '动态管理', polls: '投票管理', residents: '业主管理', objections: '异议管理', audit: '操作日志', workorders: '工单管理', complaints: '投诉建议', funds: '阳光资金', life: '生活服务', settings: '系统设置', 'admin-manage': '管理员管理', 'dev-tools': '开发者工具' };
     var pt = document.getElementById('pageTitle');
     if (pt) pt.textContent = titles[module] || module;
     var sb = document.getElementById('saveBtn');
@@ -885,6 +887,7 @@ var ACCOUNT_MODULE_LIST = [
   { id: 'residents', name: '业主管理' },
   { id: 'workorders', name: '工单管理' },
   { id: 'complaints', name: '投诉建议' },
+  { id: 'funds', name: '阳光资金' },
   { id: 'settings', name: '系统设置' },
   { id: 'life', name: '生活服务' },
   { id: 'trade', name: '交易管理' }
@@ -892,9 +895,9 @@ var ACCOUNT_MODULE_LIST = [
 
 // 各身份在侧边栏默认可见的板块（账号级开关未显式设置时按此基线显示）
 var ROLE_MODULE_MAP = {
-  'admin-property':  ['dashboard', 'announcements', 'documents', 'residents', 'workorders', 'life', 'trade', 'settings'],
-  'admin-committee': ['dashboard', 'polls', 'residents', 'complaints', 'life', 'trade', 'settings'],
-  'admin-community': ['dashboard', 'announcements', 'activities', 'complaints', 'life', 'trade', 'settings']
+  'admin-property':  ['dashboard', 'announcements', 'documents', 'residents', 'workorders', 'funds', 'life', 'trade', 'settings'],
+  'admin-committee': ['dashboard', 'polls', 'residents', 'complaints', 'funds', 'life', 'trade', 'settings'],
+  'admin-community': ['dashboard', 'announcements', 'activities', 'complaints', 'funds', 'life', 'trade', 'settings']
 };
 
 // 全局板块开关是否关闭了某板块（开发者工具 / 模块配置，对非总维护人员生效）
