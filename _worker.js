@@ -14,6 +14,85 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
 };
 
+/* =====================================================================
+ * 多租户（一街 N 小区）
+ * 路由 = Host 头 → tid；每个 tid 拥有独立的 D1 绑定（DB / DB_tNN）与
+ * R2 桶（UPLOADS / UPLOADS_tNN），数据物理隔离。
+ * 默认租户 t01 = 现网主体（未匹配域名且访问主域名时均为 t01，老功能零变化）。
+ * 租户清单优先读环境变量 TENANT_ROUTES（JSON 数组），否则用内置默认。
+ * ===================================================================== */
+
+const DEFAULT_TENANTS = [
+  { tid: 't01', name: '美丽小区', domains: ['www.firstblade.site', 'community-platform-4ru.pages.dev', 'localhost', '127.0.0.1'] }
+];
+const DEFAULT_TID = 't01';
+const UNKNOWN_HOST_TID = DEFAULT_TID; // 未登记域名一律回默认租户
+
+function parseTenants(env) {
+  try {
+    const raw = env.TENANT_ROUTES;
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length) return arr;
+    }
+  } catch (e) {}
+  return DEFAULT_TENANTS;
+}
+
+// 租户总表：主租户库中的 tenants.json（60 秒缓存）覆盖/合并内置默认
+const _tenantCache = { at: 0, list: null };
+async function tenantsList(env) {
+  const now = Date.now();
+  if (_tenantCache.list && now - _tenantCache.at < 60000) return _tenantCache.list;
+  const merged = parseTenants(env).slice();
+  try {
+    if (await d1Ready(env)) {
+      const text = await readDocText(env, 'tenants.json');
+      const list = safeJsonParse(text, null);
+      if (Array.isArray(list)) {
+        for (const t of list) {
+          if (!t || !t.tid) continue;
+          const i = merged.findIndex(x => x.tid === t.tid);
+          if (i >= 0) merged[i] = Object.assign({}, merged[i], t);
+          else merged.push(t);
+        }
+      }
+    }
+  } catch (e) { /* 主表读取失败时退内置默认 */ }
+  _tenantCache.at = now;
+  _tenantCache.list = merged;
+  return merged;
+}
+
+function resolveTenant(list, request) {
+  let host = '';
+  try { host = (new URL(request.url).hostname || '').toLowerCase(); } catch (e) {}
+  for (const t of list) {
+    const domains = Array.isArray(t.domains) ? t.domains : (t.domain ? [t.domain] : []);
+    if (domains.some(d => String(d).toLowerCase() === host)) return t;
+  }
+  return list.find(t => t.tid === UNKNOWN_HOST_TID) || list[0];
+}
+
+// tid → 绑定名：t01 沿用 DB/UPLOADS（现网绑定），其余为 DB_tNN / UPLOADS_tNN
+function dbBindingName(tid) { return tid === DEFAULT_TID ? 'DB' : 'DB_' + tid; }
+function r2BindingName(tid) { return tid === DEFAULT_TID ? 'UPLOADS' : 'UPLOADS_' + tid; }
+
+// 为本次请求构造"租户视角 env"：DB/UPLOADS 指向该租户绑定，其余字段透传
+function withTenant(list, env, request) {
+  const t = resolveTenant(list, request);
+  const tenv = Object.create(env);
+  tenv.RID = t.tid;
+  tenv.TENANT_NAME = String(t.name || t.tid);
+  tenv.TENANT_LIST = list;
+  let db = null, uploads = null;
+  try { db = env[dbBindingName(t.tid)] || null; } catch (e) { db = null; }
+  try { uploads = env[r2BindingName(t.tid)] || null; } catch (e) { uploads = null; }
+  tenv.DB = db;
+  tenv.UPLOADS = uploads;
+  return tenv;
+}
+
 function jsonResponse(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -163,12 +242,19 @@ async function verifyToken(token, secret) {
   } catch (e) { return null; }
 }
 
+// 多租户：token 必须来自当前小区（老 token 无 tid 仅默认租户兼容）
+function tenantOk(env, payload) {
+  if (!payload.tid) return env.RID === DEFAULT_TID; // 旧版 token 仅默认租户兼容
+  return payload.tid === env.RID;
+}
+
 async function requireAuth(request, env) {
   const auth = request.headers.get('Authorization') || '';
   if (!auth.startsWith('Bearer ')) throw new Error('未登录');
   const payload = await verifyToken(auth.slice(7), env.JWT_SECRET);
   if (!payload) throw new Error('登录已过期');
   if (!payload.role || payload.role === 'resident') throw new Error('无管理员权限');
+  if (!tenantOk(env, payload)) throw new Error('登录与当前小区不匹配');
   return payload;
 }
 
@@ -178,6 +264,7 @@ async function verifyResidentRequest(request, env) {
   if (!auth.startsWith('Bearer ')) throw new Error('未登录业主账号');
   const payload = await verifyToken(auth.slice(7), env.JWT_SECRET);
   if (!payload || payload.role !== 'resident' || !payload.roomNo || !payload.name) throw new Error('登录已失效，请重新登录');
+  if (!tenantOk(env, payload)) throw new Error('登录与当前小区不匹配');
   return payload;
 }
 
@@ -213,35 +300,39 @@ const DOC_META_CANTEEN_ORDERS = 'import:canteen-orders.json';
 const DOC_META_CANTEEN_USERS = 'import:canteen-users.json';
 const DOC_META_SOLD_INIT = 'init:canteen-sold';
 
-const D1_STATE = { db: null, ready: false, fails: 0 };
+const D1_STATES = new Map(); // tid → { db, ready, fails }
 function hasDb(env) {
   return !!(env && env.DB && typeof env.DB.prepare === 'function');
 }
 
-let _schemaPromise = null;
+function dstate(env) {
+  const key = env.RID || DEFAULT_TID;
+  if (!D1_STATES.has(key)) D1_STATES.set(key, { db: null, ready: false, fails: 0, p: null });
+  return D1_STATES.get(key);
+}
+
 async function d1Ready(env) {
   if (!hasDb(env)) return false;
-  if (D1_STATE.db === env.DB) {
-    if (D1_STATE.ready) return true;
-    if (D1_STATE.fails >= D1_FAIL_LIMIT) return false;
-  }
-  if (!_schemaPromise) {
-    _schemaPromise = (async () => {
+  const st = dstate(env); // 按租户隔离（含建表 promise，防止跨租户误用）
+  if (st.db === env.DB && st.ready) return true;
+  if (st.db === env.DB && st.fails >= D1_FAIL_LIMIT) return false;
+  if (!st.p) {
+    st.p = (async () => {
       await ensureSchemaD1(env.DB);
-      D1_STATE.db = env.DB;
-      D1_STATE.ready = true;
-      D1_STATE.fails = 0;
+      st.db = env.DB;
+      st.ready = true;
+      st.fails = 0;
       return true;
     })().catch(e => {
       try { console.error('D1 初始化失败:', e && e.message); } catch (e2) {}
-      D1_STATE.db = env.DB;
-      D1_STATE.ready = false;
-      D1_STATE.fails += 1;
-      _schemaPromise = null;
+      st.db = env.DB;
+      st.ready = false;
+      st.fails += 1;
+      st.p = null;
       return false;
     });
   }
-  return _schemaPromise;
+  return st.p;
 }
 
 async function ensureSchemaD1(db) {
@@ -381,7 +472,7 @@ function randomHex(n) {
 }
 // 登录成功后把口令升级为 PBKDF2（幂等；口令变更时自动覆盖）
 async function upgradeAdminPassword(env, kind, key, username, password) {
-  if (!D1_STATE.ready || !password) return;
+  const st = dstate(env); if (!st.ready || !password) return;
   try {
     const iters = 100000;
     const salt = randomHex(16);
@@ -1215,7 +1306,8 @@ async function handleResidentsLogin(request, env) {
   const token = await createToken('resident', env.JWT_SECRET, {
     roomNo: String(match.roomNo),
     name: String(match.name),
-    rid: String(match.id || '')
+    rid: String(match.id || ''),
+    tid: env.RID
   }, 30 * 24 * 60 * 60 * 1000);
   return jsonResponse({
     success: true, token: token, name: String(match.name), roomNo: String(match.roomNo),
@@ -1590,7 +1682,7 @@ async function handleVotePost(request, env) {
 // ==================== 主入口 ====================
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env_raw, ctx) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
@@ -1598,12 +1690,15 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // ===== 静态文件直出（HTML/CSS/JS/图片等）=====
+    // 多租户共享同一份前端资源，无需按租户分流
+    if (!path.startsWith('/api/')) {
+      return env_raw.ASSETS ? await env_raw.ASSETS.fetch(request) : fetch(request);
+    }
+
     try {
-      // ===== 静态文件直出（HTML/CSS/JS/图片等）=====
-      // Cloudflare Pages 会自动处理，这里只拦截 /api/* 请求
-      if (!path.startsWith('/api/')) {
-        return env.ASSETS ? await env.ASSETS.fetch(request) : fetch(request);
-      }
+      // 多租户：Host → 租户（主控表 60 秒缓存），DB/UPLOADS 按租户解析
+      const env = withTenant(await tenantsList(env_raw), env_raw, request);
 
       // ===== 认证接口 =====
       if (path === '/api/auth/login' && request.method === 'POST') {
@@ -1639,6 +1734,22 @@ export default {
       // ===== 投票（D1：数据库级一人一票 + 服务端哈希链）=====
       if (path === '/api/vote' && request.method === 'POST') {
         return await handleVotePost(request, env);
+      }
+
+      // ===== 多租户公开信息 =====
+      if (path === '/api/tenants' && request.method === 'GET') {
+        const list = (env.TENANT_LIST || []).map(t => ({
+          tid: t.tid, name: t.name,
+          domains: Array.isArray(t.domains) ? t.domains : (t.domain ? [t.domain] : []),
+          current: t.tid === env.RID
+        }));
+        const cur = list.find(x => x.current) || null;
+        return jsonResponse({ success: true, tenants: list, current: cur });
+      }
+      if (path === '/api/health' && request.method === 'GET') {
+        let d1on = false;
+        try { d1on = await d1Ready(env); } catch (e) {}
+        return jsonResponse({ success: true, tenant: env.RID, name: env.TENANT_NAME, d1: d1on });
       }
 
       // ===== D1 初始化 / 状态（管理员）=====
@@ -1745,7 +1856,7 @@ async function handleLogin(request, env) {
         return jsonResponse({ success: false, error: '密码错误' }, 401);
       }
       await d1ClearFails(env, 'login', loginIpHash);
-      const token = await createToken(acc.role, env.JWT_SECRET, { sub: acc.name, accountId: acc.id }, ttl);
+      const token = await createToken(acc.role, env.JWT_SECRET, { sub: acc.name, accountId: acc.id, tid: env.RID }, ttl);
       return jsonResponse({
         success: true, token, role: acc.role,
         name: acc.name || getRoleDisplayName(acc.role),
@@ -1768,7 +1879,7 @@ async function handleLogin(request, env) {
         return jsonResponse({ success: false, error: '密码错误' }, 401);
       }
       await d1ClearFails(env, 'login', loginIpHash);
-      const token = await createToken(roleId, env.JWT_SECRET, {}, ttl);
+      const token = await createToken(roleId, env.JWT_SECRET, { tid: env.RID }, ttl);
       return jsonResponse({
         success: true, token, role: roleId, name: getRoleDisplayName(roleId),
         permissions: getRolePermissions(roleId), remember: !!remember
@@ -1789,7 +1900,7 @@ async function handleLogin(request, env) {
       return jsonResponse({ success: false, error: '密码错误' }, 401);
     }
     await d1ClearFails(env, 'login', loginIpHash);
-    const token0 = await createToken(acc0.role, env.JWT_SECRET, { sub: acc0.name, accountId: acc0.id });
+    const token0 = await createToken(acc0.role, env.JWT_SECRET, { sub: acc0.name, accountId: acc0.id, tid: env.RID });
     return jsonResponse({
       success: true,
       token: token0,
@@ -1807,7 +1918,7 @@ async function handleLogin(request, env) {
   // 1) 环境变量角色密码（5 个内置身份；PBKDF2 升级存储在 admins 表）
   if (await verifyBuiltinPassword(env, role, password)) {
     await d1ClearFails(env, 'login', loginIpHash);
-    const token = await createToken(role, env.JWT_SECRET);
+    const token = await createToken(role, env.JWT_SECRET, { tid: env.RID });
     return jsonResponse({
       success: true,
       token,
@@ -1829,7 +1940,7 @@ async function handleLogin(request, env) {
     const blocked = accountLoginError(matched);
     if (blocked) return jsonResponse({ success: false, error: blocked }, 403);
     await d1ClearFails(env, 'login', loginIpHash);
-    const token = await createToken(role, env.JWT_SECRET, { sub: matched.name, accountId: matched.id });
+    const token = await createToken(role, env.JWT_SECRET, { sub: matched.name, accountId: matched.id, tid: env.RID });
     return jsonResponse({
       success: true,
       token,
@@ -1847,7 +1958,7 @@ async function handleLogin(request, env) {
 
 // 管理员密码验证：PBKDF2（admins 表，D1）优先，sha256/明文兼容（升级窗口）
 async function verifyAccountPassword(env, acc, password) {
-  if (D1_STATE.ready) {
+  if (dstate(env).ready) {
     try {
       const row = await d1First(env, 'SELECT salt, iters, hash FROM admins WHERE kind=? AND key=?', ['account', String(acc.id || '')]);
       if (row) {
@@ -1870,7 +1981,7 @@ async function verifyAccountPassword(env, acc, password) {
 async function verifyBuiltinPassword(env, roleId, password) {
   const correct = env[getPasswordEnvKey(roleId)];
   if (!correct) return false;
-  if (D1_STATE.ready) {
+  if (dstate(env).ready) {
     try {
       const row = await d1First(env, 'SELECT salt, iters, hash FROM admins WHERE kind=? AND key=?', ['builtin', roleId]);
       if (row) {

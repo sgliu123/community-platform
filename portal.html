@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>街道社区总控门户</title>
+<style>
+  :root { --bg:#f4f6fa; --card:#fff; --txt:#1f2937; --sub:#6b7280; --pri:#2f6fed; --ok:#16a34a; --warn:#d97706; --err:#dc2626; --line:#e5e7eb; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--txt); min-height: 100vh; padding: 28px 20px 48px; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: var(--sub); font-size: 13px; margin-bottom: 20px; }
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .toolbar button { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; }
+  .toolbar button:hover { border-color: var(--pri); color: var(--pri); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .card h3 { font-size: 16px; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #cbd5e1; display: inline-block; flex: none; }
+  .dot.ok { background: var(--ok); } .dot.d1 { box-shadow: 0 0 0 3px rgba(22,163,74,.15); }
+  .dot.err { background: var(--err); }
+  .meta { font-size: 12px; color: var(--sub); margin-bottom: 12px; line-height: 1.7; }
+  .links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .links a { font-size: 13px; color: var(--pri); text-decoration: none; border: 1px solid #dbe7ff; background: #f5f8ff; padding: 6px 12px; border-radius: 8px; }
+  .links a:hover { background: #eaf1ff; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #f1f5f9; color: var(--sub); }
+  .badge.d1 { background: #dcfce7; color: var(--ok); }
+  .empty { text-align: center; color: var(--sub); padding: 48px 0; font-size: 14px; }
+  .foot { margin-top: 24px; font-size: 12px; color: var(--sub); text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🏘️ 街道社区总控门户</h1>
+  <div class="sub">一街 N 小区 · 每个小区独立数据库与数据 · 统一代码 · 点击进入各小区前台/后台</div>
+  <div class="toolbar">
+    <button onclick="load()">🔄 刷新状态</button>
+    <span id="summary" class="badge"></span>
+  </div>
+  <div class="grid" id="grid"><div class="empty">加载中…</div></div>
+  <div class="foot">D1 状态来源各小区 /api/health，每 60 秒可刷新一次</div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var MAIN = location.origin.indexOf('firstblade.site') >= 0 ? location.origin : 'https://www.firstblade.site';
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+
+  function health(hosts) {
+    return new Promise(function (resolve) {
+      var done = false;
+      var t = setTimeout(function () { if (!done) { done = true; resolve({ d1: false, ok: false }); } }, 6000);
+      var tryOne = function (i) {
+        if (done) return;
+        if (i >= hosts.length) { done = true; clearTimeout(t); resolve({ d1: false, ok: false }); return; }
+        var url = 'https://' + hosts[i] + '/api/health?t=' + Date.now();
+        fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+          if (!done) { done = true; clearTimeout(t); resolve(j); }
+        }).catch(function () { tryOne(i + 1); });
+      };
+      tryOne(0);
+    });
+  }
+
+  function card(t, h) {
+    var main = (t.domains && t.domains[0]) || '';
+    var d1 = h && h.d1;
+    var alive = h && (h.success === true);
+    var dot = 'dot' + (alive ? (d1 ? ' ok d1' : ' ok') : ' err');
+    return '<div class="card">' +
+      '<h3><span class="' + dot + '"></span>' + esc(t.name || t.tid) +
+      (t.current ? ' <span class="badge">当前小区</span>' : '') +
+      (d1 ? ' <span class="badge d1">D1</span>' : '') +
+      '</h3>' +
+      '<div class="meta">' + esc((t.domains || []).join(' · ')) + '<br>租户 ' + esc(t.tid) + ' · ' + (alive ? (d1 ? '在线 · D1 已启用' : '在线 · 未启用 D1') : '不可达') + '</div>' +
+      '<div class="links">' +
+        '<a href="https://' + esc(main) + '/" target="_blank" rel="noopener">前台</a>' +
+        '<a href="https://' + esc(main) + '/admin#module=dashboard" target="_blank" rel="noopener">管理后台</a>' +
+        '<a href="https://' + esc(main) + '/vote.html" target="_blank" rel="noopener">投票</a>' +
+        '<a href="https://' + esc(main) + '/life.html" target="_blank" rel="noopener">生活服务</a>' +
+      '</div></div>';
+  }
+
+  function load() {
+    var grid = document.getElementById('grid');
+    grid.innerHTML = '<div class="empty">加载中…</div>';
+    fetch(MAIN + '/api/tenants?t=' + Date.now()).then(function (r) { return r.json(); }).then(function (j) {
+      var list = (j && j.tenants) || [];
+      if (!list.length) { grid.innerHTML = '<div class="empty">暂无小区</div>'; return; }
+      var promises = list.map(function (t) { return health(t.domains || []); });
+      Promise.all(promises).then(function (hs) {
+        var html = '';
+        var okCount = 0, d1Count = 0;
+        for (var i = 0; i < list.length; i++) {
+          if (hs[i] && hs[i].success) okCount++;
+          if (hs[i] && hs[i].d1) d1Count++;
+          html += card(list[i], hs[i]);
+        }
+        grid.innerHTML = html;
+        document.getElementById('summary').textContent = list.length + ' 个小区 · ' + okCount + ' 在线 · ' + d1Count + ' 已启用 D1';
+      });
+    }).catch(function (e) {
+      grid.innerHTML = '<div class="empty">加载失败：' + esc(e && e.message) + '</div>';
+    });
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>
