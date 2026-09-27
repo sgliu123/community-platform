@@ -907,6 +907,10 @@ function isModuleGloballyOff(moduleId) {
     if (sw && sw[moduleId] === false) return true;
   } catch (e) {}
   try {
+    var saved = JSON.parse(localStorage.getItem('config') || 'null');
+    if (saved && saved.moduleSwitches && saved.moduleSwitches[moduleId] === false) return true;
+  } catch (e) {}
+  try {
     var cfg = (typeof window.getModuleConfig === 'function') ? window.getModuleConfig() : null;
     if (cfg && cfg.modules && cfg.modules[moduleId] && cfg.modules[moduleId].visible === false) return true;
   } catch (e) {}
@@ -1040,6 +1044,7 @@ function renderDevTools() {
     { key: 'complaints', label: '投诉管理', desc: '投诉建议收集处理' },
     { key: 'life', label: '生活服务', desc: '前台生活服务导航' },
     { key: 'trade', label: '交易管理', desc: '前台房屋租售和物品交易导航' },
+    { key: 'funds', label: '阳光资金', desc: '公共收益/维修资金/公共资产的公示与台账', sensitive: true },
     { key: 'audit', label: '审计日志', desc: '操作记录与审计追踪', sensitive: true },
     { key: 'settings', label: '系统设置', desc: '高级系统选项', sensitive: true }
   ];

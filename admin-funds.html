@@ -511,6 +511,13 @@ function exportTxnCSV() {
   try {
     const cfg = await workerRead('config.json');
     if (cfg && cfg.community && cfg.community.adminTitle) document.title = cfg.community.adminTitle + ' · 阳光资金';
+    // 模块开关（开发者工具）：阳光资金关闭时管理页只读提示
+    if (cfg && cfg.moduleSwitches && cfg.moduleSwitches.funds === false) {
+      var bc = document.getElementById('pageBody');
+      if (bc) bc.innerHTML = '<div class="card"><div class="empty" style="padding:40px 0;"><div style="font-size:34px;">🔒</div><div style="margin-top:10px;">「阳光资金」模块已在开发者工具中关闭</div><div class="hint" style="margin-top:8px;">如需使用，请到 管理后台 → 开发者工具 → 模块开关 中开启「阳光资金」</div></div></div>';
+      document.querySelectorAll('.tab-bar button, .topbar-actions button').forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; });
+      return;
+    }
   } catch (e) {}
   await loadFunds();
   renderPage();
