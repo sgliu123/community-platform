@@ -1139,8 +1139,20 @@ function showD1Status() {
 }
 
 /* ===== 一键添加小区（可填多租户信息）===== */
+// 总维护判定：兼容两套会话模型（role 可能是 'admin-super' 或面板短名 'super'；
+//   permissions 可能是对象（含 all:true）或被拍平的数组 ['all','view',...]）
+function isTenantSuperAdmin() {
+  var ca = (typeof currentAdmin !== 'undefined' && currentAdmin) ? currentAdmin : (window.currentAdmin || null);
+  if (!ca) return false;
+  if (ca.role === 'admin-super' || ca.role === 'super') return true;
+  var perms = ca.permissions;
+  if (Array.isArray(perms)) return perms.indexOf('all') >= 0;
+  if (perms && typeof perms === 'object') return perms.all === true;
+  return false;
+}
+
 function renderTenantPanel() {
-  const isSuper = (typeof currentAdmin !== 'undefined') && currentAdmin && currentAdmin.role === 'admin-super';
+  const isSuper = isTenantSuperAdmin();
   let html = '<div class="card" style="margin-top:18px;border:1px solid #eef2ff;">';
   if (!isSuper) {
     html += '<div style="font-size:12px;color:var(--text-secondary);">🏷️ 多租户管理仅总维护人员可见。</div></div>';
