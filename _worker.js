@@ -208,8 +208,10 @@ const D1_FAIL_LIMIT = 3;
 // 虚拟键（由表支撑的文档键）
 const V_CANTEEN_ORDERS = 'canteen-orders.json';
 const V_CANTEEN_USERS = 'canteen-users.json';
+const V_CANTEEN_MENU = 'canteen-menu.json';
 const DOC_META_CANTEEN_ORDERS = 'import:canteen-orders.json';
 const DOC_META_CANTEEN_USERS = 'import:canteen-users.json';
+const DOC_META_SOLD_INIT = 'init:canteen-sold';
 
 const D1_STATE = { db: null, ready: false, fails: 0 };
 function hasDb(env) {
@@ -272,6 +274,10 @@ async function ensureSchemaD1(db) {
     `CREATE TABLE IF NOT EXISTS canteen_balances (
       user_id TEXT PRIMARY KEY, name TEXT, room_no TEXT,
       balance REAL DEFAULT 0, updated_at INTEGER)`,
+    `CREATE TABLE IF NOT EXISTS canteen_sold (
+      order_date TEXT, meal_type TEXT, pkg_id TEXT,
+      sold INTEGER DEFAULT 0,
+      PRIMARY KEY (order_date, meal_type, pkg_id))`,
     `CREATE TABLE IF NOT EXISTS canteen_txns (
       txn_id TEXT PRIMARY KEY, user_id TEXT, name TEXT, type TEXT,
       amount REAL DEFAULT 0, order_id TEXT, note TEXT, at TEXT, created_at INTEGER)`,
@@ -439,68 +445,185 @@ function orderCreatedAtTs(o) {
 }
 
 // 管理端整表写：按 orderId UPSERT；表内存在但本次缺失且创建时间早于 10 分钟的视为删除，
-// 最近 10 分钟内新建的订单保留（防止管理员整表覆盖误删刚下的单）
+// 最近 10 分钟内新建的订单保留（防止管理员整表覆盖误删刚下的单）。
+// 全部语句分批提交（90 条/批），支持万单级整表写；订单状态翻转/删除时同步回调销量表。
+// 某套餐在 D1 模式下的真实已售数量：
+// 以 canteen_sold 表为准（下单原子累加、取消/删除同步回调）；
+// 表未初始化前回退文档 sold（保守取大值，防超卖）
+async function soldCountFor(env, dateStr, mealType, pkgId, docSold) {
+  const row = await d1First(env,
+    'SELECT sold FROM canteen_sold WHERE order_date=? AND meal_type=? AND pkg_id=?',
+    [dateStr, mealType, pkgId]);
+  const fromTable = row ? (Number(row.sold) || 0) : null;
+  const fromDoc = Math.max(0, Number(docSold) || 0);
+  if (fromTable === null) return fromDoc;
+  return Math.max(fromTable, fromDoc);
+}
+
+function stmtChunks(stmts, size) {
+  const out = [];
+  for (let i = 0; i < stmts.length; i += size) out.push(stmts.slice(i, i + size));
+  return out;
+}
+
 async function virtualOrdersWrite(env, payload) {
   const orders = Array.isArray(payload) ? payload : (Array.isArray(payload && payload.orders) ? payload.orders : []);
   if (!orders.length) return true;
   const now = Date.now();
   const cutoff = now - 10 * 60 * 1000;
+  const valid = [];
   const incomingIds = [];
   for (const o of orders) {
     if (!o || typeof o !== 'object') continue;
     const orderId = String(o.orderId || '').slice(0, 64);
     if (!orderId) continue;
     incomingIds.push(orderId);
+    valid.push(o);
+  }
+  if (!valid.length) return true;
+
+  // 批量 IN 查询旧状态与旧套餐行（销量回调需要）
+  const oldStatus = {};
+  const oldPkgs = {};
+  const qChunks = [];
+  for (let i = 0; i < incomingIds.length; i += 80) qChunks.push(incomingIds.slice(i, i + 80));
+  for (const ch of qChunks) {
+    const marks = ch.map(() => '?').join(',');
+    try {
+      const st = await d1All(env, 'SELECT order_id, status FROM canteen_orders WHERE order_id IN (' + marks + ')', ch);
+      for (const r of st) oldStatus[r.order_id] = r.status;
+      const pk = await d1All(env, 'SELECT order_id, pkg_id, quantity FROM order_packages WHERE order_id IN (' + marks + ')', ch);
+      for (const r of pk) {
+        if (!oldPkgs[r.order_id]) oldPkgs[r.order_id] = {};
+        oldPkgs[r.order_id][r.pkg_id] = Number(r.quantity) || 0;
+      }
+    } catch (e) { /* 回调失败不影响主写 */ }
+  }
+
+  const stmts = [];
+  for (const o of valid) {
+    const orderId = String(o.orderId || '').slice(0, 64);
     const pkgs = Array.isArray(o.packages) ? o.packages : [];
+    const newStatus = String(o.status || 'pending');
+    const newActive = newStatus !== 'cancelled';
+    const oldActive = oldStatus[orderId] !== undefined && oldStatus[orderId] !== 'cancelled';
+    // 销量差量：仅套餐合计（状态从取消<->未取消或数量变化）
+    const newQty = {};
     for (const p of pkgs) {
       if (!p) continue;
-      await d1Run(env,
-        `INSERT INTO order_packages (order_id, pkg_id, name, price, quantity) VALUES (?,?,?,?,?)
-         ON CONFLICT (order_id, pkg_id) DO UPDATE SET name=excluded.name, price=excluded.price, quantity=excluded.quantity`,
-        [orderId, String(p.pkgId || p.id || '').slice(0, 64) || '-', String(p.name || '').slice(0, 120),
-          Number(p.price) || 0, parseInt(p.quantity, 10) || 0]);
+      const pid = String(p.pkgId || p.id || '-').slice(0, 64);
+      newQty[pid] = (newQty[pid] || 0) + (parseInt(p.quantity, 10) || 0);
     }
-    await d1Run(env,
+    const oldQty = oldPkgs[orderId] || {};
+    const deltaBy = {};
+    for (const pid of Object.keys(newQty)) {
+      const d = (newActive ? newQty[pid] : 0) - (oldActive ? (oldQty[pid] || 0) : 0);
+      if (d) deltaBy[pid] = (deltaBy[pid] || 0) + d;
+    }
+    for (const pid of Object.keys(oldQty)) {
+      if (!(pid in newQty) && oldActive && oldQty[pid]) {
+        deltaBy[pid] = (deltaBy[pid] || 0) - oldQty[pid];
+      }
+    }
+    for (const p of pkgs) {
+      if (!p) continue;
+      stmts.push(env.DB.prepare(
+        `INSERT INTO order_packages (order_id, pkg_id, name, price, quantity) VALUES (?,?,?,?,?)
+         ON CONFLICT (order_id, pkg_id) DO UPDATE SET name=excluded.name, price=excluded.price, quantity=excluded.quantity`)
+        .bind(orderId, String(p.pkgId || p.id || '').slice(0, 64) || '-', String(p.name || '').slice(0, 120),
+          Number(p.price) || 0, parseInt(p.quantity, 10) || 0));
+    }
+    for (const pid of Object.keys(deltaBy)) {
+      if (deltaBy[pid]) stmts.push(soldAdjustStmts(env, String(o.orderDate || ''), String(o.mealType || ''), pid, deltaBy[pid]));
+    }
+    stmts.push(env.DB.prepare(
       `INSERT INTO canteen_orders (order_id, user_id, order_date, meal_type, status, pay_mode, total, data, created_at)
        VALUES (?,?,?,?,?,?,?,?,?)
        ON CONFLICT (order_id) DO UPDATE SET user_id=excluded.user_id, order_date=excluded.order_date,
          meal_type=excluded.meal_type, status=excluded.status, pay_mode=excluded.pay_mode,
-         total=excluded.total, data=excluded.data`,
-      [orderId, String(o.userId || '').slice(0, 80), String(o.orderDate || '').slice(0, 10),
-        String(o.mealType || '').slice(0, 16), String(o.status || 'pending').slice(0, 16),
+         total=excluded.total, data=excluded.data`)
+      .bind(orderId, String(o.userId || '').slice(0, 80), String(o.orderDate || '').slice(0, 10),
+        String(o.mealType || '').slice(0, 16), newStatus.slice(0, 16),
         String(o.payMode || '').slice(0, 16), Number(o.totalAmount) || 0,
-        JSON.stringify(o), orderCreatedAtTs(o)]);
+        JSON.stringify(o), orderCreatedAtTs(o)));
   }
-  // 删除：管理端整表里不再出现的旧订单。
-  // 安全边界：联合读最多回 2000 条，若管理端整表写丢失窗口外的旧订单，
-  // 仅允许删除「创建时间不早于载荷最早一单」的记录（即读窗口内可见的），更早的保留。
+
+  // 删除：不在整表里、已过保护窗口、且在本次读窗口内的旧订单（同步扣销量）
   const stored = await d1All(env, 'SELECT order_id, created_at FROM canteen_orders', []);
   const incomingSet = new Set(incomingIds);
-  const incomingMinTs = orders.length
-    ? Math.min.apply(null, orders.map(orderCreatedAtTs))
-    : Infinity;
+  const incomingMinTs = valid.length ? Math.min.apply(null, valid.map(orderCreatedAtTs)) : Infinity;
+  const toDelete = [];
   for (const row of stored) {
     if (!incomingSet.has(row.order_id) && Number(row.created_at) < cutoff &&
         Number(row.created_at) >= incomingMinTs) {
-      await d1Run(env, 'DELETE FROM order_packages WHERE order_id=?', [row.order_id]);
-      await d1Run(env, 'DELETE FROM canteen_orders WHERE order_id=?', [row.order_id]);
+      toDelete.push(row.order_id);
     }
+  }
+  const delChunks = [];
+  for (let i = 0; i < toDelete.length; i += 80) delChunks.push(toDelete.slice(i, i + 80));
+  for (const ch of delChunks) {
+    const marks = ch.map(() => '?').join(',');
+    try {
+      const pk = await d1All(env,
+        `SELECT o.order_date AS od, o.meal_type AS mt, o.status AS st, op.pkg_id AS pid, op.quantity AS q
+         FROM order_packages op JOIN canteen_orders o ON o.order_id = op.order_id
+         WHERE o.order_id IN (` + marks + ')', ch);
+      for (const r of pk) {
+        if (r.st !== 'cancelled' && (Number(r.q) || 0) > 0) {
+          stmts.push(soldAdjustStmts(env, r.od, r.mt, r.pid, -(Number(r.q) || 0)));
+        }
+      }
+    } catch (e) { /* 尽力而为：历史取消不影响库存守卫主链路 */ }
+  }
+  for (const ch of delChunks) {
+    const marks = ch.map(() => '?').join(',');
+    stmts.push(env.DB.prepare('DELETE FROM order_packages WHERE order_id IN (' + marks + ')').bind(...ch));
+    stmts.push(env.DB.prepare('DELETE FROM canteen_orders WHERE order_id IN (' + marks + ')').bind(...ch));
+  }
+
+  for (const batch of stmtChunks(stmts, 90)) {
+    try { await env.DB.batch(batch); }
+    catch (e) { for (const st of batch) { try { await st.run(); } catch (e2) {} } }
   }
   return true;
 }
 
-function pkgSoldKey(o, p) {
-  return { date: String(o.orderDate || ''), meal: String(o.mealType || ''), pkgId: String(p.pkgId || p.id || '') };
+// sold 增减（+qty / -qty，下限 0）
+function soldAdjustStmts(env, dateStr, mealType, pkgId, delta) {
+  return env.DB.prepare(
+    `INSERT INTO canteen_sold (order_date, meal_type, pkg_id, sold) VALUES (?,?,?,?)
+     ON CONFLICT (order_date, meal_type, pkg_id)
+     DO UPDATE SET sold = MAX(sold + ?, 0)`)
+    .bind(dateStr, mealType, pkgId, delta > 0 ? delta : 0, delta);
 }
 
-// 某套餐在 D1 模式下的真实已售数量（依据未取消订单聚合，库存守卫不再依赖文档 sold 字段）
-async function soldCountFor(env, dateStr, mealType, pkgId) {
-  const row = await d1First(env,
-    `SELECT COALESCE(SUM(op.quantity),0) AS sold
-     FROM order_packages op JOIN canteen_orders o ON o.order_id = op.order_id
-     WHERE o.order_date=? AND o.meal_type=? AND o.status != 'cancelled' AND op.pkg_id=?`,
-    [dateStr, mealType, pkgId]);
-  return row ? (Number(row.sold) || 0) : 0;
+// 菜单虚拟读：把 canteen_sold 表实时销量注入菜单（前端"剩余"显示实时准确，且不再每单重写菜单文档）
+async function virtualMenuRead(env, baseText) {
+  const menu = safeJsonParse(baseText, null);
+  if (!menu || !menu.menus) return baseText;
+  let soldRows = [];
+  try {
+    soldRows = await d1All(env, 'SELECT order_date, meal_type, pkg_id, sold FROM canteen_sold', []);
+  } catch (e) { soldRows = []; }
+  if (soldRows.length) {
+    const map = {};
+    for (const r of soldRows) {
+      map[String(r.order_date) + '|' + String(r.meal_type) + '|' + String(r.pkg_id)] = Number(r.sold) || 0;
+    }
+    for (const dateKey of Object.keys(menu.menus)) {
+      const day = menu.menus[dateKey];
+      const meals = day && day.meals ? day.meals : {};
+      for (const mealKey of Object.keys(meals)) {
+        const pkgs = meals[mealKey] && Array.isArray(meals[mealKey].packages) ? meals[mealKey].packages : [];
+        for (const pkg of pkgs) {
+          if (!pkg || !pkg.id) continue;
+          const k = dateKey + '|' + mealKey + '|' + String(pkg.id);
+          if (Object.prototype.hasOwnProperty.call(map, k)) pkg.sold = map[k];
+        }
+      }
+    }
+  }
+  return JSON.stringify(menu);
 }
 
 /* ---------- 虚拟视图：食堂账本（canteen-users.json） ---------- */
@@ -540,45 +663,47 @@ async function virtualUsersRead(env) {
 
 async function virtualUsersWrite(env, payload) {
   const p = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
+  const stmts = [];
   const balances = p.balances && typeof p.balances === 'object' ? p.balances : {};
   for (const uid of Object.keys(balances)) {
     const r = balances[uid] || {};
     if (typeof r.balance !== 'number') continue;
-    await d1Run(env,
+    stmts.push(env.DB.prepare(
       `INSERT INTO canteen_balances (user_id, name, room_no, balance, updated_at) VALUES (?,?,?,?,?)
        ON CONFLICT (user_id) DO UPDATE SET name=excluded.name, room_no=excluded.room_no,
-         balance=excluded.balance, updated_at=excluded.updated_at`,
-      [uid, String(r.name || '').slice(0, 60), String(r.roomNo || '').slice(0, 60),
-        Math.round(r.balance * 100) / 100, Date.parse(r.updatedAt || '') || Date.now()]);
+         balance=excluded.balance, updated_at=excluded.updated_at`)
+      .bind(uid, String(r.name || '').slice(0, 60), String(r.roomNo || '').slice(0, 60),
+        Math.round(r.balance * 100) / 100, Date.parse(r.updatedAt || '') || Date.now()));
   }
   if (Array.isArray(p.penalties)) {
-    await d1Run(env, 'DELETE FROM canteen_penalties', []);
-    let i = 0;
+    stmts.push(env.DB.prepare('DELETE FROM canteen_penalties').bind());
     for (const pen of p.penalties) {
-      i += 1;
       if (!pen || !pen.userId) continue;
-      await d1Run(env,
+      stmts.push(env.DB.prepare(
         `INSERT INTO canteen_penalties (user_id, name, order_id, reason, active, revoked_by, revoked_at, at)
-         VALUES (?,?,?,?,?,?,?,?)`,
-        [String(pen.userId).slice(0, 80), String(pen.name || '').slice(0, 60),
+         VALUES (?,?,?,?,?,?,?,?)`)
+        .bind(String(pen.userId).slice(0, 80), String(pen.name || '').slice(0, 60),
           pen.orderId ? String(pen.orderId).slice(0, 64) : null,
           String(pen.reason || '').slice(0, 160),
           pen.active ? 1 : 0, pen.revokedBy || null, pen.revokedAt || null,
-          pen.at || new Date().toISOString()]);
+          pen.at || new Date().toISOString()));
     }
-    void i;
   }
   if (Array.isArray(p.transactions)) {
     for (const t of p.transactions) {
       if (!t || !t.txnId) continue;
-      await d1Run(env,
+      stmts.push(env.DB.prepare(
         `INSERT OR IGNORE INTO canteen_txns (txn_id, user_id, name, type, amount, order_id, note, at, created_at)
-         VALUES (?,?,?,?,?,?,?,?,?)`,
-        [String(t.txnId).slice(0, 64), String(t.userId || '').slice(0, 80), String(t.name || '').slice(0, 60),
+         VALUES (?,?,?,?,?,?,?,?,?)`)
+        .bind(String(t.txnId).slice(0, 64), String(t.userId || '').slice(0, 80), String(t.name || '').slice(0, 60),
           String(t.type || 'adjust').slice(0, 16), Number(t.amount) || 0,
           t.orderId ? String(t.orderId).slice(0, 64) : null,
-          String(t.note || '').slice(0, 160), t.at || new Date().toISOString(), Date.parse(t.at || '') || Date.now()]);
+          String(t.note || '').slice(0, 160), t.at || new Date().toISOString(), Date.parse(t.at || '') || Date.now()));
     }
+  }
+  for (const batch of stmtChunks(stmts, 90)) {
+    try { await env.DB.batch(batch); }
+    catch (e) { for (const st of batch) { try { await st.run(); } catch (e2) {} } }
   }
   return true;
 }
@@ -653,6 +778,18 @@ async function readDocText(env, key) {
       if (key === V_CANTEEN_ORDERS) return await virtualOrdersRead(env);
       if (key === V_CANTEEN_USERS) return await virtualUsersRead(env);
       if (key.startsWith('polls-responses/')) return JSON.stringify(await virtualVotesRead(env, key));
+      if (key === V_CANTEEN_MENU) {
+        let base = await d1ReadDocText(env, key);
+        if (base === null) {
+          const legacy = await r2GetText(env, key);
+          if (legacy !== null) {
+            await d1ImportDoc(env, key, legacy);
+            base = legacy;
+          }
+        }
+        if (base === null) return null;
+        return await virtualMenuRead(env, base);
+      }
       const text = await d1ReadDocText(env, key);
       if (text !== null) return text;
       const legacy = await r2GetText(env, key);
@@ -781,23 +918,27 @@ async function d1ImportVotes(env) {
         ['votefile:' + key, 'not-array', Date.now()]);
       continue;
     }
+    const stmts = [];
     for (const r of arr) {
       if (!r || !r.pollId) continue;
+      stmts.push(env.DB.prepare(
+        `INSERT OR IGNORE INTO votes
+           (poll_id, user_id, room_no, name, area, choice, vote_time, ip_hash, device_hash, nonce, prev_hash, bucket, seq, created_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .bind(String(r.pollId).slice(0, 80), String(r.residentId || r.userId || '').slice(0, 80),
+          String(r.roomNo || '').slice(0, 60), String(r.name || '').slice(0, 60),
+          Number(r.area) || 0, JSON.stringify(r.choice === undefined ? null : r.choice),
+          String(r.voteTime || new Date().toISOString()).slice(0, 40),
+          String(r.ipHash || '').slice(0, 80), String(r.deviceHash || '').slice(0, 80),
+          String(r.nonce || '').slice(0, 80), String(r.prevHash || '').slice(0, 80),
+          key, Number(r.seq) || 0, Date.parse(r.voteTime || '') || Date.now()));
+    }
+    for (const batch of stmtChunks(stmts, 90)) {
       try {
-        const res = await d1Run(env,
-          `INSERT OR IGNORE INTO votes
-             (poll_id, user_id, room_no, name, area, choice, vote_time, ip_hash, device_hash, nonce, prev_hash, bucket, seq, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          [String(r.pollId).slice(0, 80), String(r.residentId || r.userId || '').slice(0, 80),
-            String(r.roomNo || '').slice(0, 60), String(r.name || '').slice(0, 60),
-            Number(r.area) || 0, JSON.stringify(r.choice === undefined ? null : r.choice),
-            String(r.voteTime || new Date().toISOString()).slice(0, 40),
-            String(r.ipHash || '').slice(0, 80), String(r.deviceHash || '').slice(0, 80),
-            String(r.nonce || '').slice(0, 80), String(r.prevHash || '').slice(0, 80),
-            key, Number(r.seq) || 0, Date.parse(r.voteTime || '') || Date.now()]);
-        rows += 1;
+        const results = await env.DB.batch(batch);
+        for (const rr of results) { rows += 1; if (rr && rr.meta && rr.meta.changes === 0) dup += 1; }
       } catch (e) {
-        dup += 1; // UNIQUE 冲突 = 重复票（保留第一条）
+        for (const st of batch) { try { await st.run(); rows += 1; } catch (e2) { dup += 1; } }
       }
     }
     await d1Run(env, 'INSERT OR REPLACE INTO doc_meta (key, info, imported_at) VALUES (?,?,?)',
@@ -818,59 +959,69 @@ async function d1BackfillCanteen(env) {
     orders = parsed && Array.isArray(parsed.orders) ? parsed.orders : (Array.isArray(parsed) ? parsed : []);
   }
   let orderCount = 0;
+  const stmts = [];
   for (const o of orders.slice(0, 5000)) {
     if (!o || !o.orderId) continue;
-    await d1Run(env,
+    stmts.push(env.DB.prepare(
       `INSERT OR IGNORE INTO canteen_orders (order_id, user_id, order_date, meal_type, status, pay_mode, total, data, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?)`,
-      [String(o.orderId).slice(0, 64), String(o.userId || '').slice(0, 80),
+       VALUES (?,?,?,?,?,?,?,?,?)`)
+      .bind(String(o.orderId).slice(0, 64), String(o.userId || '').slice(0, 80),
         String(o.orderDate || '').slice(0, 10), String(o.mealType || '').slice(0, 16),
         String(o.status || 'pending').slice(0, 16), String(o.payMode || '').slice(0, 16),
         Number(o.totalAmount) || 0, JSON.stringify(o),
-        Number.isFinite(Date.parse(o.createdAt || '')) ? Date.parse(o.createdAt) : Date.now()]);
+        Number.isFinite(Date.parse(o.createdAt || '')) ? Date.parse(o.createdAt) : Date.now()));
     for (const p of (Array.isArray(o.packages) ? o.packages : [])) {
       if (!p) continue;
-      await d1Run(env,
-        `INSERT OR IGNORE INTO order_packages (order_id, pkg_id, name, price, quantity) VALUES (?,?,?,?,?)`,
-        [String(o.orderId).slice(0, 64), String(p.pkgId || p.id || '-').slice(0, 64),
-          String(p.name || '').slice(0, 120), Number(p.price) || 0, parseInt(p.quantity, 10) || 0]);
+      stmts.push(env.DB.prepare(
+        'INSERT OR IGNORE INTO order_packages (order_id, pkg_id, name, price, quantity) VALUES (?,?,?,?,?)')
+        .bind(String(o.orderId).slice(0, 64), String(p.pkgId || p.id || '-').slice(0, 64),
+          String(p.name || '').slice(0, 120), Number(p.price) || 0, parseInt(p.quantity, 10) || 0));
     }
     orderCount += 1;
+  }
+  for (const batch of stmtChunks(stmts, 90)) {
+    try { await env.DB.batch(batch); }
+    catch (e) { for (const st of batch) { try { await st.run(); } catch (e2) {} } }
   }
   // 账本
   const usersDoc = await r2GetText(env, 'canteen-users.json');
   let balCount = 0, penCount = 0, txnCount = 0;
   if (usersDoc) {
     const u = safeJsonParse(usersDoc, null) || {};
+    const stmtsU = [];
     for (const uid of Object.keys(u.balances || {})) {
       const r = u.balances[uid] || {};
       if (typeof r.balance !== 'number') continue;
       balCount += 1;
-      await d1Run(env,
-        `INSERT OR IGNORE INTO canteen_balances (user_id, name, room_no, balance, updated_at) VALUES (?,?,?,?,?)`,
-        [uid, String(r.name || '').slice(0, 60), String(r.roomNo || '').slice(0, 60),
-          r.balance, Date.parse(r.updatedAt || '') || Date.now()]);
+      stmtsU.push(env.DB.prepare(
+        'INSERT OR IGNORE INTO canteen_balances (user_id, name, room_no, balance, updated_at) VALUES (?,?,?,?,?)')
+        .bind(uid, String(r.name || '').slice(0, 60), String(r.roomNo || '').slice(0, 60),
+          r.balance, Date.parse(r.updatedAt || '') || Date.now()));
     }
     for (const pen of (Array.isArray(u.penalties) ? u.penalties : [])) {
       if (!pen || !pen.userId) continue;
       penCount += 1;
-      await d1Run(env,
+      stmtsU.push(env.DB.prepare(
         `INSERT INTO canteen_penalties (user_id, name, order_id, reason, active, revoked_by, revoked_at, at)
-         VALUES (?,?,?,?,?,?,?,?)`,
-        [String(pen.userId).slice(0, 80), String(pen.name || '').slice(0, 60), pen.orderId || null,
+         VALUES (?,?,?,?,?,?,?,?)`)
+        .bind(String(pen.userId).slice(0, 80), String(pen.name || '').slice(0, 60), pen.orderId || null,
           String(pen.reason || '').slice(0, 160), pen.active ? 1 : 0, pen.revokedBy || null,
-          pen.revokedAt || null, pen.at || new Date().toISOString()]);
+          pen.revokedAt || null, pen.at || new Date().toISOString()));
     }
     for (const t of (Array.isArray(u.transactions) ? u.transactions : [])) {
       if (!t || !t.txnId) continue;
       txnCount += 1;
-      await d1Run(env,
+      stmtsU.push(env.DB.prepare(
         `INSERT OR IGNORE INTO canteen_txns (txn_id, user_id, name, type, amount, order_id, note, at, created_at)
-         VALUES (?,?,?,?,?,?,?,?,?)`,
-        [String(t.txnId).slice(0, 64), String(t.userId || '').slice(0, 80), String(t.name || '').slice(0, 60),
+         VALUES (?,?,?,?,?,?,?,?,?)`)
+        .bind(String(t.txnId).slice(0, 64), String(t.userId || '').slice(0, 80), String(t.name || '').slice(0, 60),
           String(t.type || 'adjust').slice(0, 16), Number(t.amount) || 0, t.orderId || null,
           String(t.note || '').slice(0, 160), t.at || new Date().toISOString(),
-          Date.parse(t.at || '') || Date.now()]);
+          Date.parse(t.at || '') || Date.now()));
+    }
+    for (const batch of stmtChunks(stmtsU, 90)) {
+      try { await env.DB.batch(batch); }
+      catch (e) { for (const st of batch) { try { await st.run(); } catch (e2) {} } }
     }
   }
   await d1Run(env, 'INSERT OR REPLACE INTO doc_meta (key, info, imported_at) VALUES (?,?,?)',
@@ -878,6 +1029,31 @@ async function d1BackfillCanteen(env) {
   await d1Run(env, 'INSERT OR REPLACE INTO doc_meta (key, info, imported_at) VALUES (?,?,?)',
     [DOC_META_CANTEEN_USERS, JSON.stringify({ balances: balCount }), Date.now()]);
   return { skipped: false, orders: orderCount, balances: balCount, penalties: penCount, transactions: txnCount };
+}
+
+// 销量表聚合初始化（一次性）：以订单表真实聚合为准；幂等
+async function d1InitSoldAggregate(env) {
+  const done = await d1First(env, 'SELECT imported_at FROM doc_meta WHERE key=?', [DOC_META_SOLD_INIT]);
+  if (done) return { skipped: true };
+  const cnt = await d1First(env,
+    `WITH agg AS (
+       SELECT o.order_date AS od, o.meal_type AS mt, op.pkg_id AS pid, SUM(op.quantity) AS q
+       FROM order_packages op JOIN canteen_orders o ON o.order_id = op.order_id
+       WHERE o.status != 'cancelled'
+       GROUP BY o.order_date, o.meal_type, op.pkg_id)
+     SELECT COUNT(*) AS c FROM agg`, []);
+  const total = cnt ? (Number(cnt.c) || 0) : 0;
+  if (!total) return { skipped: false, groups: 0 };
+  await d1Run(env,
+    `INSERT INTO canteen_sold (order_date, meal_type, pkg_id, sold)
+     SELECT o.order_date, o.meal_type, op.pkg_id, SUM(op.quantity)
+     FROM order_packages op JOIN canteen_orders o ON o.order_id = op.order_id
+     WHERE o.status != 'cancelled'
+     GROUP BY o.order_date, o.meal_type, op.pkg_id
+     ON CONFLICT (order_date, meal_type, pkg_id) DO UPDATE SET sold = excluded.sold`, []);
+  await d1Run(env, 'INSERT OR REPLACE INTO doc_meta (key, info, imported_at) VALUES (?,?,?)',
+    [DOC_META_SOLD_INIT, JSON.stringify({ groups: total }), Date.now()]);
+  return { skipped: false, groups: total };
 }
 
 async function handleSetup(request, env) {
@@ -892,6 +1068,13 @@ async function handleSetup(request, env) {
   const votesImport = await d1ImportVotes(env);
   const canteenBackfill = await d1BackfillCanteen(env);
 
+  let soldInit = { skipped: true };
+  if (canteenBackfill.skipped) soldInit = await d1InitSoldAggregate(env);
+  else {
+    // 全新导入路径：订单已进表 → 一次性聚合销量
+    try { soldInit = await d1InitSoldAggregate(env); } catch (e) { soldInit = { error: e.message }; }
+  }
+
   const counts = {};
   const q = async (name, sql, params) => {
     try { const r = await d1First(env, sql, params || []); counts[name] = Number((r && Object.values(r)[0]) || 0); }
@@ -904,13 +1087,14 @@ async function handleSetup(request, env) {
   await q('canteen_balances', 'SELECT COUNT(*) FROM canteen_balances');
   await q('canteen_txns', 'SELECT COUNT(*) FROM canteen_txns');
   await q('canteen_penalties', 'SELECT COUNT(*) FROM canteen_penalties');
+  await q('canteen_sold', 'SELECT COUNT(*) FROM canteen_sold');
 
   return jsonResponse({
     success: true,
     by: (admin && (admin.sub || admin.role)) || 'admin',
     storage: 'D1',
     counts: counts,
-    imports: { votes: votesImport, canteen: canteenBackfill },
+    imports: { votes: votesImport, canteen: canteenBackfill, soldInit: soldInit },
     note: 'D1 已启用并完成建表/历史导入'
   });
 }
@@ -929,6 +1113,7 @@ async function handleSetupStatus(request, env) {
                 (SELECT COUNT(*) FROM canteen_orders) AS orders,
                 (SELECT COUNT(*) FROM canteen_balances) AS balances,
                 (SELECT COUNT(*) FROM canteen_txns) AS txns,
+                (SELECT COUNT(*) FROM canteen_sold) AS sold,
                 (SELECT COUNT(*) FROM admins) AS admins`, []);
       out.counts = row;
       const markers = await d1All(env, 'SELECT key, imported_at FROM doc_meta', []);
@@ -936,6 +1121,59 @@ async function handleSetupStatus(request, env) {
     } catch (e) { out.error = e.message; }
   }
   return jsonResponse(out);
+}
+
+/* ===== 食堂历史归档（仅总维护人员）：订单导出到 R2 后从 D1 删除 ===== */
+async function handleCanteenArchive(request, env) {
+  let user;
+  try { user = await requireAuth(request, env); }
+  catch (e) { return jsonResponse({ success: false, error: '需要管理员权限' }, 401); }
+  if (!requireSuper(user)) return jsonResponse({ success: false, error: '仅总维护人员可操作' }, 403);
+  if (!(await d1Ready(env))) return jsonResponse({ success: false, error: 'D1 未启用' }, 400);
+  const body = await request.json().catch(() => ({}));
+  const before = String(body.before || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(before)) {
+    return jsonResponse({ success: false, error: '参数错误：before 需为 YYYY-MM-DD（归档该日期之前的订单）' }, 400);
+  }
+  const rows = await d1All(env,
+    'SELECT order_id, data, order_date, status FROM canteen_orders WHERE order_date < ? ORDER BY created_at ASC', [before]);
+  if (!rows.length) return jsonResponse({ success: true, archived: 0, before: before });
+
+  // 按 ORDER_DATE 年份分组导出到 R2：canteen-archive/<年>.json（与已有归档按 orderId 去重合并）
+  const byYear = {};
+  for (const r of rows) {
+    const order = safeJsonParse(r.data, null);
+    if (!order) continue;
+    const y = (String(order.orderDate || r.order_date || '').slice(0, 4)) || 'unknown';
+    (byYear[y] = byYear[y] || []).push(order);
+  }
+  const years = [];
+  for (const y of Object.keys(byYear)) {
+    const key = 'canteen-archive/' + y + '.json';
+    let existed = [];
+    try { existed = safeJsonParse(await r2GetText(env, key), null) || []; } catch (e) {}
+    let cur = Array.isArray(existed) ? existed : (Array.isArray(existed.orders) ? existed.orders : []);
+    const seen = new Set(cur.map(o => o && o.orderId));
+    for (const o of byYear[y]) {
+      if (o.orderId && !seen.has(o.orderId)) { cur.push(o); seen.add(o.orderId); }
+    }
+    try { await r2PutJson(env, key, JSON.stringify({ version: '1.0', year: y, count: cur.length, orders: cur }, null, 2), 'D1 历史归档 ' + before); } catch (e) {}
+    years.push({ year: y, count: cur.length });
+  }
+
+  // 删除已归档订单（连带套餐行；流水账保留）
+  const ids = rows.map(r => r.order_id);
+  let stmts = [];
+  for (let i = 0; i < ids.length; i += 80) {
+    const ch = ids.slice(i, i + 80);
+    const marks = ch.map(() => '?').join(',');
+    stmts.push(env.DB.prepare('DELETE FROM order_packages WHERE order_id IN (' + marks + ')').bind(...ch));
+    stmts.push(env.DB.prepare('DELETE FROM canteen_orders WHERE order_id IN (' + marks + ')').bind(...ch));
+  }
+  for (const batch of stmtChunks(stmts, 90)) {
+    await env.DB.batch(batch);
+  }
+  return jsonResponse({ success: true, archived: rows.length, before: before, years: years, by: user.sub || user.role });
 }
 
 /* ===== 业主登录（服务端校验房号+姓名+手机后四位/身份证后四位，签发 resident token）===== */
@@ -1153,7 +1391,7 @@ async function handleCanteenOrderD1(request, env, owner, body, dateStr, mealType
     const qty = parseInt(it.quantity, 10);
     if (!qty || qty <= 0 || qty > 50) return jsonResponse({ success: false, error: '份数无效' }, 400);
     const stock = (pkg.stock === -1 || pkg.stock === null || pkg.stock === undefined) ? Infinity : (pkg.stock || 0);
-    const remaining = stock === Infinity ? Infinity : stock - (await soldCountFor(env, dateStr, mealType, String(pkg.id)));
+    const remaining = stock === Infinity ? Infinity : stock - (await soldCountFor(env, dateStr, mealType, String(pkg.id), pkg.sold));
     if (qty > remaining) {
       return jsonResponse({ success: false, error: '订购未成功：「' + pkg.name + '」库存不足，当前仅可订 ' + Math.max(0, remaining) + ' 份' }, 400);
     }
@@ -1208,6 +1446,8 @@ async function handleCanteenOrderD1(request, env, owner, body, dateStr, mealType
       'INSERT OR IGNORE INTO order_packages (order_id, pkg_id, name, price, quantity) VALUES (?,?,?,?,?)')
       .bind(order.orderId, String(p.pkgId).slice(0, 64), String(p.name).slice(0, 120),
         Number(p.price) || 0, p.quantity));
+    // 实时销量原子累加（同一事务内，菜单文档不再每单重写）
+    statements.push(soldAdjustStmts(env, dateStr, mealType, String(p.pkgId), p.quantity));
   }
   if (useBalance) {
     statements.push(env.DB.prepare(
@@ -1234,17 +1474,7 @@ async function handleCanteenOrderD1(request, env, owner, body, dateStr, mealType
     }
   }
 
-  // 库存显示字段最佳努力更新（真实守卫在订单表聚合）
-  try {
-    for (const p of packArr) {
-      const pkg = meal.packages.find(x => x.id === p.pkgId);
-      if (pkg && pkg.stock !== -1 && pkg.stock !== null && pkg.stock !== undefined) {
-        pkg.sold = (pkg.sold || 0) + p.quantity;
-      }
-    }
-    await writeDocJson(env, 'canteen-menu.json', menu, '扣减库存 ' + dateStr + ' ' + mealType);
-  } catch (e) { /* 显示字段，失败可容忍 */ }
-
+  // 库存显示不再重写菜单文档：前端读到的菜单由虚拟视图实时注入 canteen_sold 表数据
   const newBalance = deducted ? Math.round((cur - totalAmount) * 100) / 100 : cur;
   return jsonResponse({
     success: true,
@@ -1417,6 +1647,9 @@ export default {
       }
       if (path === '/api/setup' && request.method === 'GET') {
         return await handleSetupStatus(request, env);
+      }
+      if (path === '/api/canteen/archive' && request.method === 'POST') {
+        return await handleCanteenArchive(request, env);
       }
 
       // ===== 管理员账号管理（仅总维护人员）=====

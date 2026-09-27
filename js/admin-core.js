@@ -1089,6 +1089,14 @@ function renderD1Panel() {
     '<button class="btn btn-primary" onclick="runD1Setup()">🚀 D1 一键初始化</button>' +
     '<button class="btn" onclick="showD1Status()">📋 查看状态</button>' +
     '</div>';
+  html += '<div style="margin-top:14px;padding-top:12px;border-top:1px dashed #e0e0e0;">' +
+    '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">📦 历史订单归档</div>' +
+    '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">把指定日期之前的食堂订单导出到归档文件并从数据库移除（账本流水保留）。订单量大时定期归档可控制库容。</div>' +
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+      '<input id="d1ArchiveDate" type="date" value="' + new Date().getFullYear() + '-01-01" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;">' +
+      '<button class="btn" onclick="runD1Archive()">📦 归档此日期前的订单</button>' +
+    '</div>' +
+  '</div>';
   html += '<pre id="d1Status" style="display:none;margin-top:12px;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;font-size:12px;white-space:pre-wrap;max-height:340px;overflow:auto;">点击上方按钮查看…</pre>';
   html += '</div>';
   return html;
@@ -1127,6 +1135,32 @@ function runD1Setup() {
 
 function showD1Status() {
   d1ApiCall('GET');
+}
+
+async function runD1Archive() {
+  var el = document.getElementById('d1ArchiveDate');
+  var before = el && el.value ? el.value : '';
+  if (!before) { alert('请选择归档日期'); return; }
+  if (!confirm('确定归档 ' + before + ' 之前的全部食堂订单？\n· 订单将导出到归档文件并从数据库移除\n· 余额流水保留，不影响业主端\n· 操作不可自动撤销')) return;
+  var base = getWorkerBase();
+  if (base === null) { showD1Raw('本地模式不可用：请部署后使用'); return; }
+  var box = document.getElementById('d1Status');
+  box.style.display = 'block';
+  box.textContent = '归档中…';
+  try {
+    var res = await fetch(base + '/api/canteen/archive', {
+      method: 'POST',
+      headers: getAdminAuthHeaders(),
+      body: JSON.stringify({ before: before })
+    });
+    var data = await res.json().catch(() => ({}));
+    showD1Raw({ status: res.status, data: data });
+    if (data && data.success && data.archived > 0) {
+      alert('已归档 ' + data.archived + ' 单（' + (data.years || []).map(function(y) { return y.year + '年' + y.count + '单'; }).join('、') + '）');
+    }
+  } catch (e) {
+    showD1Raw({ success: false, error: String(e && e.message || e) });
+  }
 }
 
 function toggleModuleSwitch(key) {
