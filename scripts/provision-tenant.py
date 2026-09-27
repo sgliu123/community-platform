@@ -87,15 +87,21 @@ def main():
             db_uuid = created["result"]["uuid"]
         print(f"[1] D1: {db_name} = {db_uuid}")
 
-        # 2) R2
-        bucket = f"community-uploads-{args.slug}"
+        # 2) R2（可选：无 R2 权限或创建失败时，自动回落共享主桶 + 't<tid>/' 前缀隔离）
+        bucket = None
         bl = api(token, "GET", f"{API}/accounts/{account}/r2/buckets")
-        buckets = [b["name"] for b in ((bl.get("result") or {}).get("buckets") or [])]
-        if bucket not in buckets:
-            cb = api(token, "POST", f"{API}/accounts/{account}/r2/buckets", {"name": bucket})
-            if not ok(cb):
-                sys.exit("创建 R2 失败")
-        print(f"[2] R2: {bucket}")
+        if ok(bl):
+            buckets = [b["name"] for b in ((bl.get("result") or {}).get("buckets") or [])]
+            bucket = f"community-uploads-{args.slug}"
+            if bucket not in buckets:
+                cb = api(token, "POST", f"{API}/accounts/{account}/r2/buckets", {"name": bucket})
+                bucket = bucket if ok(cb) else None
+            if bucket:
+                print(f"[2] R2: {bucket}")
+            else:
+                print("[2] R2 创建失败 → 使用共享主桶前缀隔离")
+        else:
+            print("[2] token 无 R2 权限 → 使用共享主桶前缀隔离")
 
         # 3) 绑定（合并式：只带本次要加的段，Cloudflare 会保留其余配置）
         proj = api(token, "GET", f"{API}/accounts/{account}/pages/projects/{args.project}")
@@ -103,15 +109,16 @@ def main():
             sys.exit("读取 Pages 项目失败")
         prod = (proj["result"].get("deployment_configs") or {}).get("production") or {}
         new_d1 = dict(prod.get("d1_databases") or {})
-        new_r2 = dict(prod.get("r2_buckets") or {})
         new_d1[f"DB_{args.tenant}"] = {"id": db_uuid}
-        new_r2[f"UPLOADS_{args.tenant}"] = {"bucket_name": bucket}
-        patch = api(token, "PATCH", f"{API}/accounts/{account}/pages/projects/{args.project}",
-                    {"deployment_configs": {"production": {
-                        "d1_databases": new_d1, "r2_buckets": new_r2}}})
+        payload = {"deployment_configs": {"production": {"d1_databases": new_d1}}}
+        if bucket:
+            new_r2 = dict(prod.get("r2_buckets") or {})
+            new_r2[f"UPLOADS_{args.tenant}"] = {"bucket_name": bucket}
+            payload["deployment_configs"]["production"]["r2_buckets"] = new_r2
+        patch = api(token, "PATCH", f"{API}/accounts/{account}/pages/projects/{args.project}", payload)
         if not ok(patch):
             sys.exit("绑定失败")
-        print(f"[3] 绑定: DB_{args.tenant} + UPLOADS_{args.tenant}（还需一次发布生效）")
+        print(f"[3] 绑定: DB_{args.tenant}" + (f" + UPLOADS_{args.tenant}" if bucket else "（R2 走共享桶）") + "（还需一次发布生效）")
 
         # 4) 域名
         dom = api(token, "POST", f"{API}/accounts/{account}/pages/projects/{args.project}/domains",
