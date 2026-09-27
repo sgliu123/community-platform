@@ -364,8 +364,7 @@ async function d1Ready(env) {
   return st.p;
 }
 
-async function ensureSchemaD1(db) {
-  const ddl = [
+const D1_DDL = [
     `CREATE TABLE IF NOT EXISTS docs (key TEXT PRIMARY KEY, value TEXT, total INTEGER, updated_at INTEGER, updated_by TEXT)`,
     `CREATE TABLE IF NOT EXISTS doc_chunks (key TEXT, part INTEGER, chunk TEXT, PRIMARY KEY (key, part))`,
     `CREATE TABLE IF NOT EXISTS doc_meta (key TEXT PRIMARY KEY, info TEXT, imported_at INTEGER)`,
@@ -416,8 +415,9 @@ async function ensureSchemaD1(db) {
     `CREATE TABLE IF NOT EXISTS usage_counters (
       scope TEXT, key TEXT, count INTEGER DEFAULT 0, reset_at INTEGER DEFAULT 0,
       PRIMARY KEY (scope, key))`
-  ];
-  for (const sql of ddl) {
+];
+async function ensureSchemaD1(db) {
+  for (const sql of D1_DDL) {
     await db.prepare(sql).run();
   }
 }
@@ -1791,6 +1791,9 @@ export default {
       if (path === '/api/canteen/archive' && request.method === 'POST') {
         return await handleCanteenArchive(request, env);
       }
+      if (path === '/api/tenants/add' && request.method === 'POST') {
+        return await handleTenantAdd(request, env);
+      }
 
       // ===== 管理员账号管理（仅总维护人员）=====
       if (path === '/api/admin/accounts' && request.method === 'GET') {
@@ -2417,6 +2420,177 @@ async function handleImage(request, env) {
   }
 
   return new Response(object.body, { headers });
+}
+
+/* ==================== 自助开通小区（仅主租户总维护人员）==================== */
+
+// 极简 REST 客户端（用于开通：D1/域名/建表）
+async function cfRest(env, method, path, body) {
+  const token = env.CF_PROVISION_TOKEN;
+  const account = env.CF_ACCOUNT_ID;
+  if (!token || !account) return { cfErr: '未配置 CF_PROVISION_TOKEN / CF_ACCOUNT_ID' };
+  const res = await fetch('https://api.cloudflare.com/client/v4/accounts/' + account + path, {
+    method: method,
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  let d = null;
+  try { d = await res.json(); } catch (e) { d = { success: false, errors: [{ message: 'HTTP ' + res.status }] }; }
+  if (!res.ok || !d.success) {
+    const msg = ((d.errors || [])[0] || {}).message || ('HTTP ' + res.status);
+    return { cfErr: msg, payload: d };
+  }
+  return d;
+}
+
+// GitHub 上更新 build 触发文件（仅触发 Pages 重新构建）
+async function ghTriggerBuild(env) {
+  const token = env.GH_PROVISION_TOKEN;
+  const repo = env.GH_PROVISION_REPO || 'sgliu123/community-platform';
+  if (!token) return { ghErr: '未配置 GH_PROVISION_TOKEN' };
+  const path = '_build_trigger.json';
+  const headers = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
+  let sha = null;
+  try {
+    const res = await fetch('https://api.github.com/repos/' + repo + '/contents/' + path + '?ref=main', { headers: headers });
+    if (res.ok) { const d = await res.json(); sha = d.sha; }
+  } catch (e) {}
+  const payload = JSON.stringify({ ts: Date.now() });
+  const bytes = new TextEncoder().encode(payload);
+  let bin = '';
+  for (const bb of bytes) bin += String.fromCharCode(bb);
+  const b64 = btoa(bin);
+  const res = await fetch('https://api.github.com/repos/' + repo + '/contents/' + path, {
+    method: 'PUT',
+    headers: headers,
+    body: JSON.stringify({ message: 'chore(build): provision trigger', content: b64, sha: sha, branch: 'main' })
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    return { ghErr: 'HTTP ' + res.status + ' ' + t.slice(0, 120) };
+  }
+  return { ok: true };
+}
+
+function nextTenantId(list) {
+  let max = 1;
+  for (const t of list) {
+    const m = /^t(\d+)$/.exec(String(t.tid || ''));
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return 't' + String(max + 1).padStart(2, '0');
+}
+
+// 用 REST 在新租户库上建表 + 写引导数据（配置/总维护账号）
+async function bootstrapTenantViaRest(env, dbUuid, tenant, superName, passHash) {
+  const q = async (sql, params) => {
+    const r = await cfRest(env, 'POST', '/d1/database/' + dbUuid + '/query', { sql: sql, params: params || null });
+    if (r.cfErr) throw new Error('D1 ' + r.cfErr);
+    return r;
+  };
+  for (const sql of D1_DDL) { await q(sql, null); }
+  const now = Date.now();
+  const accounts = [{
+    id: 'acc-super-' + tenant.tid, name: superName, role: 'admin-super',
+    roleName: '总维护人员', passHash: passHash,
+    note: (tenant.name || '') + ' 初始总维护（自助开通）', status: 'approved',
+    disabled: false, canDelete: false,
+    appliedAt: new Date().toISOString()
+  }];
+  await q('INSERT INTO docs (key, value, total, updated_at) VALUES (?,?,?,?)',
+    ['data/admin-accounts.json', JSON.stringify(accounts, null, 2), 0, now]);
+  await q('INSERT INTO docs (key, value, total, updated_at) VALUES (?,?,?,?)',
+    ['data/config.json', JSON.stringify({ community: { name: tenant.name || '', address: '', totalUnits: 0, builtYear: '', area: '', propertyCompany: '' } }, null, 2), 0, now]);
+}
+
+async function handleTenantAdd(request, env) {
+  let user;
+  try { user = await requireAuth(request, env); }
+  catch (e) { return jsonResponse({ success: false, error: e.message }, 401); }
+  if (!requireSuper(user)) return jsonResponse({ success: false, error: '仅总维护人员可开通新小区' }, 403);
+  if (env.RID !== DEFAULT_TID) return jsonResponse({ success: false, error: '请在主小区后台（' + DEFAULT_TID + '）操作' }, 403);
+  if (!env.CF_PROVISION_TOKEN || !env.CF_ACCOUNT_ID) {
+    return jsonResponse({ success: false, error: '服务器未配置开通凭据（CF_PROVISION_TOKEN / CF_ACCOUNT_ID），请联系平台方设置' }, 400);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const name = String(body.name || '').trim().slice(0, 30);
+  const prefix = String(body.prefix || '').trim().toLowerCase();
+  const superName = String(body.superName || '').trim().slice(0, 30) || (name + '总维护');
+  const password = String(body.password || '');
+  if (!name) return jsonResponse({ success: false, error: '请填写小区名' }, 400);
+  if (!/^[a-z0-9]{2,20}$/.test(prefix)) return jsonResponse({ success: false, error: '前缀需为 2-20 位小写字母/数字' }, 400);
+  if (!superName) return jsonResponse({ success: false, error: '请填写总维护姓名' }, 400);
+  if (password.length < 6 || password.length > 64) return jsonResponse({ success: false, error: '初始密码需 6-64 位' }, 400);
+
+  const list = env.TENANT_LIST || DEFAULT_TENANTS;
+  const domain = prefix + '.' + (env.TENANT_BASE_DOMAIN || 'firstblade.site');
+  for (const t of list) {
+    const domains = Array.isArray(t.domains) ? t.domains : (t.domain ? [t.domain] : []);
+    if (domains.includes(domain)) return jsonResponse({ success: false, error: '域名已被占用：' + domain }, 409);
+  }
+  const tid = nextTenantId(list);
+  const passHash = await sha256Hex(password);
+
+  // 1) 建 D1（已存在则复用）
+  const dbRes = await cfRest(env, 'GET', '/d1/database?per_page=100');
+  if (dbRes.cfErr) return jsonResponse({ success: false, error: '读取 D1 失败：' + dbRes.cfErr }, 500);
+  let dbUuid = null;
+  for (const row of (dbRes.result || [])) {
+    if (row.name === 'community-' + prefix) dbUuid = row.uuid;
+  }
+  if (!dbUuid) {
+    const created = await cfRest(env, 'POST', '/d1/database', { name: 'community-' + prefix, location_hint: 'apac' });
+    if (created.cfErr) return jsonResponse({ success: false, error: '创建 D1 失败：' + created.cfErr }, 500);
+    dbUuid = created.result.uuid;
+  }
+
+  // 2) 绑定到 Pages 项目（合并式 PATCH）
+  const projName = env.CF_PAGES_PROJECT || 'community-platform';
+  const proj = await cfRest(env, 'GET', '/pages/projects/' + projName);
+  if (proj.cfErr) return jsonResponse({ success: false, error: '读取项目失败：' + proj.cfErr }, 500);
+  const prod = ((proj.result || {}).deployment_configs || {}).production || {};
+  const d1Map = Object.assign({}, prod.d1_databases || {});
+  d1Map[dbBindingName(tid)] = { id: dbUuid };
+  const patched = await cfRest(env, 'PATCH', '/pages/projects/' + projName,
+    { deployment_configs: { production: { d1_databases: d1Map } } });
+  if (patched.cfErr) return jsonResponse({ success: false, error: '绑定失败：' + patched.cfErr }, 500);
+
+  // 3) 注册域名（已存在则忽略；DNS 由通配记录覆盖）
+  const domRes = await cfRest(env, 'POST', '/pages/projects/' + projName + '/domains', { name: domain });
+  const domWarn = domRes.cfErr && String(domRes.cfErr).indexOf('409') < 0 ? '（域名注册提示：' + domRes.cfErr + '）' : '';
+
+  // 4) 直接在新区库建表 + 写引导数据（不等部署）
+  let bootErr = null;
+  try { await bootstrapTenantViaRest(env, dbUuid, { tid: tid, name: name }, superName, passHash); }
+  catch (e) { bootErr = e.message; }
+
+  // 5) 登记进主租户 tenants.json（文档合并）
+  try {
+    await d1Ready(env);
+    const list0 = await readDocJson(env, 'tenants.json', []);
+    const merged = (Array.isArray(list0) ? list0 : []).filter(x => x.tid !== tid).concat([{ tid: tid, name: name, domains: [domain] }]);
+    await writeDocText(env, 'tenants.json', JSON.stringify(merged, null, 2), '开通 ' + name, user.sub || user.role);
+    _tenantCache.at = 0;
+  } catch (e) { if (!bootErr) bootErr = 'tenants.json 登记：' + e.message; }
+
+  // 6) 触发一次发布（使绑定生效）；GitHub 凭据未配置则提示手动发布
+  let build = {};
+  try { build = await ghTriggerBuild(env); } catch (e) { build = { ghErr: e.message }; }
+  const buildMsg = build.ok ? null : (build.ghErr || '未知原因，请手动发布一次仓库');
+
+  return jsonResponse({
+    success: true,
+    tenant: { tid: tid, name: name, domain: domain, db: 'community-' + prefix },
+    superAccount: { name: superName, initialPassword: password },
+    bootstrapOk: !bootErr,
+    bootstrapError: bootErr,
+    buildTriggered: !!build.ok,
+    domainWarn: domWarn || undefined,
+    note: buildMsg
+      ? '配置已就绪；发布未自动触发（' + buildMsg + '）——请手动发布一次仓库（或联系平台方）。'
+      : '已自动触发发布，约 2-3 分钟后域名生效。到该小区后台执行一次「D1 一键初始化」即可完全启用。'
+  });
 }
 
 // ==================== 管理员申请与账号管理 ====================
