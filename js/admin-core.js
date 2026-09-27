@@ -213,12 +213,18 @@ function renderSidebar() {
   const switches = (appData.config && appData.config.moduleSwitches) || {};
   let html = '';
   items.forEach(function(item) {
-    const hasPerm = isSuper || perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0 || perms.indexOf('canEditAll') >= 0;
-    const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
-    if (!hasPerm || !hasRole) return;
-    if (switches[item.id] === false && !isSuper) return;
-    // 账号级板块开关（总维护在「管理员管理」按个人账号设置）
-    if (window.canAccessModule && !window.canAccessModule(item.id)) return;
+    // 板块可见性统一由 canAccessModule 判定（身份默认基线 + 账号级板块开关 + 全局开关），
+    // 与「管理员管理 → 板块权限」勾选面板保持一致；账号显式开启的板块可以超出身份基线显示
+    var visible;
+    if (window.canAccessModule) {
+      visible = window.canAccessModule(item.id);
+    } else {
+      // 兜底：admin-auth.js 未就绪时按旧逻辑（身份基线 + 全局开关）
+      const hasPerm = perms.indexOf('all') >= 0 || perms.indexOf(item.perm) >= 0 || perms.indexOf('canEditAll') >= 0;
+      const hasRole = !item.roles || item.roles.indexOf(currentAdmin.role) >= 0;
+      visible = hasPerm && hasRole && switches[item.id] !== false;
+    }
+    if (!visible) return;
     var isActive = item.id === currentModule;
     var cls = 'nav-item' + (isActive ? ' active' : '');
     var clickAction = item.external ? 'window.open(\'' + item.external + '\',\'_blank\')' : 'navigateTo(\'' + item.id + '\')';
@@ -867,7 +873,8 @@ async function loadAdminAccountsUI() {
   }
 }
 
-// 账号级板块开关的可配置模块清单（与侧边栏 data-module 一致；总维护/开发者专属模块对个人账号恒不可见，无需列出）
+// 账号级板块开关的可配置模块清单（与侧边栏实际渲染的板块完全一致；
+// admin-manage / dev-tools 仅总维护人员可用，audit 无侧边栏入口，均不在个人账号可配置范围内）
 var ACCOUNT_MODULE_LIST = [
   { id: 'dashboard', name: '仪表盘' },
   { id: 'config', name: '社区配置' },
@@ -876,7 +883,6 @@ var ACCOUNT_MODULE_LIST = [
   { id: 'activities', name: '动态管理' },
   { id: 'polls', name: '投票管理' },
   { id: 'residents', name: '业主管理' },
-  { id: 'audit', name: '审批管理' },
   { id: 'workorders', name: '工单管理' },
   { id: 'complaints', name: '投诉建议' },
   { id: 'settings', name: '系统设置' },
@@ -884,12 +890,25 @@ var ACCOUNT_MODULE_LIST = [
   { id: 'trade', name: '交易管理' }
 ];
 
-// 各角色在侧边栏本就可见的模块（-panel 只应展示该角色能力范围内的开关，避免"勾了也没用"的迷惑项）
+// 各身份在侧边栏默认可见的板块（账号级开关未显式设置时按此基线显示）
 var ROLE_MODULE_MAP = {
   'admin-property':  ['dashboard', 'announcements', 'documents', 'residents', 'workorders', 'life', 'trade', 'settings'],
   'admin-committee': ['dashboard', 'polls', 'residents', 'complaints', 'life', 'trade', 'settings'],
   'admin-community': ['dashboard', 'announcements', 'activities', 'complaints', 'life', 'trade', 'settings']
 };
+
+// 全局板块开关是否关闭了某板块（开发者工具 / 模块配置，对非总维护人员生效）
+function isModuleGloballyOff(moduleId) {
+  try {
+    var sw = (window.appData && window.appData.config && window.appData.config.moduleSwitches) || null;
+    if (sw && sw[moduleId] === false) return true;
+  } catch (e) {}
+  try {
+    var cfg = (typeof window.getModuleConfig === 'function') ? window.getModuleConfig() : null;
+    if (cfg && cfg.modules && cfg.modules[moduleId] && cfg.modules[moduleId].visible === false) return true;
+  } catch (e) {}
+  return false;
+}
 
 function buildAccountsHtml(accounts) {
   var html = '';
@@ -919,11 +938,20 @@ function buildAccountsHtml(accounts) {
     html += '<p style="color:var(--text-secondary);font-size:13px;">暂无已审批的个人账号（5 个内置身份由环境变量管理，不在此列表）。</p>';
   } else {
     approved.forEach(function(a) {
-      var roleAllowed = ROLE_MODULE_MAP[a.role] || ACCOUNT_MODULE_LIST.map(function(m){ return m.id; });
-      var modsGrid = ACCOUNT_MODULE_LIST.filter(function(m){ return roleAllowed.indexOf(m.id) >= 0; }).map(function(m) {
-        var checked = !(a.modules && a.modules[m.id] === false);
-        return '<label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;">' +
-          '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleAdminAccountModules(\'' + a.id + '\',\'' + m.id + '\',this.checked)">' + m.name + '</label>';
+      // 完整板块清单 + 实际生效状态：
+      // 勾选 = 实际可见（账号显式设置 > 身份默认基线），全局关闭的板块标灰不可勾，保证面板与侧边栏一致
+      var acctMods = (a.modules && typeof a.modules === 'object') ? a.modules : {};
+      var roleKey = String(a.role || '');
+      if (roleKey.indexOf('admin-') !== 0) roleKey = 'admin-' + roleKey;
+      var roleAllowed = ROLE_MODULE_MAP[roleKey] || [];
+      var modsGrid = ACCOUNT_MODULE_LIST.map(function(m) {
+        var acctSet = Object.prototype.hasOwnProperty.call(acctMods, m.id);
+        var checked = acctSet ? !!acctMods[m.id] : (roleAllowed.indexOf(m.id) >= 0);
+        var globalOff = isModuleGloballyOff(m.id);
+        var disabledAttr = globalOff ? ' disabled title="该板块已全局关闭，需先在开发者工具中开启"' : '';
+        var offTag = globalOff ? ' <span style="font-size:11px;color:#c62828;">（全局已关）</span>' : '';
+        return '<label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:' + (globalOff ? 'not-allowed' : 'pointer') + ';">' +
+          '<input type="checkbox" ' + (checked ? 'checked' : '') + disabledAttr + ' onchange="toggleAdminAccountModules(\'' + a.id + '\',\'' + m.id + '\',this.checked)">' + m.name + offTag + '</label>';
       }).join('');
       html += '<div style="padding:10px;background:' + (a.disabled ? '#f5f5f5' : '#e8f5e9') + ';border-radius:6px;margin-bottom:8px;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
