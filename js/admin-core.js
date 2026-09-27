@@ -1073,7 +1073,60 @@ function renderDevTools() {
     '</div>';
   html += '<p style="font-size:12px;color:var(--text-secondary);margin-top:12px;">💡 提示：修改保存后立即生效。敏感模块建议保持开启。</p>';
   html += '</div>';
+  html += renderD1Panel();
   return html;
+}
+
+/* ===== D1 数据库（一键初始化 / 状态）===== */
+function renderD1Panel() {
+  var html = '<div class="card" style="margin-top:18px;border:1px solid #e3f2fd;">';
+  html += '<div class="card-header"><h3>🗄️ 存储引擎 D1</h3></div>';
+  html += '<p style="font-size:13px;color:var(--text-secondary);line-height:1.7;">' +
+    '系统已完成 D1（Cloudflare 数据库）改造：结构化数据迁入 D1（大容量、强一致、防并发覆盖），图片等大文件仍在 R2。' +
+    '<br>首次启用需要点一次「一键初始化」：自动建表 + 导入历史投票/食堂订单数据。' +
+    '</p>';
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+    '<button class="btn btn-primary" onclick="runD1Setup()">🚀 D1 一键初始化</button>' +
+    '<button class="btn" onclick="showD1Status()">📋 查看状态</button>' +
+    '</div>';
+  html += '<pre id="d1Status" style="display:none;margin-top:12px;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;font-size:12px;white-space:pre-wrap;max-height:340px;overflow:auto;">点击上方按钮查看…</pre>';
+  html += '</div>';
+  return html;
+}
+
+function showD1Raw(data) {
+  var el = document.getElementById('d1Status');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+}
+
+async function d1ApiCall(method) {
+  var base = getWorkerBase();
+  if (base === null) { showD1Raw('本地模式不可用：请部署后使用'); return; }
+  var el = document.getElementById('d1Status');
+  el.style.display = 'block';
+  el.textContent = '请求中…';
+  try {
+    var res = await fetch(base + '/api/setup', { method: method, headers: getAdminAuthHeaders() });
+    var data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showD1Raw({ success: false, status: res.status, error: data.error || '请求失败' });
+      return;
+    }
+    showD1Raw(data);
+  } catch (e) {
+    showD1Raw({ success: false, error: String(e && e.message || e) });
+  }
+}
+
+function runD1Setup() {
+  if (!confirm('确定执行 D1 一键初始化？\n将建表并导入历史投票/食堂数据（幂等，可重复执行）。')) return;
+  d1ApiCall('POST');
+}
+
+function showD1Status() {
+  d1ApiCall('GET');
 }
 
 function toggleModuleSwitch(key) {

@@ -1,7 +1,9 @@
 // ==========================================
 // Cloudflare Pages _worker.js (社区数字化平台)
 // 部署方式：放在仓库根目录，Cloudflare Pages 自动识别
-// 绑定要求：R2 bucket "community-uploads" (binding: UPLOADS)
+// 绑定要求：
+//   R2 bucket "community-uploads" (binding: UPLOADS) —— 二进制文件与旧数据源
+//   D1 database (binding: DB) —— 结构化数据（可选；未绑定自动回退 R2）
 // ==========================================
 
 const API_BASE = ''; // 同域相对路径，前端无需写死域名
@@ -33,19 +35,13 @@ async function sha256Hex(text) {
 const ADMIN_ACCOUNTS_PATH = 'data/admin-accounts.json';
 
 async function readAdminAccounts(env) {
-  const obj = await env.UPLOADS.get(ADMIN_ACCOUNTS_PATH);
-  if (!obj) return [];
-  try {
-    const data = JSON.parse(await obj.text());
-    return Array.isArray(data) ? data : (Array.isArray(data.accounts) ? data.accounts : []);
-  } catch (e) { return []; }
+  const data = await readDocJson(env, ADMIN_ACCOUNTS_PATH, []);
+  return Array.isArray(data) ? data : (Array.isArray(data.accounts) ? data.accounts : []);
 }
 
 async function writeAdminAccounts(env, accounts, actor) {
-  await env.UPLOADS.put(ADMIN_ACCOUNTS_PATH, JSON.stringify(accounts, null, 2), {
-    httpMetadata: { contentType: 'application/json', cacheControl: 'no-cache, no-store, must-revalidate' },
-    customMetadata: { updatedAt: new Date().toISOString(), updatedBy: actor || 'system' }
-  });
+  await writeDocText(env, ADMIN_ACCOUNTS_PATH, JSON.stringify(accounts, null, 2),
+    '管理员账号更新', actor || 'system');
 }
 
 // 申请类账号的状态文案（直观区分拒绝原因）
@@ -186,42 +182,807 @@ async function verifyResidentRequest(request, env) {
 }
 
 async function readJsonFile(env, filePath, fallback) {
-  try {
-    const obj = await env.UPLOADS.get(filePath);
-    if (!obj) return fallback;
-    const txt = await obj.text();
-    return txt ? JSON.parse(txt) : fallback;
-  } catch (e) { return fallback; }
+  const text = await readDocText(env, filePath);
+  if (text === null || text === undefined) return fallback;
+  const v = safeJsonParse(text, null);
+  return v === null ? fallback : v;
 }
 
 async function writeJsonFile(env, filePath, data, message) {
-  await env.UPLOADS.put(filePath, JSON.stringify(data, null, 2), {
+  await writeDocJson(env, filePath, data, message);
+}
+
+/* =====================================================================
+ * D1 存储层（大容量 + 强一致）
+ * - 结构化数据主存 D1（docs/doc_chunks 自动分片，旧 KV 25MB / R2 单值上限解除）
+ * - R2 保留为迁移只读源 + 镜像写（未绑定 DB 时 100% 走 R2 回退）
+ * - 惰性导入：D1 未命中 → 读 R2 → 自动导入 D1
+ * - 虚拟视图：canteen-orders / canteen-users / polls-responses 表化，
+ *   对通用 /api/read|write 完全透明（旧键名读写照常工作）
+ * ===================================================================== */
+
+const D1_CHUNK = 900000; // 单 chunk 字符数（< D1 绑定参数 1MB 上限）
+const D1_DOC_MIRROR_LIMIT = 20 * 1024 * 1024; // 超过 20MB 不镜像回 R2
+const D1_FAIL_LIMIT = 3;
+
+// 虚拟键（由表支撑的文档键）
+const V_CANTEEN_ORDERS = 'canteen-orders.json';
+const V_CANTEEN_USERS = 'canteen-users.json';
+const DOC_META_CANTEEN_ORDERS = 'import:canteen-orders.json';
+const DOC_META_CANTEEN_USERS = 'import:canteen-users.json';
+
+const D1_STATE = { db: null, ready: false, fails: 0 };
+function hasDb(env) {
+  return !!(env && env.DB && typeof env.DB.prepare === 'function');
+}
+
+let _schemaPromise = null;
+async function d1Ready(env) {
+  if (!hasDb(env)) return false;
+  if (D1_STATE.db === env.DB) {
+    if (D1_STATE.ready) return true;
+    if (D1_STATE.fails >= D1_FAIL_LIMIT) return false;
+  }
+  if (!_schemaPromise) {
+    _schemaPromise = (async () => {
+      await ensureSchemaD1(env.DB);
+      D1_STATE.db = env.DB;
+      D1_STATE.ready = true;
+      D1_STATE.fails = 0;
+      return true;
+    })().catch(e => {
+      try { console.error('D1 初始化失败:', e && e.message); } catch (e2) {}
+      D1_STATE.db = env.DB;
+      D1_STATE.ready = false;
+      D1_STATE.fails += 1;
+      _schemaPromise = null;
+      return false;
+    });
+  }
+  return _schemaPromise;
+}
+
+async function ensureSchemaD1(db) {
+  const ddl = [
+    `CREATE TABLE IF NOT EXISTS docs (key TEXT PRIMARY KEY, value TEXT, total INTEGER, updated_at INTEGER, updated_by TEXT)`,
+    `CREATE TABLE IF NOT EXISTS doc_chunks (key TEXT, part INTEGER, chunk TEXT, PRIMARY KEY (key, part))`,
+    `CREATE TABLE IF NOT EXISTS doc_meta (key TEXT PRIMARY KEY, info TEXT, imported_at INTEGER)`,
+    `CREATE TABLE IF NOT EXISTS votes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      poll_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      room_no TEXT, name TEXT, area REAL DEFAULT 0,
+      choice TEXT, vote_time TEXT, ip_hash TEXT, device_hash TEXT, nonce TEXT,
+      prev_hash TEXT DEFAULT '',
+      bucket TEXT, seq INTEGER DEFAULT 0, created_at INTEGER,
+      UNIQUE (poll_id, user_id))`,
+    `CREATE INDEX IF NOT EXISTS idx_votes_bucket ON votes (bucket, seq)`,
+    `CREATE INDEX IF NOT EXISTS idx_votes_poll ON votes (poll_id, seq)`,
+    `CREATE TABLE IF NOT EXISTS canteen_orders (
+      order_id TEXT PRIMARY KEY,
+      user_id TEXT, order_date TEXT, meal_type TEXT,
+      status TEXT, pay_mode TEXT, total REAL DEFAULT 0,
+      data TEXT, created_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_co_date ON canteen_orders (created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_co_user ON canteen_orders (user_id, created_at)`,
+    `CREATE TABLE IF NOT EXISTS order_packages (
+      order_id TEXT, pkg_id TEXT, name TEXT, price REAL DEFAULT 0, quantity INTEGER DEFAULT 0,
+      PRIMARY KEY (order_id, pkg_id))`,
+    `CREATE INDEX IF NOT EXISTS idx_op_pkg ON order_packages (pkg_id)`,
+    `CREATE TABLE IF NOT EXISTS canteen_balances (
+      user_id TEXT PRIMARY KEY, name TEXT, room_no TEXT,
+      balance REAL DEFAULT 0, updated_at INTEGER)`,
+    `CREATE TABLE IF NOT EXISTS canteen_txns (
+      txn_id TEXT PRIMARY KEY, user_id TEXT, name TEXT, type TEXT,
+      amount REAL DEFAULT 0, order_id TEXT, note TEXT, at TEXT, created_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_ctx_user ON canteen_txns (user_id, created_at)`,
+    `CREATE TABLE IF NOT EXISTS canteen_penalties (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT, name TEXT, order_id TEXT, reason TEXT,
+      active INTEGER DEFAULT 1, revoked_by TEXT, revoked_at TEXT, at TEXT)`,
+    `CREATE TABLE IF NOT EXISTS admins (
+      kind TEXT, key TEXT, username TEXT,
+      salt TEXT, iters INTEGER, hash TEXT, upgraded_at INTEGER,
+      PRIMARY KEY (kind, key))`,
+    `CREATE TABLE IF NOT EXISTS auth_fails (
+      scope TEXT, key TEXT, count INTEGER DEFAULT 0, until INTEGER DEFAULT 0,
+      PRIMARY KEY (scope, key))`,
+    `CREATE TABLE IF NOT EXISTS usage_counters (
+      scope TEXT, key TEXT, count INTEGER DEFAULT 0, reset_at INTEGER DEFAULT 0,
+      PRIMARY KEY (scope, key))`
+  ];
+  for (const sql of ddl) {
+    await db.prepare(sql).run();
+  }
+}
+
+/* ---------- D1 基础访问（与 D1 官方 API 同形，node:sqlite 垫片可复用） ---------- */
+
+async function d1All(env, sql, params) {
+  const stmt = env.DB.prepare(sql).bind(...(params || []));
+  const res = await stmt.all();
+  return (res && res.results) ? res.results : [];
+}
+
+async function d1First(env, sql, params) {
+  const stmt = env.DB.prepare(sql).bind(...(params || []));
+  return await stmt.first();
+}
+
+async function d1Run(env, sql, params) {
+  const stmt = env.DB.prepare(sql).bind(...(params || []));
+  const res = await stmt.run();
+  return res; // { success, meta: { changes, ... } }
+}
+
+/* ---------- 限流（D1 持久化；未启用 D1 时不启用） ---------- */
+
+async function d1IsLocked(env, scope, key) {
+  try {
+    const row = await d1First(env,
+      'SELECT count, until FROM auth_fails WHERE scope=? AND key=?', [scope, String(key)]);
+    if (row && Number(row.until) > Date.now() && Number(row.count) >= 5) return true;
+    return false;
+  } catch (e) { return false; }
+}
+async function d1RecordFail(env, scope, key, windowMs) {
+  const now = Date.now();
+  try {
+    await d1Run(env,
+      `INSERT INTO auth_fails (scope, key, count, until) VALUES (?,?,1,?)
+       ON CONFLICT (scope, key) DO UPDATE SET
+         count = CASE WHEN until <= ? THEN 1 ELSE count + 1 END,
+         until = CASE WHEN until <= ? THEN ? ELSE until END`,
+      [scope, String(key), now + windowMs, now, now, now + windowMs]);
+  } catch (e) {}
+}
+async function d1ClearFails(env, scope, key) {
+  try { await d1Run(env, 'DELETE FROM auth_fails WHERE scope=? AND key=?', [scope, String(key)]); } catch (e) {}
+}
+// 计数限流（返回是否放行）：scope 维度的滑动窗口计数
+async function d1AllowUsage(env, scope, key, max, windowMs) {
+  const now = Date.now();
+  try {
+    const row = await d1First(env,
+      'SELECT count, reset_at FROM usage_counters WHERE scope=? AND key=?', [scope, String(key)]);
+    if (!row || Number(row.reset_at) <= now) {
+      await d1Run(env,
+        `INSERT INTO usage_counters (scope, key, count, reset_at) VALUES (?,?,1,?)
+         ON CONFLICT (scope, key) DO UPDATE SET count=1, reset_at=?`,
+        [scope, String(key), now + windowMs, now + windowMs]);
+      return true;
+    }
+    if (Number(row.count) >= max) return false;
+    await d1Run(env, 'UPDATE usage_counters SET count = count + 1 WHERE scope=? AND key=?', [scope, String(key)]);
+    return true;
+  } catch (e) { return true; } // 限流器故障不阻塞业务
+}
+
+/* ---------- PBKDF2 口令散列（管理员登录升级） ---------- */
+
+async function pbkdf2Hash(password, saltHex, iters) {
+  const enc = new TextEncoder();
+  const keyMat = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const salt = new Uint8Array((saltHex.match(/.{2}/g) || []).map(h => parseInt(h, 16)));
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: salt, iterations: iters }, keyMat, 256);
+  return Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function randomHex(n) {
+  const a = new Uint8Array(n);
+  crypto.getRandomValues(a);
+  return Array.from(a).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+// 登录成功后把口令升级为 PBKDF2（幂等；口令变更时自动覆盖）
+async function upgradeAdminPassword(env, kind, key, username, password) {
+  if (!D1_STATE.ready || !password) return;
+  try {
+    const iters = 100000;
+    const salt = randomHex(16);
+    const hash = await pbkdf2Hash(password, salt, iters);
+    await d1Run(env,
+      `INSERT INTO admins (kind, key, username, salt, iters, hash, upgraded_at) VALUES (?,?,?,?,?,?,?)
+       ON CONFLICT (kind, key) DO UPDATE SET username=excluded.username, salt=excluded.salt,
+         iters=excluded.iters, hash=excluded.hash, upgraded_at=excluded.upgraded_at`,
+      [kind, key, username || '', salt, iters, hash, Date.now()]);
+  } catch (e) {}
+}
+
+/* ---------- 虚拟视图：投票（polls-responses/*） ---------- */
+
+function voteLegacyObj(r) {
+  return {
+    pollId: r.pollId,
+    residentId: r.residentId,
+    roomNo: r.roomNo,
+    area: typeof r.area === 'number' ? r.area : Number(r.area) || 0,
+    choice: r.choice,
+    voteTime: r.voteTime,
+    ipHash: r.ipHash,
+    deviceHash: r.deviceHash,
+    nonce: r.nonce,
+    prevHash: r.prevHash || ''
+  };
+}
+
+async function virtualVotesRead(env, key) {
+  const rows = await d1All(env,
+    `SELECT poll_id, user_id, room_no, name, area, choice, vote_time, ip_hash, device_hash, nonce, prev_hash
+     FROM votes WHERE bucket=? AND seq>=0 ORDER BY seq ASC, id ASC`, [key]);
+  return rows.map(r => voteLegacyObj({
+    pollId: r.poll_id, residentId: r.user_id, roomNo: r.room_no, area: Number(r.area) || 0,
+    choice: safeJsonParse(r.choice, r.choice), voteTime: r.vote_time,
+    ipHash: r.ip_hash, deviceHash: r.device_hash, nonce: r.nonce, prevHash: r.prev_hash
+  }));
+}
+
+function safeJsonParse(text, fallback) {
+  try { return JSON.parse(text); } catch (e) { return fallback; }
+}
+
+/* ---------- 虚拟视图：食堂订单（canteen-orders.json） ---------- */
+
+async function virtualOrdersRead(env) {
+  const rows = await d1All(env,
+    'SELECT data, created_at FROM canteen_orders ORDER BY created_at DESC LIMIT 2000', []);
+  const orders = rows.map(r => safeJsonParse(r.data, null)).filter(Boolean);
+  return JSON.stringify({
+    version: '1.0',
+    updatedAt: new Date().toISOString(),
+    orders: orders
+  });
+}
+
+function orderCreatedAtTs(o) {
+  const t = Date.parse(o && (o.createdAt || o.orderDate) || '');
+  return Number.isFinite(t) ? t : Date.now();
+}
+
+// 管理端整表写：按 orderId UPSERT；表内存在但本次缺失且创建时间早于 10 分钟的视为删除，
+// 最近 10 分钟内新建的订单保留（防止管理员整表覆盖误删刚下的单）
+async function virtualOrdersWrite(env, payload) {
+  const orders = Array.isArray(payload) ? payload : (Array.isArray(payload && payload.orders) ? payload.orders : []);
+  if (!orders.length) return true;
+  const now = Date.now();
+  const cutoff = now - 10 * 60 * 1000;
+  const incomingIds = [];
+  for (const o of orders) {
+    if (!o || typeof o !== 'object') continue;
+    const orderId = String(o.orderId || '').slice(0, 64);
+    if (!orderId) continue;
+    incomingIds.push(orderId);
+    const pkgs = Array.isArray(o.packages) ? o.packages : [];
+    for (const p of pkgs) {
+      if (!p) continue;
+      await d1Run(env,
+        `INSERT INTO order_packages (order_id, pkg_id, name, price, quantity) VALUES (?,?,?,?,?)
+         ON CONFLICT (order_id, pkg_id) DO UPDATE SET name=excluded.name, price=excluded.price, quantity=excluded.quantity`,
+        [orderId, String(p.pkgId || p.id || '').slice(0, 64) || '-', String(p.name || '').slice(0, 120),
+          Number(p.price) || 0, parseInt(p.quantity, 10) || 0]);
+    }
+    await d1Run(env,
+      `INSERT INTO canteen_orders (order_id, user_id, order_date, meal_type, status, pay_mode, total, data, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?)
+       ON CONFLICT (order_id) DO UPDATE SET user_id=excluded.user_id, order_date=excluded.order_date,
+         meal_type=excluded.meal_type, status=excluded.status, pay_mode=excluded.pay_mode,
+         total=excluded.total, data=excluded.data`,
+      [orderId, String(o.userId || '').slice(0, 80), String(o.orderDate || '').slice(0, 10),
+        String(o.mealType || '').slice(0, 16), String(o.status || 'pending').slice(0, 16),
+        String(o.payMode || '').slice(0, 16), Number(o.totalAmount) || 0,
+        JSON.stringify(o), orderCreatedAtTs(o)]);
+  }
+  // 删除：管理端整表里不再出现的旧订单。
+  // 安全边界：联合读最多回 2000 条，若管理端整表写丢失窗口外的旧订单，
+  // 仅允许删除「创建时间不早于载荷最早一单」的记录（即读窗口内可见的），更早的保留。
+  const stored = await d1All(env, 'SELECT order_id, created_at FROM canteen_orders', []);
+  const incomingSet = new Set(incomingIds);
+  const incomingMinTs = orders.length
+    ? Math.min.apply(null, orders.map(orderCreatedAtTs))
+    : Infinity;
+  for (const row of stored) {
+    if (!incomingSet.has(row.order_id) && Number(row.created_at) < cutoff &&
+        Number(row.created_at) >= incomingMinTs) {
+      await d1Run(env, 'DELETE FROM order_packages WHERE order_id=?', [row.order_id]);
+      await d1Run(env, 'DELETE FROM canteen_orders WHERE order_id=?', [row.order_id]);
+    }
+  }
+  return true;
+}
+
+function pkgSoldKey(o, p) {
+  return { date: String(o.orderDate || ''), meal: String(o.mealType || ''), pkgId: String(p.pkgId || p.id || '') };
+}
+
+// 某套餐在 D1 模式下的真实已售数量（依据未取消订单聚合，库存守卫不再依赖文档 sold 字段）
+async function soldCountFor(env, dateStr, mealType, pkgId) {
+  const row = await d1First(env,
+    `SELECT COALESCE(SUM(op.quantity),0) AS sold
+     FROM order_packages op JOIN canteen_orders o ON o.order_id = op.order_id
+     WHERE o.order_date=? AND o.meal_type=? AND o.status != 'cancelled' AND op.pkg_id=?`,
+    [dateStr, mealType, pkgId]);
+  return row ? (Number(row.sold) || 0) : 0;
+}
+
+/* ---------- 虚拟视图：食堂账本（canteen-users.json） ---------- */
+
+async function virtualUsersRead(env) {
+  const balRows = await d1All(env,
+    'SELECT user_id, name, room_no, balance, updated_at FROM canteen_balances', []);
+  const penRows = await d1All(env,
+    `SELECT id, user_id, name, order_id, reason, active, revoked_by, revoked_at, at
+     FROM canteen_penalties ORDER BY id ASC`, []);
+  const txnRows = await d1All(env,
+    `SELECT txn_id, user_id, name, type, amount, order_id, note, at, created_at
+     FROM canteen_txns ORDER BY created_at DESC, txn_id DESC LIMIT 300`, []);
+  const balances = {};
+  for (const r of balRows) {
+    balances[r.user_id] = {
+      userId: r.user_id, name: r.name || '', roomNo: r.room_no || '',
+      balance: Math.round((Number(r.balance) || 0) * 100) / 100,
+      updatedAt: r.updated_at ? new Date(Number(r.updated_at)).toISOString() : undefined
+    };
+  }
+  const penalties = penRows.map(r => ({
+    userId: r.user_id, name: r.name || '', orderId: r.order_id || null,
+    reason: r.reason || '', at: r.at || new Date().toISOString(),
+    active: !!Number(r.active), revokedBy: r.revoked_by || null, revokedAt: r.revoked_at || null
+  }));
+  const transactions = txnRows.map(r => ({
+    txnId: r.txn_id, userId: r.user_id, name: r.name || '', type: r.type || 'adjust',
+    amount: Math.round((Number(r.amount) || 0) * 100) / 100, orderId: r.order_id || null,
+    note: r.note || '', at: r.at || new Date().toISOString()
+  }));
+  return JSON.stringify({
+    version: '1.0', updatedAt: new Date().toISOString(),
+    balances: balances, penalties: penalties, transactions: transactions
+  });
+}
+
+async function virtualUsersWrite(env, payload) {
+  const p = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
+  const balances = p.balances && typeof p.balances === 'object' ? p.balances : {};
+  for (const uid of Object.keys(balances)) {
+    const r = balances[uid] || {};
+    if (typeof r.balance !== 'number') continue;
+    await d1Run(env,
+      `INSERT INTO canteen_balances (user_id, name, room_no, balance, updated_at) VALUES (?,?,?,?,?)
+       ON CONFLICT (user_id) DO UPDATE SET name=excluded.name, room_no=excluded.room_no,
+         balance=excluded.balance, updated_at=excluded.updated_at`,
+      [uid, String(r.name || '').slice(0, 60), String(r.roomNo || '').slice(0, 60),
+        Math.round(r.balance * 100) / 100, Date.parse(r.updatedAt || '') || Date.now()]);
+  }
+  if (Array.isArray(p.penalties)) {
+    await d1Run(env, 'DELETE FROM canteen_penalties', []);
+    let i = 0;
+    for (const pen of p.penalties) {
+      i += 1;
+      if (!pen || !pen.userId) continue;
+      await d1Run(env,
+        `INSERT INTO canteen_penalties (user_id, name, order_id, reason, active, revoked_by, revoked_at, at)
+         VALUES (?,?,?,?,?,?,?,?)`,
+        [String(pen.userId).slice(0, 80), String(pen.name || '').slice(0, 60),
+          pen.orderId ? String(pen.orderId).slice(0, 64) : null,
+          String(pen.reason || '').slice(0, 160),
+          pen.active ? 1 : 0, pen.revokedBy || null, pen.revokedAt || null,
+          pen.at || new Date().toISOString()]);
+    }
+    void i;
+  }
+  if (Array.isArray(p.transactions)) {
+    for (const t of p.transactions) {
+      if (!t || !t.txnId) continue;
+      await d1Run(env,
+        `INSERT OR IGNORE INTO canteen_txns (txn_id, user_id, name, type, amount, order_id, note, at, created_at)
+         VALUES (?,?,?,?,?,?,?,?,?)`,
+        [String(t.txnId).slice(0, 64), String(t.userId || '').slice(0, 80), String(t.name || '').slice(0, 60),
+          String(t.type || 'adjust').slice(0, 16), Number(t.amount) || 0,
+          t.orderId ? String(t.orderId).slice(0, 64) : null,
+          String(t.note || '').slice(0, 160), t.at || new Date().toISOString(), Date.parse(t.at || '') || Date.now()]);
+    }
+  }
+  return true;
+}
+
+/* ---------- 文档读写核心（D1 + R2 桥接） ---------- */
+
+async function r2GetText(env, key) {
+  try {
+    const obj = await env.UPLOADS.get(key);
+    if (!obj) return null;
+    return await obj.text();
+  } catch (e) { return null; }
+}
+
+async function d1WriteDocChunks(env, key, text) {
+  const now = Date.now();
+  if (text.length <= D1_CHUNK) {
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM doc_chunks WHERE key=?').bind(key),
+      env.DB.prepare(
+        `INSERT INTO docs (key, value, total, updated_at) VALUES (?,?,?,?)
+         ON CONFLICT (key) DO UPDATE SET value=excluded.value, total=excluded.total, updated_at=excluded.updated_at`)
+        .bind(key, text, text.length, now)
+    ]);
+    return;
+  }
+  const parts = [];
+  for (let i = 0; i * D1_CHUNK < text.length; i++) {
+    parts.push(text.slice(i * D1_CHUNK, (i + 1) * D1_CHUNK));
+  }
+  const stmts = [
+    env.DB.prepare('DELETE FROM doc_chunks WHERE key=?').bind(key),
+    env.DB.prepare('UPDATE docs SET value=NULL, total=?, updated_at=? WHERE key=?').bind(text.length, now, key)
+  ];
+  let i = 0;
+  for (const chunk of parts) {
+    stmts.push(env.DB.prepare(
+      `INSERT INTO doc_chunks (key, part, chunk) VALUES (?,?,?)
+       ON CONFLICT (key, part) DO UPDATE SET chunk=excluded.chunk`).bind(key, i, chunk));
+    i += 1;
+    if (stmts.length >= 90) { // D1 单批次语句数量限制内
+      await env.DB.batch(stmts);
+      stmts.length = 0;
+    }
+  }
+  stmts.push(env.DB.prepare(
+    `INSERT INTO docs (key, value, total, updated_at) VALUES (?,NULL,?,?)
+     ON CONFLICT (key) DO UPDATE SET value=NULL, total=excluded.total, updated_at=excluded.updated_at`)
+    .bind(key, text.length, now));
+  await env.DB.batch(stmts);
+}
+
+async function d1ReadDocText(env, key) {
+  const row = await d1First(env, 'SELECT value, total FROM docs WHERE key=?', [key]);
+  if (!row) return null;
+  if (row.value !== null && row.value !== undefined) return String(row.value);
+  const parts = await d1All(env, 'SELECT part, chunk FROM doc_chunks WHERE key=? ORDER BY part ASC', [key]);
+  if (!parts.length) return null;
+  return parts.map(p => String(p.chunk)).join('');
+}
+
+async function d1ImportDoc(env, key, text) {
+  try {
+    if (await d1First(env, 'SELECT key FROM docs WHERE key=?', [key])) return;
+    await d1WriteDocChunks(env, key, text);
+  } catch (e) { /* 导入失败不阻塞读路径 */ }
+}
+
+async function readDocText(env, key) {
+  if (await d1Ready(env)) {
+    try {
+      if (key === V_CANTEEN_ORDERS) return await virtualOrdersRead(env);
+      if (key === V_CANTEEN_USERS) return await virtualUsersRead(env);
+      if (key.startsWith('polls-responses/')) return JSON.stringify(await virtualVotesRead(env, key));
+      const text = await d1ReadDocText(env, key);
+      if (text !== null) return text;
+      const legacy = await r2GetText(env, key);
+      if (legacy !== null) {
+        await d1ImportDoc(env, key, legacy);
+        return legacy;
+      }
+      return null;
+    } catch (e) {
+      // D1 故障时降级 R2
+      return await r2GetText(env, key);
+    }
+  }
+  return await r2GetText(env, key);
+}
+
+// D1 未启用时 conventional 写（老逻辑）
+async function r2PutJson(env, key, text, message) {
+  await env.UPLOADS.put(key, text, {
     httpMetadata: { contentType: 'application/json', cacheControl: 'no-cache, no-store, must-revalidate' },
     customMetadata: { updatedAt: new Date().toISOString(), message: message || '' }
   });
 }
 
-/* ===== 业主登录（服务端校验房号+姓名+手机后四位，签发 resident token）===== */
+async function writeDocText(env, key, text, message, by) {
+  if (await d1Ready(env)) {
+    try {
+      if (key === V_CANTEEN_ORDERS) {
+        await virtualOrdersWrite(env, safeJsonParse(text, null));
+        return;
+      }
+      if (key === V_CANTEEN_USERS) {
+        await virtualUsersWrite(env, safeJsonParse(text, null));
+        return;
+      }
+      if (key.startsWith('polls-responses/')) {
+        throw new Error('投票数据由 /api/vote 接口写入');
+      }
+      // 先惰性导入（防止覆盖未导入的 R2 内容），再写入
+      if (null === await d1ReadDocText(env, key)) {
+        const legacy = await r2GetText(env, key);
+        if (legacy !== null) await d1ImportDoc(env, key, legacy);
+      }
+      await d1WriteDocChunks(env, key, text);
+      if (text.length <= D1_DOC_MIRROR_LIMIT) {
+        try { await r2PutJson(env, key, text, message); } catch (e2) { /* 镜像失败不影响主存 */ }
+      }
+      return;
+    } catch (e) {
+      if (String(e && e.message).indexOf('/api/vote') >= 0) throw e;
+      // D1 故障降级 R2
+      await r2PutJson(env, key, text, message);
+      return;
+    }
+  }
+  await r2PutJson(env, key, text, message);
+}
+
+async function deleteDocText(env, key) {
+  if (await d1Ready(env)) {
+    try {
+      if (key === V_CANTEEN_ORDERS) {
+        await d1Run(env, 'DELETE FROM order_packages', []);
+        await d1Run(env, 'DELETE FROM canteen_orders', []);
+        return;
+      }
+      if (key === V_CANTEEN_USERS) {
+        await d1Run(env, 'DELETE FROM canteen_txns', []);
+        await d1Run(env, 'DELETE FROM canteen_penalties', []);
+        await d1Run(env, 'DELETE FROM canteen_balances', []);
+        return;
+      }
+      if (key.startsWith('polls-responses/')) {
+        await d1Run(env, 'DELETE FROM votes WHERE bucket=?', [key]);
+        return;
+      }
+      await d1Run(env, 'DELETE FROM doc_chunks WHERE key=?', [key]);
+      await d1Run(env, 'DELETE FROM docs WHERE key=?', [key]);
+    } catch (e) { /* 降级 */ }
+  }
+  try { await env.UPLOADS.delete(key); } catch (e) {}
+}
+
+// JSON 便捷封装（全站统一入口）
+async function readDocJson(env, key, fallback) {
+  const text = await readDocText(env, key);
+  if (text === null || text === undefined) return fallback;
+  const v = safeJsonParse(text, null);
+  return v === null ? fallback : v;
+}
+
+async function writeDocJson(env, key, data, message) {
+  await writeDocText(env, key, JSON.stringify(data, null, 2), message);
+}
+
+/* ---------- D1 导入（/api/setup 调用） ---------- */
+
+async function r2ListKeys(env, prefix) {
+  const keys = [];
+  let cursor;
+  try {
+    for (let i = 0; i < 40; i++) {
+      const opts = { prefix: prefix };
+      if (cursor) opts.cursor = cursor;
+      const res = await env.UPLOADS.list(opts);
+      if (!res || !res.objects) break;
+      for (const o of res.objects) keys.push(o.key);
+      if (!res.truncated || !res.cursor) break;
+      cursor = res.cursor;
+    }
+  } catch (e) {}
+  return keys;
+}
+
+async function d1ImportVotes(env) {
+  const keys = await r2ListKeys(env, 'polls-responses/');
+  let imported = 0, skipped = 0, dup = 0, rows = 0;
+  keys.sort();
+  for (const key of keys) {
+    const done = await d1First(env, 'SELECT imported_at FROM doc_meta WHERE key=?', ['votefile:' + key]);
+    if (done) { skipped += 1; continue; }
+    const text = await r2GetText(env, key);
+    const arr = safeJsonParse(text, null);
+    if (!Array.isArray(arr)) {
+      await d1Run(env, 'INSERT OR REPLACE INTO doc_meta (key, info, imported_at) VALUES (?,?,?)',
+        ['votefile:' + key, 'not-array', Date.now()]);
+      continue;
+    }
+    for (const r of arr) {
+      if (!r || !r.pollId) continue;
+      try {
+        const res = await d1Run(env,
+          `INSERT OR IGNORE INTO votes
+             (poll_id, user_id, room_no, name, area, choice, vote_time, ip_hash, device_hash, nonce, prev_hash, bucket, seq, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          [String(r.pollId).slice(0, 80), String(r.residentId || r.userId || '').slice(0, 80),
+            String(r.roomNo || '').slice(0, 60), String(r.name || '').slice(0, 60),
+            Number(r.area) || 0, JSON.stringify(r.choice === undefined ? null : r.choice),
+            String(r.voteTime || new Date().toISOString()).slice(0, 40),
+            String(r.ipHash || '').slice(0, 80), String(r.deviceHash || '').slice(0, 80),
+            String(r.nonce || '').slice(0, 80), String(r.prevHash || '').slice(0, 80),
+            key, Number(r.seq) || 0, Date.parse(r.voteTime || '') || Date.now()]);
+        rows += 1;
+      } catch (e) {
+        dup += 1; // UNIQUE 冲突 = 重复票（保留第一条）
+      }
+    }
+    await d1Run(env, 'INSERT OR REPLACE INTO doc_meta (key, info, imported_at) VALUES (?,?,?)',
+      ['votefile:' + key, JSON.stringify({ count: arr.length }), Date.now()]);
+    imported += 1;
+  }
+  return { files: keys.length, imported, skipped, dup, rows };
+}
+
+async function d1BackfillCanteen(env) {
+  const done = await d1First(env, 'SELECT imported_at FROM doc_meta WHERE key=?', [DOC_META_CANTEEN_ORDERS]);
+  if (done) return { skipped: true };
+  // 订单 + 套餐行
+  const ordersDoc = await r2GetText(env, 'canteen-orders.json');
+  let orders = [];
+  if (ordersDoc) {
+    const parsed = safeJsonParse(ordersDoc, null);
+    orders = parsed && Array.isArray(parsed.orders) ? parsed.orders : (Array.isArray(parsed) ? parsed : []);
+  }
+  let orderCount = 0;
+  for (const o of orders.slice(0, 5000)) {
+    if (!o || !o.orderId) continue;
+    await d1Run(env,
+      `INSERT OR IGNORE INTO canteen_orders (order_id, user_id, order_date, meal_type, status, pay_mode, total, data, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      [String(o.orderId).slice(0, 64), String(o.userId || '').slice(0, 80),
+        String(o.orderDate || '').slice(0, 10), String(o.mealType || '').slice(0, 16),
+        String(o.status || 'pending').slice(0, 16), String(o.payMode || '').slice(0, 16),
+        Number(o.totalAmount) || 0, JSON.stringify(o),
+        Number.isFinite(Date.parse(o.createdAt || '')) ? Date.parse(o.createdAt) : Date.now()]);
+    for (const p of (Array.isArray(o.packages) ? o.packages : [])) {
+      if (!p) continue;
+      await d1Run(env,
+        `INSERT OR IGNORE INTO order_packages (order_id, pkg_id, name, price, quantity) VALUES (?,?,?,?,?)`,
+        [String(o.orderId).slice(0, 64), String(p.pkgId || p.id || '-').slice(0, 64),
+          String(p.name || '').slice(0, 120), Number(p.price) || 0, parseInt(p.quantity, 10) || 0]);
+    }
+    orderCount += 1;
+  }
+  // 账本
+  const usersDoc = await r2GetText(env, 'canteen-users.json');
+  let balCount = 0, penCount = 0, txnCount = 0;
+  if (usersDoc) {
+    const u = safeJsonParse(usersDoc, null) || {};
+    for (const uid of Object.keys(u.balances || {})) {
+      const r = u.balances[uid] || {};
+      if (typeof r.balance !== 'number') continue;
+      balCount += 1;
+      await d1Run(env,
+        `INSERT OR IGNORE INTO canteen_balances (user_id, name, room_no, balance, updated_at) VALUES (?,?,?,?,?)`,
+        [uid, String(r.name || '').slice(0, 60), String(r.roomNo || '').slice(0, 60),
+          r.balance, Date.parse(r.updatedAt || '') || Date.now()]);
+    }
+    for (const pen of (Array.isArray(u.penalties) ? u.penalties : [])) {
+      if (!pen || !pen.userId) continue;
+      penCount += 1;
+      await d1Run(env,
+        `INSERT INTO canteen_penalties (user_id, name, order_id, reason, active, revoked_by, revoked_at, at)
+         VALUES (?,?,?,?,?,?,?,?)`,
+        [String(pen.userId).slice(0, 80), String(pen.name || '').slice(0, 60), pen.orderId || null,
+          String(pen.reason || '').slice(0, 160), pen.active ? 1 : 0, pen.revokedBy || null,
+          pen.revokedAt || null, pen.at || new Date().toISOString()]);
+    }
+    for (const t of (Array.isArray(u.transactions) ? u.transactions : [])) {
+      if (!t || !t.txnId) continue;
+      txnCount += 1;
+      await d1Run(env,
+        `INSERT OR IGNORE INTO canteen_txns (txn_id, user_id, name, type, amount, order_id, note, at, created_at)
+         VALUES (?,?,?,?,?,?,?,?,?)`,
+        [String(t.txnId).slice(0, 64), String(t.userId || '').slice(0, 80), String(t.name || '').slice(0, 60),
+          String(t.type || 'adjust').slice(0, 16), Number(t.amount) || 0, t.orderId || null,
+          String(t.note || '').slice(0, 160), t.at || new Date().toISOString(),
+          Date.parse(t.at || '') || Date.now()]);
+    }
+  }
+  await d1Run(env, 'INSERT OR REPLACE INTO doc_meta (key, info, imported_at) VALUES (?,?,?)',
+    [DOC_META_CANTEEN_ORDERS, JSON.stringify({ orders: orderCount }), Date.now()]);
+  await d1Run(env, 'INSERT OR REPLACE INTO doc_meta (key, info, imported_at) VALUES (?,?,?)',
+    [DOC_META_CANTEEN_USERS, JSON.stringify({ balances: balCount }), Date.now()]);
+  return { skipped: false, orders: orderCount, balances: balCount, penalties: penCount, transactions: txnCount };
+}
+
+async function handleSetup(request, env) {
+  let admin;
+  try { admin = await requireAuth(request, env); }
+  catch (e) { return jsonResponse({ success: false, error: '需要管理员权限' }, 401); }
+  const isD1 = await d1Ready(env);
+  if (!isD1) {
+    return jsonResponse({ success: false, error: 'D1 未绑定或不可用（将在未启用 D1 的部署上运行迁移前检查）' }, 400,
+      { 'X-D1': 'off' });
+  }
+  const votesImport = await d1ImportVotes(env);
+  const canteenBackfill = await d1BackfillCanteen(env);
+
+  const counts = {};
+  const q = async (name, sql, params) => {
+    try { const r = await d1First(env, sql, params || []); counts[name] = Number((r && Object.values(r)[0]) || 0); }
+    catch (e) { counts[name] = 'ERR'; }
+  };
+  await q('docs', 'SELECT COUNT(*) FROM docs');
+  await q('doc_chunks', 'SELECT COUNT(*) FROM doc_chunks');
+  await q('votes', 'SELECT COUNT(*) FROM votes');
+  await q('canteen_orders', 'SELECT COUNT(*) FROM canteen_orders');
+  await q('canteen_balances', 'SELECT COUNT(*) FROM canteen_balances');
+  await q('canteen_txns', 'SELECT COUNT(*) FROM canteen_txns');
+  await q('canteen_penalties', 'SELECT COUNT(*) FROM canteen_penalties');
+
+  return jsonResponse({
+    success: true,
+    by: (admin && (admin.sub || admin.role)) || 'admin',
+    storage: 'D1',
+    counts: counts,
+    imports: { votes: votesImport, canteen: canteenBackfill },
+    note: 'D1 已启用并完成建表/历史导入'
+  });
+}
+
+async function handleSetupStatus(request, env) {
+  try { await requireAuth(request, env); }
+  catch (e) { return jsonResponse({ success: false, error: '需要管理员权限' }, 401); }
+  const isD1 = await d1Ready(env);
+  const out = { success: true, storage: isD1 ? 'D1' : 'R2', d1: isD1 };
+  if (isD1) {
+    try {
+      const row = await d1First(env,
+        `SELECT (SELECT COUNT(*) FROM docs) AS docs,
+                (SELECT COUNT(*) FROM doc_chunks) AS chunks,
+                (SELECT COUNT(*) FROM votes) AS votes,
+                (SELECT COUNT(*) FROM canteen_orders) AS orders,
+                (SELECT COUNT(*) FROM canteen_balances) AS balances,
+                (SELECT COUNT(*) FROM canteen_txns) AS txns,
+                (SELECT COUNT(*) FROM admins) AS admins`, []);
+      out.counts = row;
+      const markers = await d1All(env, 'SELECT key, imported_at FROM doc_meta', []);
+      out.imported = markers.map(m => ({ key: m.key, at: m.imported_at }));
+    } catch (e) { out.error = e.message; }
+  }
+  return jsonResponse(out);
+}
+
+/* ===== 业主登录（服务端校验房号+姓名+手机后四位/身份证后四位，签发 resident token）===== */
 async function handleResidentsLogin(request, env) {
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   if (!checkRateLimit(ip)) return jsonResponse({ success: false, error: '尝试过于频繁，请稍后再试' }, 429);
+  const ipHash = await sha256Hex(ip);
+  if (await d1IsLocked(env, 'reslogin', ipHash)) {
+    return jsonResponse({ success: false, error: '尝试次数过多，请 15 分钟后再试' }, 429);
+  }
   const body = await request.json().catch(() => ({}));
   const roomNo = String(body.roomNo || '').trim();
   const name = String(body.name || '').trim();
   const phoneSuffix = String(body.phoneSuffix || '').trim();
-  if (!roomNo || !name || !phoneSuffix) return jsonResponse({ success: false, error: '请填写完整信息' }, 400);
+  const idSuffix = String(body.idSuffix || '').trim();
+  if (!roomNo || !name || (!phoneSuffix && !idSuffix)) return jsonResponse({ success: false, error: '请填写完整信息' }, 400);
   const candidates = ['residents.json', 'data/residents.json', 'community/residents.json'];
   let residents = null;
   for (const p of candidates) {
-    const v = await readJsonFile(env, p, null);
+    const v = await readDocJson(env, p, null);
     if (Array.isArray(v) && v.length) { residents = v; break; }
   }
   if (!residents) return jsonResponse({ success: false, error: '居民数据未配置' }, 500);
-  const match = residents.find(r => String(r.roomNo) === roomNo && String(r.name) === name &&
-    String(r.phoneSuffix || '') === phoneSuffix && r.status === 'active');
-  if (!match) return jsonResponse({ success: false, error: '信息不匹配，请联系物业核实' }, 401);
-  const token = await createToken('resident', env.JWT_SECRET, { roomNo: String(match.roomNo), name: String(match.name) }, 30 * 24 * 60 * 60 * 1000);
-  return jsonResponse({ success: true, token: token, name: String(match.name), roomNo: String(match.roomNo) });
+  const match = residents.find(r => {
+    if (String(r.roomNo) !== roomNo || String(r.name) !== name || r.status !== 'active') return false;
+    if (phoneSuffix) return String(r.phoneSuffix || '') === phoneSuffix;
+    // 身份证后四位（与投票页验证规则一致：优先 idCardHash，无则退化 phoneSuffix）
+    if (r.idCardHash && String(r.idCardHash).length >= 4) {
+      return String(r.idCardHash).slice(-4) === idSuffix;
+    }
+    if (r.phoneSuffix) return String(r.phoneSuffix).slice(-4) === idSuffix;
+    return !r.idCardHash && !r.phoneSuffix; // 均未配置时视为匹配（测试数据兼容）
+  });
+  if (!match) {
+    await d1RecordFail(env, 'reslogin', ipHash, 15 * 60 * 1000);
+    return jsonResponse({ success: false, error: '信息不匹配，请联系物业核实' }, 401);
+  }
+  await d1ClearFails(env, 'reslogin', ipHash);
+  const token = await createToken('resident', env.JWT_SECRET, {
+    roomNo: String(match.roomNo),
+    name: String(match.name),
+    rid: String(match.id || '')
+  }, 30 * 24 * 60 * 60 * 1000);
+  return jsonResponse({
+    success: true, token: token, name: String(match.name), roomNo: String(match.roomNo),
+    rid: String(match.id || ''), area: Number(match.area) || 0
+  });
 }
 
 /* ===== 食堂：业主视角数据（仅本人订单 + 余额 + 信用 + 我的流水）===== */
@@ -268,6 +1029,10 @@ async function handleCanteenOrder(request, env) {
   if (!Array.isArray(body.packages) || !body.packages.length) return jsonResponse({ success: false, error: '购物车为空' }, 400);
   if (Date.now() > canteenDeadline(dateStr, mealType).getTime()) {
     return jsonResponse({ success: false, error: '该餐别已截止预订' }, 400);
+  }
+  // ===== D1 模式：表化订单 + 数据库级库存守卫 + 余额原子扣款 =====
+  if (await d1Ready(env)) {
+    return await handleCanteenOrderD1(request, env, owner, body, dateStr, mealType, userId);
   }
   // 读取数据（订单 / 菜单 / 账本）
   const ordersData = await readJsonFile(env, 'canteen-orders.json', { orders: [] });
@@ -362,6 +1127,133 @@ async function handleCanteenOrder(request, env) {
   return jsonResponse({ success: true, order: order, payMode: payMode, balance: typeof rec.balance === 'number' ? rec.balance : cur });
 }
 
+/* ===== D1 模式：服务端下单（订单/套餐/余额/流水原子落库）===== */
+async function handleCanteenOrderD1(request, env, owner, body, dateStr, mealType, userId) {
+  // 频次：同一业主单日最多 8 单
+  const dayKey = userId + ':' + new Date().toISOString().slice(0, 10);
+  if (!(await d1AllowUsage(env, 'canteen-order', dayKey, 8, 24 * 3600 * 1000))) {
+    return jsonResponse({ success: false, error: '今日下单次数已达上限' }, 429);
+  }
+  // 爽约停用检查（数据库级）
+  const pen = await d1First(env,
+    'SELECT reason FROM canteen_penalties WHERE user_id=? AND active=1 ORDER BY id DESC LIMIT 1', [userId]);
+  if (pen) {
+    return jsonResponse({ success: false, error: '您的订餐资格已停用（' + (pen.reason || '爽约') + '），请联系食堂管理员解除' }, 403);
+  }
+  // 菜单校验 + 服务端重新计价（库存守卫用订单表聚合，不再信任文档 sold）
+  const menu = await readDocJson(env, 'canteen-menu.json', { menus: {} });
+  const day = menu.menus && menu.menus[dateStr];
+  const meal = day && day.meals ? day.meals[mealType] : null;
+  if (!meal || !meal.packages) return jsonResponse({ success: false, error: '该日期暂无菜单' }, 400);
+  const packArr = [];
+  let totalAmount = 0;
+  for (const it of (Array.isArray(body.packages) ? body.packages : [])) {
+    const pkg = meal.packages.find(p => p.id === it.pkgId);
+    if (!pkg) return jsonResponse({ success: false, error: '套餐已下架：' + (it.pkgId || '') }, 400);
+    const qty = parseInt(it.quantity, 10);
+    if (!qty || qty <= 0 || qty > 50) return jsonResponse({ success: false, error: '份数无效' }, 400);
+    const stock = (pkg.stock === -1 || pkg.stock === null || pkg.stock === undefined) ? Infinity : (pkg.stock || 0);
+    const remaining = stock === Infinity ? Infinity : stock - (await soldCountFor(env, dateStr, mealType, String(pkg.id)));
+    if (qty > remaining) {
+      return jsonResponse({ success: false, error: '订购未成功：「' + pkg.name + '」库存不足，当前仅可订 ' + Math.max(0, remaining) + ' 份' }, 400);
+    }
+    packArr.push({ pkgId: pkg.id, name: pkg.name, price: pkg.price, quantity: qty });
+    totalAmount = Math.round((totalAmount + pkg.price * qty) * 100) / 100;
+  }
+  if (!packArr.length) return jsonResponse({ success: false, error: '购物车为空' }, 400);
+
+  // 余额（数据库原子扣减：WHERE balance >= ? 保证不透支）
+  let balRow = await d1First(env,
+    'SELECT balance, name, room_no FROM canteen_balances WHERE user_id=?', [userId]);
+  if (!balRow) {
+    await d1Run(env,
+      'INSERT OR IGNORE INTO canteen_balances (user_id, name, room_no, balance, updated_at) VALUES (?,?,?,0,?)',
+      [userId, owner.name, owner.roomNo, Date.now()]);
+    balRow = { balance: 0 };
+  }
+  const cur = Math.round((Number(balRow.balance) || 0) * 100) / 100;
+  const useBalance = cur >= totalAmount && totalAmount > 0;
+
+  const now = Date.now();
+  const rand = Math.random().toString(36).slice(2, 8);
+  const order = {
+    orderId: 'ord-' + now + '-' + rand,
+    userId: userId,
+    payMode: useBalance ? 'balance' : 'postpaid',
+    userName: String(body.userName || owner.name).slice(0, 40),
+    userPhone: String(body.userPhone || '').slice(0, 20),
+    orderDate: dateStr,
+    mealType: mealType,
+    mealName: ({ breakfast: '早餐', lunch: '午餐', dinner: '晚餐' })[mealType] || mealType,
+    packages: packArr,
+    peopleCount: parseInt(body.peopleCount, 10) || 1,
+    pickupType: ['self', 'dinein', 'delivery'].includes(body.pickupType) ? body.pickupType : 'self',
+    deliveryAddress: body.pickupType === 'delivery' ? String(body.deliveryAddress || '').slice(0, 120) : '',
+    totalAmount: totalAmount,
+    status: 'pending',
+    remark: String(body.remark || '').slice(0, 200),
+    createdAt: new Date().toISOString(),
+    confirmedAt: null, cancelledAt: null, completedAt: null, cancelReason: null
+  };
+
+  const statements = [
+    env.DB.prepare(
+      `INSERT INTO canteen_orders (order_id, user_id, order_date, meal_type, status, pay_mode, total, data, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?)`)
+      .bind(order.orderId, userId, dateStr, mealType, 'pending', order.payMode, totalAmount,
+        JSON.stringify(order), now)
+  ];
+  for (const p of packArr) {
+    statements.push(env.DB.prepare(
+      'INSERT OR IGNORE INTO order_packages (order_id, pkg_id, name, price, quantity) VALUES (?,?,?,?,?)')
+      .bind(order.orderId, String(p.pkgId).slice(0, 64), String(p.name).slice(0, 120),
+        Number(p.price) || 0, p.quantity));
+  }
+  if (useBalance) {
+    statements.push(env.DB.prepare(
+      `UPDATE canteen_balances SET balance = balance - ?, updated_at = ? WHERE user_id=? AND balance >= ?`)
+      .bind(totalAmount, now, userId, totalAmount));
+  }
+  const res = await env.DB.batch(statements);
+  let deducted = useBalance;
+  if (useBalance) {
+    const upd = res[res.length - 1];
+    const changed = upd && upd.meta && typeof upd.meta.changes === 'number' ? upd.meta.changes : 1;
+    if (changed === 0) {
+      // 扣款条件未满足（并发消耗）→ 回退到店付款（订单仍在，无扣款事务）
+      deducted = false;
+      order.payMode = 'postpaid';
+      await d1Run(env, 'UPDATE canteen_orders SET pay_mode=?, data=? WHERE order_id=?',
+        ['postpaid', JSON.stringify(order), order.orderId]);
+    } else {
+      await d1Run(env,
+        `INSERT INTO canteen_txns (txn_id, user_id, name, type, amount, order_id, note, at, created_at)
+         VALUES (?,?,?,?,?,?,?,?,?)`,
+        ['txn-' + now + '-' + rand, userId, owner.name, 'order', -totalAmount, order.orderId,
+          dateStr + ' 预订', order.createdAt, now]);
+    }
+  }
+
+  // 库存显示字段最佳努力更新（真实守卫在订单表聚合）
+  try {
+    for (const p of packArr) {
+      const pkg = meal.packages.find(x => x.id === p.pkgId);
+      if (pkg && pkg.stock !== -1 && pkg.stock !== null && pkg.stock !== undefined) {
+        pkg.sold = (pkg.sold || 0) + p.quantity;
+      }
+    }
+    await writeDocJson(env, 'canteen-menu.json', menu, '扣减库存 ' + dateStr + ' ' + mealType);
+  } catch (e) { /* 显示字段，失败可容忍 */ }
+
+  const newBalance = deducted ? Math.round((cur - totalAmount) * 100) / 100 : cur;
+  return jsonResponse({
+    success: true,
+    order: order,
+    payMode: order.payMode,
+    balance: newBalance
+  });
+}
+
 /* ===== 阳光资金：业主实名异议（服务端附加，姓名/房号取自 token）===== */
 async function handleFundsDispute(request, env) {
   let owner;
@@ -380,8 +1272,89 @@ async function handleFundsDispute(request, env) {
   });
   if (data.disputes.length > 200) data.disputes.length = 200;
   data.updatedAt = new Date().toISOString();
-  await writeJsonFile(env, 'funds-data.json', data, '业主异议 ' + owner.roomNo);
+  await writeDocJson(env, 'funds-data.json', data, '业主异议 ' + owner.roomNo);
   return jsonResponse({ success: true });
+}
+
+/* ===== 投票提交（D1：一人一票 + 服务端续链；业主实名 token 强制）===== */
+function voteRowToLegacy(r) {
+  return voteLegacyObj({
+    pollId: r.poll_id, residentId: r.user_id, roomNo: r.room_no,
+    area: Number(r.area) || 0,
+    choice: safeJsonParse(r.choice, r.choice),
+    voteTime: r.vote_time, ipHash: r.ip_hash, deviceHash: r.device_hash,
+    nonce: r.nonce, prevHash: r.prev_hash
+  });
+}
+
+async function handleVotePost(request, env) {
+  let owner;
+  try { owner = await verifyResidentRequest(request, env); }
+  catch (e) { return jsonResponse({ success: false, error: e.message }, 401); }
+  if (!(await d1Ready(env))) {
+    return jsonResponse({ success: false, error: '投票服务暂不可用，请稍后再试' }, 503);
+  }
+  const body = await request.json().catch(() => ({}));
+  const pollId = String(body.pollId || '').trim().slice(0, 80);
+  const deviceHash = String(body.deviceHash || '').slice(0, 80);
+  if (!pollId) return jsonResponse({ success: false, error: '参数错误' }, 400);
+  let choice = body.choice === undefined ? null : body.choice;
+  try { const s = JSON.stringify(choice); if (!s || s.length > 4000) choice = s ? safeJsonParse(s, null) : null; }
+  catch (e) { return jsonResponse({ success: false, error: '选项数据无效' }, 400); }
+
+  // 服务器侧居民档案：防伪造投票权重
+  const candidates = ['residents.json', 'data/residents.json', 'community/residents.json'];
+  let match = null;
+  for (const p of candidates) {
+    const residents = await readDocJson(env, p, null);
+    if (Array.isArray(residents) && residents.length) {
+      match = residents.find(r => String(r.roomNo) === String(owner.roomNo) && String(r.name) === String(owner.name) &&
+        (!owner.rid || String(r.id) === String(owner.rid))) || match || null;
+      if (match) break;
+    }
+  }
+  if (!match) return jsonResponse({ success: false, error: '业主身份未在居民名册中找到，请联系管理员' }, 403);
+  const userId = String(match.id || owner.rid || ('u-' + String(owner.roomNo).replace(/\s+/g, '') + '-' + String(owner.name).replace(/\s+/g, ''))).slice(0, 80);
+
+  // 投票活动校验（进行中才可投）
+  const polls = await readDocJson(env, 'data/polls.json', []);
+  const poll = Array.isArray(polls) ? polls.find(p => p && String(p.id) === pollId) : null;
+  if (!poll) return jsonResponse({ success: false, error: '投票活动不存在' }, 404);
+  if (poll.status && poll.status !== '进行中') {
+    return jsonResponse({ success: false, error: '该投票已' + poll.status }, 403);
+  }
+
+  // 哈希链：以库内最后一票续链（服务端计算，客户端无法重写历史）
+  const lastRow = await d1First(env,
+    'SELECT * FROM votes WHERE poll_id=? ORDER BY seq DESC, id DESC LIMIT 1', [pollId]);
+  let prevHash = '';
+  if (lastRow) {
+    prevHash = await sha256Hex(JSON.stringify(voteRowToLegacy(lastRow)));
+  }
+  const seqRow = await d1First(env, 'SELECT COALESCE(MAX(seq),0)+1 AS seq FROM votes WHERE poll_id=?', [pollId]);
+  const seq = Number(seqRow && seqRow.seq) || 1;
+  const now = new Date();
+  const bucket = 'polls-responses/' + now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '.json';
+  const nonce = Math.random().toString(36).slice(2, 12) + now.getTime().toString(36);
+  const ipHash = await sha256Hex(request.headers.get('CF-Connecting-IP') || 'unknown');
+  const voteTime = now.toISOString();
+  const area = Number(match.area) || 0;
+
+  try {
+    await d1Run(env,
+      `INSERT INTO votes (poll_id, user_id, room_no, name, area, choice, vote_time, ip_hash, device_hash, nonce, prev_hash, bucket, seq, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [pollId, userId, String(owner.roomNo), String(owner.name), area,
+        JSON.stringify(choice), voteTime, ipHash, deviceHash, nonce, prevHash, bucket, seq, now.getTime()]);
+  } catch (e) {
+    return jsonResponse({ success: false, error: '您已投过票，请勿重复提交' }, 409);
+  }
+
+  const record = voteLegacyObj({
+    pollId, residentId: userId, roomNo: String(owner.roomNo), area,
+    choice, voteTime, ipHash, deviceHash, nonce, prevHash
+  });
+  return jsonResponse({ success: true, record: record, caseNo: poll.caseNo || '' });
 }
 
 // ==================== 主入口 ====================
@@ -431,6 +1404,19 @@ export default {
       }
       if (path === '/api/funds/dispute' && request.method === 'POST') {
         return await handleFundsDispute(request, env);
+      }
+
+      // ===== 投票（D1：数据库级一人一票 + 服务端哈希链）=====
+      if (path === '/api/vote' && request.method === 'POST') {
+        return await handleVotePost(request, env);
+      }
+
+      // ===== D1 初始化 / 状态（管理员）=====
+      if (path === '/api/setup' && request.method === 'POST') {
+        return await handleSetup(request, env);
+      }
+      if (path === '/api/setup' && request.method === 'GET') {
+        return await handleSetupStatus(request, env);
       }
 
       // ===== 管理员账号管理（仅总维护人员）=====
@@ -506,6 +1492,13 @@ async function handleLogin(request, env) {
   if (!checkRateLimit(clientIP)) {
     return jsonResponse({ success: false, error: '尝试次数过多，请 15 分钟后再试' }, 429);
   }
+  const loginIpHash = await sha256Hex(clientIP);
+  if (await d1IsLocked(env, 'login', loginIpHash)) {
+    return jsonResponse({ success: false, error: '尝试次数过多，请 15 分钟后再试' }, 429);
+  }
+  const loginFail = async () => {
+    await d1RecordFail(env, 'login', loginIpHash, 15 * 60 * 1000);
+  };
 
   // A) 用户名登录：优先匹配个人账号姓名
   if (user) {
@@ -514,10 +1507,11 @@ async function handleLogin(request, env) {
     if (acc) {
       const blocked = accountLoginError(acc);
       if (blocked) return jsonResponse({ success: false, error: blocked }, 403);
-      const hash = await sha256Hex(password);
-      if (!acc.passHash || (acc.passHash !== hash && acc.passHash !== password)) {
+      if (!(await verifyAccountPassword(env, acc, password))) {
+        await loginFail();
         return jsonResponse({ success: false, error: '密码错误' }, 401);
       }
+      await d1ClearFails(env, 'login', loginIpHash);
       const token = await createToken(acc.role, env.JWT_SECRET, { sub: acc.name, accountId: acc.id }, ttl);
       return jsonResponse({
         success: true, token, role: acc.role,
@@ -536,15 +1530,16 @@ async function handleLogin(request, env) {
     };
     const roleId = ALIASES[user];
     if (roleId) {
-      const correctPwd = env[getPasswordEnvKey(roleId)];
-      if (correctPwd && password === correctPwd) {
-        const token = await createToken(roleId, env.JWT_SECRET, {}, ttl);
-        return jsonResponse({
-          success: true, token, role: roleId, name: getRoleDisplayName(roleId),
-          permissions: getRolePermissions(roleId), remember: !!remember
-        });
+      if (!(await verifyBuiltinPassword(env, roleId, password))) {
+        await loginFail();
+        return jsonResponse({ success: false, error: '密码错误' }, 401);
       }
-      return jsonResponse({ success: false, error: '密码错误' }, 401);
+      await d1ClearFails(env, 'login', loginIpHash);
+      const token = await createToken(roleId, env.JWT_SECRET, {}, ttl);
+      return jsonResponse({
+        success: true, token, role: roleId, name: getRoleDisplayName(roleId),
+        permissions: getRolePermissions(roleId), remember: !!remember
+      });
     }
     return jsonResponse({ success: false, error: '用户名不存在或未通过审批' }, 401);
   }
@@ -556,10 +1551,11 @@ async function handleLogin(request, env) {
     if (!acc0) return jsonResponse({ success: false, error: '账号不存在或已被移除' }, 401);
     const blocked0 = accountLoginError(acc0);
     if (blocked0) return jsonResponse({ success: false, error: blocked0 }, 403);
-    const hash0 = await sha256Hex(password);
-    if (!acc0.passHash || (acc0.passHash !== hash0 && acc0.passHash !== password)) {
+    if (!(await verifyAccountPassword(env, acc0, password))) {
+      await loginFail();
       return jsonResponse({ success: false, error: '密码错误' }, 401);
     }
+    await d1ClearFails(env, 'login', loginIpHash);
     const token0 = await createToken(acc0.role, env.JWT_SECRET, { sub: acc0.name, accountId: acc0.id });
     return jsonResponse({
       success: true,
@@ -575,9 +1571,9 @@ async function handleLogin(request, env) {
   const envKey = getPasswordEnvKey(role);
   if (!envKey) return jsonResponse({ success: false, error: '无效身份' }, 400);
 
-  // 1) 环境变量角色密码（5 个内置身份）
-  const correct = env[envKey];
-  if (correct && password === correct) {
+  // 1) 环境变量角色密码（5 个内置身份；PBKDF2 升级存储在 admins 表）
+  if (await verifyBuiltinPassword(env, role, password)) {
+    await d1ClearFails(env, 'login', loginIpHash);
     const token = await createToken(role, env.JWT_SECRET);
     return jsonResponse({
       success: true,
@@ -590,27 +1586,72 @@ async function handleLogin(request, env) {
 
   // 2) 经审批的个人管理员账号（data/admin-accounts.json）
   const accounts = await readAdminAccounts(env);
-  const hash = await sha256Hex(password);
-  const acc = accounts.find(a =>
-    a.role === role &&
-    a.passHash && (a.passHash === hash || a.passHash === password) // 兼容早期明文
-  );
-  if (acc) {
-    const blocked = accountLoginError(acc);
+  let matched = null;
+  for (const a of accounts) {
+    if (a.role === role && a.passHash && (await verifyAccountPassword(env, a, password))) {
+      matched = a; break;
+    }
+  }
+  if (matched) {
+    const blocked = accountLoginError(matched);
     if (blocked) return jsonResponse({ success: false, error: blocked }, 403);
-    const token = await createToken(role, env.JWT_SECRET, { sub: acc.name, accountId: acc.id });
+    await d1ClearFails(env, 'login', loginIpHash);
+    const token = await createToken(role, env.JWT_SECRET, { sub: matched.name, accountId: matched.id });
     return jsonResponse({
       success: true,
       token,
       role,
-      name: acc.name || getRoleDisplayName(role),
+      name: matched.name || getRoleDisplayName(role),
       permissions: getRolePermissions(role),
-      accountId: acc.id,
-      modules: acc.modules || null // 账号级板块开关（null = 默认全开）
+      accountId: matched.id,
+      modules: matched.modules || null // 账号级板块开关（null = 默认全开）
     });
   }
 
+  await loginFail();
   return jsonResponse({ success: false, error: '密码错误' }, 401);
+}
+
+// 管理员密码验证：PBKDF2（admins 表，D1）优先，sha256/明文兼容（升级窗口）
+async function verifyAccountPassword(env, acc, password) {
+  if (D1_STATE.ready) {
+    try {
+      const row = await d1First(env, 'SELECT salt, iters, hash FROM admins WHERE kind=? AND key=?', ['account', String(acc.id || '')]);
+      if (row) {
+        const t = await pbkdf2Hash(password, String(row.salt), Number(row.iters) || 100000);
+        if (t === String(row.hash)) return true;
+      }
+    } catch (e) { /* 降级 */ }
+  }
+  const direct = acc.passHash && (acc.passHash === password);
+  const sha = acc.passHash && (acc.passHash === await sha256Hex(password));
+  if (sha || direct) {
+    if (D1_STATE.ready) {
+      await upgradeAdminPassword(env, 'account', String(acc.id || ''), acc.name, password);
+    }
+    return true;
+  }
+  return false;
+}
+
+async function verifyBuiltinPassword(env, roleId, password) {
+  const correct = env[getPasswordEnvKey(roleId)];
+  if (!correct) return false;
+  if (D1_STATE.ready) {
+    try {
+      const row = await d1First(env, 'SELECT salt, iters, hash FROM admins WHERE kind=? AND key=?', ['builtin', roleId]);
+      if (row) {
+        const t = await pbkdf2Hash(password, String(row.salt), Number(row.iters) || 100000);
+        if (t === String(row.hash)) return true;
+      }
+      if (password === correct) {
+        await upgradeAdminPassword(env, 'builtin', roleId, getRoleDisplayName(roleId), password);
+        return true;
+      }
+      return false;
+    } catch (e) { /* D1 故障降级明文比对 */ }
+  }
+  return password === correct;
 }
 
 async function handleVerify(request, env) {
@@ -651,35 +1692,26 @@ async function handleData(request, env, path) {
     const filePath = 'data/' + dataType + '.json';
 
     if (request.method === 'GET') {
-      const object = await env.UPLOADS.get(filePath);
-      if (!object) {
+      const text = await readDocText(env, filePath);
+      if (text === null || text === undefined) {
         if (dataType === 'module-config') {
           return jsonResponse({ success: true, data: getDefaultModuleConfig() });
         }
         return jsonResponse({ success: true, data: [] });
       }
-      const text = await object.text();
-      return jsonResponse({ success: true, data: JSON.parse(text) });
+      const v = safeJsonParse(text, null);
+      return jsonResponse({ success: true, data: v });
     }
 
     if (request.method === 'POST') {
       const body = await request.json();
       const content = JSON.stringify(body.data || body, null, 2);
-      await env.UPLOADS.put(filePath, content, {
-        httpMetadata: {
-          contentType: 'application/json',
-          cacheControl: 'no-cache, no-store, must-revalidate'
-        },
-        customMetadata: {
-          updatedAt: new Date().toISOString(),
-          updatedBy: user.role
-        }
-      });
+      await writeDocText(env, filePath, content, '管理员数据更新 ' + dataType, user.role);
       return jsonResponse({ success: true });
     }
 
     if (request.method === 'DELETE') {
-      await env.UPLOADS.delete(filePath);
+      await deleteDocText(env, filePath);
       return jsonResponse({ success: true });
     }
 
@@ -710,6 +1742,37 @@ function getDefaultModuleConfig() {
 
 // ==================== 原有业务接口（保留不变）====================
 
+// 上传白名单与上限
+const MAX_UPLOAD_SIZE = 8 * 1024 * 1024; // 8MB
+const UPLOAD_EXT_OK = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'zip', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'mov'];
+
+async function uploadAllowed(request, env, file, folder) {
+  if (file.size > MAX_UPLOAD_SIZE) {
+    return '文件过大（上限 8MB）';
+  }
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const typeOk = (file.type && (file.type.startsWith('image/') || file.type.startsWith('video/'))) ||
+    UPLOAD_EXT_OK.includes(ext);
+  if (!typeOk || folder === 'uploads') {
+    return '不支持的文件类型';
+  }
+  // 限流：未登录 30 张/天；登录（业主/管理员）200 张/天
+  const ipHash = await sha256Hex(request.headers.get('CF-Connecting-IP') || 'unknown');
+  let cap = 30;
+  try {
+    const auth = request.headers.get('Authorization') || '';
+    if (auth.startsWith('Bearer ')) {
+      const payload = await verifyToken(auth.slice(7), env.JWT_SECRET);
+      if (payload) cap = 200;
+    }
+  } catch (e) {}
+  const dayKey = ipHash + ':' + new Date().toISOString().slice(0, 10);
+  if (!(await d1AllowUsage(env, 'upload', dayKey, cap, 24 * 3600 * 1000))) {
+    return '今日上传次数已达上限';
+  }
+  return null;
+}
+
 async function handleUpload(request, env) {
   const formData = await request.formData();
   const file = formData.get('file');
@@ -726,7 +1789,10 @@ async function handleUpload(request, env) {
   let folder = 'uploads';
   if (file.type.startsWith('image/')) folder = 'images';
   else if (file.type.startsWith('video/')) folder = 'videos';
-  else if (['pdf','doc','docx','xls','xlsx','csv','txt'].includes(ext)) folder = 'files';
+  else if (['pdf','doc','docx','xls','xlsx','csv','txt','zip'].includes(ext)) folder = 'files';
+
+  const block = await uploadAllowed(request, env, file, folder);
+  if (block) return jsonResponse({ error: block }, 403);
 
   const key = `${folder}/${timestamp}_${random}_${safeName}`;
 
@@ -784,6 +1850,10 @@ async function handleBatchUpload(request, env) {
       let folder = 'uploads';
       if (file.type.startsWith('image/')) folder = 'images';
       else if (file.type.startsWith('video/')) folder = 'videos';
+      else if (['pdf','doc','docx','xls','xlsx','csv','txt','zip'].includes(ext)) folder = 'files';
+
+      const block = await uploadAllowed(request, env, file, folder);
+      if (block) { errors.push({ name: file.name, error: block }); continue; }
 
       const key = `${folder}/${timestamp}_${random}_${safeName}`;
       const isImage = file.type.startsWith('image/');
@@ -844,13 +1914,12 @@ async function handleRead(request, env) {
     catch (e) { return jsonResponse({ error: '该文件需管理员权限读取' }, 401); }
   }
 
-  const object = await env.UPLOADS.get(filePath);
+  const text = await readDocText(env, filePath);
 
-  if (!object) {
+  if (text === null || text === undefined) {
     return jsonResponse({ error: '文件不存在' }, 404);
   }
 
-  const text = await object.text();
   return new Response(text, {
     headers: {
       ...CORS_HEADERS,
@@ -875,12 +1944,25 @@ async function handleWrite(request, env) {
     filePath.startsWith('polls') || filePath.startsWith('trade') || fileName.startsWith('polls') ||
     filePath.indexOf('/complaints') >= 0 || filePath.indexOf('/workorders') >= 0 ||
     filePath.indexOf('/polls') >= 0 || filePath.indexOf('/trade') >= 0;
+  let isAnonWrite = false;
   if (!ANON_OK) {
     let adminErr = null;
     try { await requireAuth(request, env); } catch (e) { adminErr = e; }
     if (adminErr) {
       // 业主 token 也不可写管理文件
       return jsonResponse({ error: '该文件需要管理员登录后才能写入' }, 401);
+    }
+  } else {
+    isAnonWrite = true;
+  }
+
+  // ===== 投票数据保护（D1 模式：投票一律走 /api/vote，数据库级一人一票）=====
+  if (await d1Ready(env)) {
+    if (filePath.startsWith('polls-responses/')) {
+      return jsonResponse({ error: '投票请通过投票页提交（服务端一人一票）' }, 403);
+    }
+    if (filePath === 'data/polls.json' && isAnonWrite) {
+      return jsonResponse({ error: '投票配置为管理员数据' }, 403);
     }
   }
 
@@ -894,16 +1976,23 @@ async function handleWrite(request, env) {
   const content = body.content || JSON.stringify(body);
   const message = body.message || 'update';
 
-  await env.UPLOADS.put(filePath, content, {
-    httpMetadata: {
-      contentType: 'application/json',
-      cacheControl: 'no-cache, no-store, must-revalidate'
-    },
-    customMetadata: {
-      updatedAt: new Date().toISOString(),
-      message: message
-    }
-  });
+  // 内容大小护栏（单次写 ≤ 5MB）
+  if (content.length > 5 * 1024 * 1024) {
+    return jsonResponse({ error: '数据过大（超过 5MB）' }, 413);
+  }
+
+  // 匿名写限流：100 次/天/IP
+  if (isAnonWrite) {
+    try {
+      const ipHash = await sha256Hex(request.headers.get('CF-Connecting-IP') || 'unknown');
+      const dayKey = ipHash + ':' + new Date().toISOString().slice(0, 10);
+      if (!(await d1AllowUsage(env, 'anon-write', dayKey, 100, 24 * 3600 * 1000))) {
+        return jsonResponse({ error: '今日提交次数已达上限，请明天再试' }, 429);
+      }
+    } catch (e) { /* 限流器故障不阻塞 */ }
+  }
+
+  await writeDocText(env, filePath, content, message);
 
   return jsonResponse({
     success: true,
@@ -920,7 +2009,7 @@ async function handleDelete(request, env) {
   try { await requireAuth(request, env); }
   catch (e) { return jsonResponse({ error: '删除操作需要管理员权限' }, 401); }
 
-  await env.UPLOADS.delete(filePath);
+  await deleteDocText(env, filePath);
 
   return jsonResponse({
     success: true,
