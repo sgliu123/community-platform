@@ -262,7 +262,32 @@ async function doLogin(){
   btn.disabled = true; btn.textContent = '验证中...';
   await loadData();
 
-  const resident = verifyResident(room, name, suffix);
+  // 服务端实名登录优先（D1 投票通道需要 token + 服务端投票权重）
+  let srvResident = null;
+  let srvToken = '';
+  const wb = getWorkerBase();
+  if (wb !== null) {
+    try{
+      const res = await fetch(wb + '/api/residents/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomNo: room, name: name, idSuffix: suffix })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        srvToken = data.token || '';
+        srvResident = appData.residents.find(function(r){ return r.roomNo === room && r.name === name; }) || { id: data.rid || '', roomNo: room, name: name, area: data.area || 0 };
+        if (!srvResident.id) srvResident.id = data.rid || '';
+      } else if (res.status === 401 || res.status === 403) {
+        err.textContent = data.error || '身份验证失败，请检查房号、姓名和身份证后4位';
+        err.style.display = 'block';
+        btn.disabled = false; btn.textContent = '验证并进入';
+        return;
+      }
+    }catch(e){ /* 旧版后端或网络异常：回退本地校验 */ }
+  }
+
+  const resident = srvResident || verifyResident(room, name, suffix);
   if(!resident){
     err.textContent = '身份验证失败，请检查房号、姓名和身份证后4位';
     err.style.display = 'block';
@@ -271,7 +296,8 @@ async function doLogin(){
   }
 
   currentResident = resident;
-  sessionStorage.setItem('voteResident', JSON.stringify({id: resident.id, roomNo: resident.roomNo, name: resident.name, loginAt: Date.now()}));
+  if (srvToken) currentResident.token = srvToken;
+  sessionStorage.setItem('voteResident', JSON.stringify({id: resident.id, roomNo: resident.roomNo, name: resident.name, token: srvToken || '', loginAt: Date.now()}));
   btn.disabled = false; btn.textContent = '验证并进入';
   enterMain();
 }
@@ -526,34 +552,58 @@ async function doSubmitVote(){
     const deviceHash = await sha256(navigator.userAgent || 'unknown');
     const nonce = Math.random().toString(36).substring(2,10) + Date.now().toString(36);
 
-    // 读取已有响应，计算 prevHash
-    const d = new Date();
-    const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
-    let responses = [];
-    try{ responses = await workerRead(path); }catch(e){ responses = []; }
-    if(!Array.isArray(responses)) responses = [];
-    const pollVotes = responses.filter(r => r.pollId === currentPoll.id);
-    let prevHash = '';
-    if(pollVotes.length > 0){
-      const last = pollVotes[pollVotes.length - 1];
-      prevHash = await sha256(JSON.stringify(last));
+    let voteRecord = null;
+
+    // 服务端投票（D1：一人一票 + 服务端续链，实名权重由服务端核定）
+    const wb = getWorkerBase();
+    if (currentResident.token && wb !== null) {
+      const res = await fetch(wb + '/api/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentResident.token },
+        body: JSON.stringify({ pollId: currentPoll.id, choice: pendingAnswers, deviceHash: deviceHash })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        voteRecord = data.record;
+      } else if (res.status === 409) {
+        showToast('您已投过票，请勿重复提交', 'error'); closeConfirm(); return;
+      } else if (res.status === 404 || res.status === 503) {
+        voteRecord = null; // 旧版后端：回退本地链路
+      } else {
+        throw new Error(data.error || '提交失败，请稍后再试');
+      }
     }
 
-    const voteRecord = {
-      pollId: currentPoll.id,
-      residentId: currentResident.id,
-      roomNo: currentResident.roomNo,
-      area: currentResident.area || 0,
-      choice: pendingAnswers,
-      voteTime: new Date().toISOString(),
-      ipHash: ipHash,
-      deviceHash: deviceHash,
-      nonce: nonce,
-      prevHash: prevHash
-    };
+    // 旧版回退：读文件续链 + 整文件写（历史兼容）
+    if (!voteRecord) {
+      const d = new Date();
+      const path = 'polls-responses/' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '.json';
+      let responses = [];
+      try{ responses = await workerRead(path); }catch(e){ responses = []; }
+      if(!Array.isArray(responses)) responses = [];
+      const pollVotes = responses.filter(r => r.pollId === currentPoll.id);
+      let prevHash = '';
+      if(pollVotes.length > 0){
+        const last = pollVotes[pollVotes.length - 1];
+        prevHash = await sha256(JSON.stringify(last));
+      }
 
-    responses.push(voteRecord);
-    await workerWrite(path, responses, '业主 ' + currentResident.roomNo + ' 投票 ' + currentPoll.caseNo);
+      voteRecord = {
+        pollId: currentPoll.id,
+        residentId: currentResident.id,
+        roomNo: currentResident.roomNo,
+        area: currentResident.area || 0,
+        choice: pendingAnswers,
+        voteTime: new Date().toISOString(),
+        ipHash: ipHash,
+        deviceHash: deviceHash,
+        nonce: nonce,
+        prevHash: prevHash
+      };
+
+      responses.push(voteRecord);
+      await workerWrite(path, responses, '业主 ' + currentResident.roomNo + ' 投票 ' + currentPoll.caseNo);
+    }
 
     showToast('投票成功，感谢您的参与！', 'success');
     generateVoterReceipt(voteRecord);
@@ -574,6 +624,13 @@ async function init(){
     try{
       const s = JSON.parse(saved);
       if(s.loginAt && Date.now() - s.loginAt < 8*3600*1000){
+        if(s.token){
+          // 服务端实名会话：直接恢复（含 token 与投票权重）
+          await loadData();
+          const r = appData.residents.find(r => r.id === s.id) || null;
+          currentResident = r ? Object.assign({}, r, { token: s.token }) : { id: s.id, roomNo: s.roomNo, name: s.name, token: s.token, area: 0 };
+          enterMain(); return;
+        }
         await loadData();
         currentResident = appData.residents.find(r => r.id === s.id);
         if(currentResident){ enterMain(); return; }
