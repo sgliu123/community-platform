@@ -122,6 +122,18 @@ function checkRateLimit(ip) {
   return true;
 }
 
+// UTF-8 安全的 base64（中文 token 载荷必需；兼容旧版 ASCII 签名做双格式校验）
+function b64uEncode(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+function b64uDecode(b64) {
+  const bin = atob(b64);
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+
 async function createToken(role, secret, extra = {}, ttlMs = 8 * 60 * 60 * 1000) {
   const payload = JSON.stringify({ role, ...extra, iat: Date.now(), exp: Date.now() + ttlMs });
   const encoder = new TextEncoder();
@@ -131,14 +143,17 @@ async function createToken(role, secret, extra = {}, ttlMs = 8 * 60 * 60 * 1000)
   );
   const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
   const sigHex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
-  return btoa(payload) + '.' + sigHex;
+  return b64uEncode(payload) + '.' + sigHex;
 }
 
 async function verifyToken(token, secret) {
   try {
     const [dataB64, sigHex] = token.split('.');
     if (!dataB64 || !sigHex) return null;
-    const payload = JSON.parse(atob(dataB64));
+    let payload;
+    try { payload = JSON.parse(b64uDecode(dataB64)); }
+    catch (e1) { payload = JSON.parse(atob(dataB64)); }  // 兼容旧版 ASCII token
+    if (!payload) return null;
     if (Date.now() > payload.exp) return null;
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
@@ -157,7 +172,216 @@ async function requireAuth(request, env) {
   if (!auth.startsWith('Bearer ')) throw new Error('未登录');
   const payload = await verifyToken(auth.slice(7), env.JWT_SECRET);
   if (!payload) throw new Error('登录已过期');
+  if (!payload.role || payload.role === 'resident') throw new Error('无管理员权限');
   return payload;
+}
+
+// ===== 业主侧鉴权（resident token：业主登录后签发的 HMAC 令牌）=====
+async function verifyResidentRequest(request, env) {
+  const auth = request.headers.get('Authorization') || '';
+  if (!auth.startsWith('Bearer ')) throw new Error('未登录业主账号');
+  const payload = await verifyToken(auth.slice(7), env.JWT_SECRET);
+  if (!payload || payload.role !== 'resident' || !payload.roomNo || !payload.name) throw new Error('登录已失效，请重新登录');
+  return payload;
+}
+
+async function readJsonFile(env, filePath, fallback) {
+  try {
+    const obj = await env.UPLOADS.get(filePath);
+    if (!obj) return fallback;
+    const txt = await obj.text();
+    return txt ? JSON.parse(txt) : fallback;
+  } catch (e) { return fallback; }
+}
+
+async function writeJsonFile(env, filePath, data, message) {
+  await env.UPLOADS.put(filePath, JSON.stringify(data, null, 2), {
+    httpMetadata: { contentType: 'application/json', cacheControl: 'no-cache, no-store, must-revalidate' },
+    customMetadata: { updatedAt: new Date().toISOString(), message: message || '' }
+  });
+}
+
+/* ===== 业主登录（服务端校验房号+姓名+手机后四位，签发 resident token）===== */
+async function handleResidentsLogin(request, env) {
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (!checkRateLimit(ip)) return jsonResponse({ success: false, error: '尝试过于频繁，请稍后再试' }, 429);
+  const body = await request.json().catch(() => ({}));
+  const roomNo = String(body.roomNo || '').trim();
+  const name = String(body.name || '').trim();
+  const phoneSuffix = String(body.phoneSuffix || '').trim();
+  if (!roomNo || !name || !phoneSuffix) return jsonResponse({ success: false, error: '请填写完整信息' }, 400);
+  const candidates = ['residents.json', 'data/residents.json', 'community/residents.json'];
+  let residents = null;
+  for (const p of candidates) {
+    const v = await readJsonFile(env, p, null);
+    if (Array.isArray(v) && v.length) { residents = v; break; }
+  }
+  if (!residents) return jsonResponse({ success: false, error: '居民数据未配置' }, 500);
+  const match = residents.find(r => String(r.roomNo) === roomNo && String(r.name) === name &&
+    String(r.phoneSuffix || '') === phoneSuffix && r.status === 'active');
+  if (!match) return jsonResponse({ success: false, error: '信息不匹配，请联系物业核实' }, 401);
+  const token = await createToken('resident', env.JWT_SECRET, { roomNo: String(match.roomNo), name: String(match.name) }, 30 * 24 * 60 * 60 * 1000);
+  return jsonResponse({ success: true, token: token, name: String(match.name), roomNo: String(match.roomNo) });
+}
+
+/* ===== 食堂：业主视角数据（仅本人订单 + 余额 + 信用 + 我的流水）===== */
+async function handleCanteenOwnerState(request, env) {
+  let owner;
+  try { owner = await verifyResidentRequest(request, env); } catch (e) { return jsonResponse({ success: false, error: e.message }, 401); }
+  const userId = 'u-' + String(owner.roomNo).trim().replace(/\s+/g, '') + '-' + String(owner.name).trim().replace(/\s+/g, '');
+  const ordersData = await readJsonFile(env, 'canteen-orders.json', { orders: [] });
+  const orders = (ordersData.orders || []).filter(o => o.userId === userId)
+    .slice().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 50);
+  const usersData = await readJsonFile(env, 'canteen-users.json', { balances: {}, penalties: [], transactions: [] });
+  const rec = (usersData.balances || {})[userId];
+  const penalty = (usersData.penalties || []).find(p => p.userId === userId && p.active) || null;
+  const transactions = (usersData.transactions || []).filter(t => t.userId === userId).slice(0, 10);
+  return jsonResponse({
+    success: true,
+    userId: userId,
+    orders: orders,
+    balance: rec && typeof rec.balance === 'number' ? rec.balance : 0,
+    penalty: penalty,
+    transactions: transactions
+  });
+}
+
+/* ===== 食堂：业主下单（服务端定价/库存/扣款，防止前端篡改）===== */
+function canteenDeadline(dateStr, mealType) {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (mealType === 'breakfast') { d.setDate(d.getDate() - 1); d.setHours(20, 0, 0, 0); }
+  else if (mealType === 'lunch') { d.setDate(d.getDate() - 1); d.setHours(22, 0, 0, 0); }
+  else if (mealType === 'dinner') { d.setHours(10, 0, 0, 0); }
+  else { d.setHours(12, 0, 0, 0); }
+  return d;
+}
+async function handleCanteenOrder(request, env) {
+  let owner;
+  try { owner = await verifyResidentRequest(request, env); } catch (e) { return jsonResponse({ success: false, error: e.message }, 401); }
+  const body = await request.json().catch(() => ({}));
+  const dateStr = String(body.orderDate || '');
+  const mealType = String(body.mealType || '');
+  const userId = 'u-' + String(owner.roomNo).trim().replace(/\s+/g, '') + '-' + String(owner.name).trim().replace(/\s+/g, '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr) || !['breakfast', 'lunch', 'dinner'].includes(mealType)) {
+    return jsonResponse({ success: false, error: '参数错误' }, 400);
+  }
+  if (!Array.isArray(body.packages) || !body.packages.length) return jsonResponse({ success: false, error: '购物车为空' }, 400);
+  if (Date.now() > canteenDeadline(dateStr, mealType).getTime()) {
+    return jsonResponse({ success: false, error: '该餐别已截止预订' }, 400);
+  }
+  // 读取数据（订单 / 菜单 / 账本）
+  const ordersData = await readJsonFile(env, 'canteen-orders.json', { orders: [] });
+  if (!Array.isArray(ordersData.orders)) ordersData.orders = [];
+  const menu = await readJsonFile(env, 'canteen-menu.json', { menus: {} });
+  if (!menu.menus) menu.menus = {};
+  const usersData = await readJsonFile(env, 'canteen-users.json', { balances: {}, penalties: [], transactions: [] });
+  if (!usersData.balances) usersData.balances = {};
+  if (!Array.isArray(usersData.penalties)) usersData.penalties = [];
+  if (!Array.isArray(usersData.transactions)) usersData.transactions = [];
+  const penalty = usersData.penalties.find(p => p.userId === userId && p.active);
+  if (penalty) return jsonResponse({ success: false, error: '您的订餐资格已停用（' + (penalty.reason || '爽约') + '），请联系食堂管理员解除' }, 403);
+  // 菜单校验 + 服务端重新计价 + 库存扣减
+  const day = menu.menus[dateStr];
+  const meal = day && day.meals ? day.meals[mealType] : null;
+  if (!meal || !meal.packages) return jsonResponse({ success: false, error: '该日期暂无菜单' }, 400);
+  const packArr = [];
+  let totalAmount = 0;
+  for (const it of body.packages) {
+    const pkg = meal.packages.find(p => p.id === it.pkgId);
+    if (!pkg) return jsonResponse({ success: false, error: '套餐已下架：' + (it.pkgId || '') }, 400);
+    const qty = parseInt(it.quantity, 10);
+    if (!qty || qty <= 0) return jsonResponse({ success: false, error: '份数无效' }, 400);
+    const remaining = (pkg.stock === -1 || pkg.stock === null || pkg.stock === undefined) ? Infinity : (pkg.stock || 0) - (pkg.sold || 0);
+    if (qty > remaining) return jsonResponse({ success: false, error: '订购未成功：「' + pkg.name + '」库存不足，当前仅可订 ' + Math.max(0, remaining) + ' 份' }, 400);
+    packArr.push({ pkgId: pkg.id, name: pkg.name, price: pkg.price, quantity: qty });
+    totalAmount = Math.round((totalAmount + pkg.price * qty) * 100) / 100;
+    if (pkg.stock !== -1 && pkg.stock !== null && pkg.stock !== undefined) pkg.sold = (pkg.sold || 0) + qty;
+  }
+  // 支付方式：余额充足即扣款（服务端操作账本），否则到店付款
+  let payMode = 'postpaid';
+  const rec = usersData.balances[userId] ||
+    (usersData.balances[userId] = { userId: userId, name: owner.name, roomNo: owner.roomNo, balance: 0, updatedAt: new Date().toISOString() });
+  const cur = typeof rec.balance === 'number' ? rec.balance : 0;
+  if (cur >= totalAmount && totalAmount > 0) {
+    payMode = 'balance';
+    rec.balance = Math.round((cur - totalAmount) * 100) / 100;
+    rec.updatedAt = new Date().toISOString();
+    usersData.transactions.unshift({ txnId: 'txn-' + Date.now(), userId: userId, name: owner.name, type: 'order', amount: -totalAmount, orderId: null, note: dateStr + ' 预订', at: new Date().toISOString() });
+    if (usersData.transactions.length > 300) usersData.transactions.length = 300;
+  }
+  const order = {
+    orderId: 'ord-' + Date.now(),
+    userId: userId,
+    payMode: payMode,
+    userName: String(body.userName || owner.name).slice(0, 40),
+    userPhone: String(body.userPhone || '').slice(0, 20),
+    orderDate: dateStr,
+    mealType: mealType,
+    mealName: ({ breakfast: '早餐', lunch: '午餐', dinner: '晚餐' })[mealType] || mealType,
+    packages: packArr,
+    peopleCount: parseInt(body.peopleCount, 10) || 1,
+    pickupType: ['self', 'dinein', 'delivery'].includes(body.pickupType) ? body.pickupType : 'self',
+    deliveryAddress: body.pickupType === 'delivery' ? String(body.deliveryAddress || '').slice(0, 120) : '',
+    totalAmount: totalAmount,
+    status: 'pending',
+    remark: String(body.remark || '').slice(0, 200),
+    createdAt: new Date().toISOString(),
+    confirmedAt: null, cancelledAt: null, completedAt: null, cancelReason: null
+  };
+  ordersData.orders.unshift(order);
+  if (ordersData.orders.length > 2000) ordersData.orders.length = 2000;
+  ordersData.updatedAt = new Date().toISOString();
+  let txn = payMode === 'balance' ? usersData.transactions[0] : null;
+  if (txn) txn.orderId = order.orderId;
+  // 写入：订单（失败即中止，未扣款不计账）→ 库存（尽力而为）→ 账本（失败则订单回退为到店付款，防止钱单不一致）
+  try {
+    await writeJsonFile(env, 'canteen-orders.json', ordersData, '业主下单 ' + order.orderId + (payMode === 'balance' ? '（余额扣款）' : '（到店付款）'));
+  } catch (e) {
+    return jsonResponse({ success: false, error: '下单保存失败，请重试' }, 500);
+  }
+  let deducted = false;
+  try { await writeJsonFile(env, 'canteen-menu.json', menu, '扣减库存 ' + dateStr + ' ' + mealType); } catch (e) {}
+  if (payMode === 'balance') {
+    deducted = true;
+    try {
+      await writeJsonFile(env, 'canteen-users.json', usersData, '余额扣款 ' + order.orderId + ' ¥' + totalAmount.toFixed(2));
+    } catch (e) {
+      deducted = false;
+      payMode = 'postpaid';
+      order.payMode = 'postpaid';
+      try {
+        rec.balance = Math.round((rec.balance + totalAmount) * 100) / 100;
+        usersData.transactions.unshift({ txnId: 'txn-' + Date.now(), userId: userId, name: owner.name, type: 'adjust', amount: totalAmount, orderId: order.orderId, note: '扣款落盘失败，系统回退', at: new Date().toISOString() });
+        await writeJsonFile(env, 'canteen-users.json', usersData, '扣款落盘失败回退 ' + order.orderId);
+        const od2 = ordersData.orders.find(x => x.orderId === order.orderId);
+        if (od2) od2.payMode = 'postpaid';
+        await writeJsonFile(env, 'canteen-orders.json', ordersData, '订单支付方式修正 ' + order.orderId);
+      } catch (e2) {}
+    }
+  }
+  return jsonResponse({ success: true, order: order, payMode: payMode, balance: typeof rec.balance === 'number' ? rec.balance : cur });
+}
+
+/* ===== 阳光资金：业主实名异议（服务端附加，姓名/房号取自 token）===== */
+async function handleFundsDispute(request, env) {
+  let owner;
+  try { owner = await verifyResidentRequest(request, env); } catch (e) { return jsonResponse({ success: false, error: e.message }, 401); }
+  const body = await request.json().catch(() => ({}));
+  const content = String(body.content || '').trim().slice(0, 500);
+  if (!content) return jsonResponse({ success: false, error: '请填写异议内容' }, 400);
+  const data = await readJsonFile(env, 'funds-data.json', { version: '1.0', accounts: [], txns: [], contracts: [], assets: [], disputes: [], audit: [] });
+  if (!Array.isArray(data.disputes)) data.disputes = [];
+  data.disputes.unshift({
+    disputeId: 'dsp-' + Date.now(),
+    userId: 'u-' + String(owner.roomNo).trim().replace(/\s+/g, '') + '-' + String(owner.name).trim().replace(/\s+/g, ''),
+    name: owner.name, roomNo: owner.roomNo,
+    content: content, status: '待处理', reply: '',
+    createdAt: new Date().toISOString()
+  });
+  if (data.disputes.length > 200) data.disputes.length = 200;
+  data.updatedAt = new Date().toISOString();
+  await writeJsonFile(env, 'funds-data.json', data, '业主异议 ' + owner.roomNo);
+  return jsonResponse({ success: true });
 }
 
 // ==================== 主入口 ====================
@@ -193,6 +417,20 @@ export default {
       }
       if (path === '/api/auth/login-targets' && request.method === 'GET') {
         return await handleLoginTargets(request, env);
+      }
+
+      // ===== 业主侧接口（resident token）=====
+      if (path === '/api/residents/login' && request.method === 'POST') {
+        return await handleResidentsLogin(request, env);
+      }
+      if (path === '/api/canteen/owner/state' && request.method === 'GET') {
+        return await handleCanteenOwnerState(request, env);
+      }
+      if (path === '/api/canteen/order' && request.method === 'POST') {
+        return await handleCanteenOrder(request, env);
+      }
+      if (path === '/api/funds/dispute' && request.method === 'POST') {
+        return await handleFundsDispute(request, env);
       }
 
       // ===== 管理员账号管理（仅总维护人员）=====
@@ -598,6 +836,14 @@ async function handleRead(request, env) {
     });
   }
 
+  // 读保护：敏感文件（订单含电话、账本含余额/身份）需管理员登录后读取
+  const base = filePath.split('/').pop() || '';
+  const ADMIN_ONLY_READ = ['canteen-orders.json', 'canteen-users.json', 'admin-accounts.json', 'accounts.json'];
+  if (ADMIN_ONLY_READ.includes(base)) {
+    try { await requireAuth(request, env); }
+    catch (e) { return jsonResponse({ error: '该文件需管理员权限读取' }, 401); }
+  }
+
   const object = await env.UPLOADS.get(filePath);
 
   if (!object) {
@@ -620,6 +866,22 @@ async function handleWrite(request, env) {
 
   if (!filePath) {
     return jsonResponse({ error: '路径不能为空' }, 400);
+  }
+
+  // ===== 写保护（L2 安全加固）=====
+  // 匿名只允许写业主提交类文件（投诉/工单/投票——路径或文件名以其开头/包含）
+  const fileName = filePath.split('/').pop() || '';
+  const ANON_OK = filePath.startsWith('complaints') || filePath.startsWith('workorders') ||
+    filePath.startsWith('polls') || filePath.startsWith('trade') || fileName.startsWith('polls') ||
+    filePath.indexOf('/complaints') >= 0 || filePath.indexOf('/workorders') >= 0 ||
+    filePath.indexOf('/polls') >= 0 || filePath.indexOf('/trade') >= 0;
+  if (!ANON_OK) {
+    let adminErr = null;
+    try { await requireAuth(request, env); } catch (e) { adminErr = e; }
+    if (adminErr) {
+      // 业主 token 也不可写管理文件
+      return jsonResponse({ error: '该文件需要管理员登录后才能写入' }, 401);
+    }
   }
 
   let body;
@@ -653,6 +915,10 @@ async function handleWrite(request, env) {
 async function handleDelete(request, env) {
   const url = new URL(request.url);
   const filePath = decodeURIComponent(url.pathname.replace('/api/delete/', ''));
+
+  // 删除操作一律需要管理员登录
+  try { await requireAuth(request, env); }
+  catch (e) { return jsonResponse({ error: '删除操作需要管理员权限' }, 401); }
 
   await env.UPLOADS.delete(filePath);
 

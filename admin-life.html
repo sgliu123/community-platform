@@ -389,10 +389,21 @@ const WORKER_BASE = (function(){
   return v;
 })();
 function getWorkerBase() { return WORKER_BASE === null ? null : WORKER_BASE.replace(/\/$/, ''); }
+/* 管理端身份头：所有写操作与敏感读操作必须携带管理员 token（/api/write 已加服务端门禁） */
+function getAdminAuthHeaders() {
+  try {
+    let t = sessionStorage.getItem('admin_auth_token');
+    if (!t) {
+      const raw = localStorage.getItem('admin_auth_remember');
+      if (raw) { const b = JSON.parse(raw); if (b && b.token && Date.now() < (b.expire || 0)) t = b.token; }
+    }
+    return t ? { 'Authorization': 'Bearer ' + t } : {};
+  } catch (e) { return {}; }
+}
 async function workerRead(filePath) {
   const base = getWorkerBase();
   if (base === null) throw new Error('云端读写已禁用（开发模式）');
-  const res = await fetch(base + '/api/read/' + encodeURIComponent(filePath) + '?_=' + Date.now() + '&r=' + Math.random().toString(36).substr(2,5), {cache: 'no-store'});
+  const res = await fetch(base + '/api/read/' + encodeURIComponent(filePath) + '?_=' + Date.now() + '&r=' + Math.random().toString(36).substr(2,5), Object.assign({ cache: 'no-store' }, getAdminAuthHeaders()));
   if (res.status === 404) return []; // 文件尚未创建 = 暂无数据
   if (!res.ok) throw new Error('读取失败');
   const t = await res.text();
@@ -402,7 +413,7 @@ async function workerWrite(filePath, data, message) {
   const base = getWorkerBase();
   if (base === null) throw new Error('云端读写已禁用（开发模式）');
   const res = await fetch(base + '/api/write/' + encodeURIComponent(filePath), {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, getAdminAuthHeaders()),
     body: JSON.stringify({ content: JSON.stringify(data, null, 2), message })
   });
   if (!res.ok) { const e = await res.json(); throw new Error(e.error || '保存失败'); }
