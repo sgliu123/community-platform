@@ -89,18 +89,25 @@ function showAdminLayout() {
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('tokenPage').style.display = 'none';
   document.getElementById('adminLayout').classList.add('active');
+  if (!currentAdmin && window.currentAdmin) {
+    // admin-auth.js 登录/免密恢复时已设置好规范化角色与权限，优先采用
+    currentAdmin = window.currentAdmin;
+  }
   if (!currentAdmin) {
-    // 优先从 admin-auth.js 的新认证系统恢复
+    // 从 sessionStorage 恢复（角色需归一：admin-x → x，与侧边栏 roles 名单一致）
     const authName = sessionStorage.getItem('admin_auth_name');
     const authRole = sessionStorage.getItem('admin_auth_role');
     const authPerms = sessionStorage.getItem('admin_auth_permissions');
     if (authName && authRole) {
       try {
         const permsObj = authPerms ? JSON.parse(authPerms) : {};
+        const roleNorm = (authRole === 'admin-super') ? 'super'
+          : (authRole === 'admin-dev') ? 'dev'
+          : (String(authRole).indexOf('admin-') === 0 ? String(authRole).slice(6) : authRole);
         currentAdmin = {
           id: authRole,
           name: authName,
-          role: (authRole === 'admin-super') ? 'super' : authRole,
+          role: roleNorm,
           permissions: Object.keys(permsObj).filter(function(k){ return permsObj[k]; })
         };
       } catch(e) {}
@@ -121,7 +128,7 @@ function showAdminLayout() {
     logout(); return;
   }
   document.getElementById('adminInfo').textContent = currentAdmin.name || '管理员';
-  const roleMap = { super: '总维护人员', admin: '管理员' };
+  const roleMap = { super: '总维护人员', dev: '开发者', property: '物管人员', committee: '业委会成员', community: '社区人员', admin: '管理员' };
   document.getElementById('adminRole').textContent = roleMap[currentAdmin.role] || currentAdmin.role;
   renderSidebar();
   const hash = location.hash;
