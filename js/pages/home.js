@@ -18,7 +18,10 @@ function renderHome() {
   h += `<div class="quick-link" onclick="navigate('activities')"><div class="icon">🎉</div><div class="label">社区动态</div></div>`;
   h += `<div class="quick-link" onclick="navigate('polls')"><div class="icon">🗳️</div><div class="label">投票征集</div></div>`;
   h += `<div class="quick-link" onclick="location.href='life.html'"><div class="icon">🍽️</div><div class="label">生活服务</div></div>`;
-  h += `<div class="quick-link" onclick="location.href='funds.html'"><div class="icon">🏦</div><div class="label">阳光资金</div></div>`;
+  // 阳光资金：受开发者工具「模块开关」控制（默认开启）
+  if (!appData.config || !appData.config.moduleSwitches || appData.config.moduleSwitches.funds !== false) {
+    h += `<div class="quick-link" onclick="location.href='funds.html'"><div class="icon">🏦</div><div class="label">阳光资金</div></div>`;
+  }
   h += `<div class="quick-link" onclick="location.href='trade.html'"><div class="icon">🛒</div><div class="label">房屋租售和物品交易</div></div>`;
   h += `<div class="quick-link" onclick="navigate('submit-workorder')"><div class="icon">🔧</div><div class="label">我要报修</div></div>`;
   h += `<div class="quick-link" onclick="navigate('submit-complaint')"><div class="icon">📝</div><div class="label">投诉建议</div></div>`;

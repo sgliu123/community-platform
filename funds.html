@@ -273,6 +273,12 @@ async function submitDispute() {
       if (cfg.community.siteTitle) document.getElementById('siteTitle').textContent = cfg.community.siteTitle;
       if (cfg.community.logo) document.getElementById('siteLogoIcon').innerHTML = '<img src="' + escapeHtml(cfg.community.logo) + '" alt="">';
     }
+    // 模块开关（开发者工具）：阳光资金关闭时前台不展示
+    if (cfg && cfg.moduleSwitches && cfg.moduleSwitches.funds === false) {
+      showPageLoading(false);
+      document.getElementById('main').innerHTML = '<div class="container"><div class="card"><div class="empty" style="padding:60px 0;"><div class="empty-icon">🔒</div><div>「阳光资金」公示模块暂未开放</div><div style="font-size:13px;margin-top:8px;color:var(--text-secondary);">如有疑问请联系社区管理单位</div><button class="btn-login" style="margin-top:16px;" onclick="location.href=\'index.html#/home\'">返回首页</button></div></div></div>';
+      return;
+    }
   } catch (e) {}
   try {
     const data = await workerRead('funds-data.json');

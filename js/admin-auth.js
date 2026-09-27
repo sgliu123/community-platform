@@ -613,9 +613,21 @@ setTimeout(() => {
     // 总维护人员 / 开发者不受任何板块开关限制
     const role = sessionStorage.getItem(CONFIG.ROLE_KEY) || '';
     if (role === 'admin-super' || role === 'admin-dev') return true;
-    // 全局板块开关（总维护在开发者工具设置）对所有人生效（admin-core.js 的侧边栏同理）
-    const config = getModuleConfig();
-    if (config && config.modules && config.modules[moduleId] && config.modules[moduleId].visible === false) return false;
+    // 全局板块开关对所有人生效（三处来源：localStorage config + appData.moduleSwitches + 模块配置接口）
+    let globalOff = false;
+    try {
+      const savedSwitches = JSON.parse(localStorage.getItem('config') || 'null');
+      if (savedSwitches && savedSwitches.moduleSwitches && savedSwitches.moduleSwitches[moduleId] === false) globalOff = true;
+    } catch (e) {}
+    try {
+      if (window.appData && window.appData.config && window.appData.config.moduleSwitches &&
+          window.appData.config.moduleSwitches[moduleId] === false) globalOff = true;
+    } catch (e) {}
+    if (!globalOff) {
+      const config = getModuleConfig();
+      if (config && config.modules && config.modules[moduleId] && config.modules[moduleId].visible === false) globalOff = true;
+    }
+    if (globalOff) return false;
     // 账号级开关（仅个人账号有值）：显式设置过则以账号设置为准（可超出身份基线）
     const acct = getAccountModules();
     if (acct && typeof acct[moduleId] === 'boolean') return acct[moduleId];
