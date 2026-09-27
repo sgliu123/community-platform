@@ -831,10 +831,19 @@ async function virtualUsersWrite(env, payload) {
 /* ---------- 文档读写核心（D1 + R2 桥接） ---------- */
 
 async function r2GetText(env, key) {
+  const o = await r2GetObject(env, key);
+  return o === null ? null : o.text;
+}
+
+// 返回文本 + 写入时间（customMetadata.updatedAt），供新旧同步判断
+async function r2GetObject(env, key) {
   try {
     const obj = await env.UPLOADS.get(key);
     if (!obj) return null;
-    return await obj.text();
+    const text = await obj.text();
+    let updatedAt = null;
+    try { updatedAt = Date.parse(((obj.customMetadata || {}).updatedAt) || '') || null; } catch (e2) {}
+    return { text: text, updatedAt: updatedAt };
   } catch (e) { return null; }
 }
 
@@ -885,9 +894,9 @@ async function d1ReadDocText(env, key) {
   return parts.map(p => String(p.chunk)).join('');
 }
 
-async function d1ImportDoc(env, key, text) {
+async function d1ImportDoc(env, key, text, force) {
   try {
-    if (await d1First(env, 'SELECT key FROM docs WHERE key=?', [key])) return;
+    if (!force && await d1First(env, 'SELECT key FROM docs WHERE key=?', [key])) return;
     await d1WriteDocChunks(env, key, text);
   } catch (e) { /* 导入失败不阻塞读路径 */ }
 }
@@ -1151,6 +1160,33 @@ async function d1BackfillCanteen(env) {
   return { skipped: false, orders: orderCount, balances: balCount, penalties: penCount, transactions: txnCount };
 }
 
+// 一次性 R2→D1 同步：D1 视图缺行或 R2 更新时导入（按 customMetadata.updatedAt 比较）
+async function d1SyncFromR2(env) {
+  if (!env.UPLOADS) return { skipped: true };
+  const done = await d1First(env, "SELECT imported_at FROM doc_meta WHERE key='sync-from-r2'", []);
+  if (done) return { skipped: true };
+  const keys = await r2ListKeys(env, '');
+  let checked = 0, synced = 0, skippedNewer = 0;
+  for (const key of keys) {
+    if (!key || key.indexOf('/') === -1) continue;
+    const base = key.split('/').pop() || '';
+    if (/\.(png|jpg|jpeg|webp|gif|mp4|mov|pdf|zip)$/i.test(base)) continue; // 二进制资产不进 docs
+    const obj = await r2GetObject(env, key);
+    if (obj === null || !obj.text) continue;
+    let parsed;
+    try { parsed = JSON.parse(obj.text); } catch (e) { continue; }
+    checked += 1;
+    const row = await d1First(env, 'SELECT updated_at FROM docs WHERE key=?', [key]);
+    const r2At = Number(obj.updatedAt) || 0;
+    if (row && Number(row.updated_at) >= r2At) { skippedNewer += 1; continue; }
+    await d1WriteDocChunks(env, key, obj.text);
+    synced += 1;
+  }
+  await d1Run(env, 'INSERT OR REPLACE INTO doc_meta (key, info, imported_at) VALUES (?,?,?)',
+    ['sync-from-r2', JSON.stringify({ checked: checked, synced: synced }), Date.now()]);
+  return { files: keys.length, checked: checked, synced: synced, skippedNewer: skippedNewer };
+}
+
 // 销量表聚合初始化（一次性）：以订单表真实聚合为准；幂等
 async function d1InitSoldAggregate(env) {
   const done = await d1First(env, 'SELECT imported_at FROM doc_meta WHERE key=?', [DOC_META_SOLD_INIT]);
@@ -1187,6 +1223,8 @@ async function handleSetup(request, env) {
   }
   const votesImport = await d1ImportVotes(env);
   const canteenBackfill = await d1BackfillCanteen(env);
+  let r2Sync = { skipped: true };
+  try { r2Sync = await d1SyncFromR2(env); } catch (e) { r2Sync = { error: e.message }; }
 
   let soldInit = { skipped: true };
   if (canteenBackfill.skipped) soldInit = await d1InitSoldAggregate(env);
@@ -1214,7 +1252,7 @@ async function handleSetup(request, env) {
     by: (admin && (admin.sub || admin.role)) || 'admin',
     storage: 'D1',
     counts: counts,
-    imports: { votes: votesImport, canteen: canteenBackfill, soldInit: soldInit },
+    imports: { votes: votesImport, canteen: canteenBackfill, r2Sync: r2Sync, soldInit: soldInit },
     note: 'D1 已启用并完成建表/历史导入'
   });
 }
