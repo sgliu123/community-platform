@@ -70,7 +70,7 @@
     var alive = h && (h.success === true);
     var dot = 'dot' + (alive ? (d1 ? ' ok d1' : ' ok') : ' err');
     return '<div class="card">' +
-      '<h3><span class="' + dot + '"></span>' + esc(t.name || t.tid) +
+      '<h3><span class="' + dot + '"></span>' + esc((h && h.name) || t.name || t.tid) +
       (t.current ? ' <span class="badge">当前小区</span>' : '') +
       (d1 ? ' <span class="badge d1">D1</span>' : '') +
       '</h3>' +
